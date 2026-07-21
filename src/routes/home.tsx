@@ -1,9 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Menu, Bell, MapPin, Check, ChevronRight, Droplet, TrendingUp, Calendar, Package, Stethoscope, ShoppingCart, Fish, HandCoins, Headphones, BarChart3, Volume2, Play } from "lucide-react";
+import { Menu, Bell, MapPin, Check, ChevronRight, Volume2, Play } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import feedSacks from "@/assets/feed-sacks.jpg";
 import fishDecor from "@/assets/fish-decor.jpg";
+
+import iconFeedSack from "@/assets/icons/feed-sack.png";
+import iconWaterDrop from "@/assets/icons/water-drop.png";
+import iconGrowth from "@/assets/icons/growth.png";
+import iconCalendar from "@/assets/icons/calendar-clock.png";
+import iconFeedCalc from "@/assets/icons/feed-calculator.png";
+import iconAiDoctor from "@/assets/icons/ai-fish-doctor.png";
+import iconBuyFeed from "@/assets/icons/buy-feed.png";
+import iconSellFish from "@/assets/icons/sell-fish.png";
+import iconMarketPrices from "@/assets/icons/market-prices.png";
+import iconLoans from "@/assets/icons/loans.png";
+import iconSupport from "@/assets/icons/support.png";
 
 export const Route = createFileRoute("/home")({
   component: HomePage,
@@ -17,15 +29,15 @@ export const Route = createFileRoute("/home")({
   }),
 });
 
-const quickActions = [
-  { Icon: Package, label: "Feed Calculator", tint: "bg-secondary text-primary" },
-  { Icon: Stethoscope, label: "AI Fish Doctor", tint: "bg-blue-100 text-blue-700", to: "/ai-doctor" },
-  { Icon: ShoppingCart, label: "Buy Feed", tint: "bg-secondary text-primary" },
-  { Icon: Fish, label: "Sell Fish", tint: "bg-secondary text-primary" },
-  { Icon: Droplet, label: "Water Monitor", tint: "bg-blue-100 text-blue-700" },
-  { Icon: BarChart3, label: "Market Prices", tint: "bg-yellow-100 text-yellow-700" },
-  { Icon: HandCoins, label: "Loans & Credit", tint: "bg-secondary text-primary" },
-  { Icon: Headphones, label: "Extension Support", tint: "bg-secondary text-primary" },
+const quickActions: { img: string; label: string; tint: string; to?: string }[] = [
+  { img: iconFeedCalc, label: "Feed Calculator", tint: "bg-secondary/60" },
+  { img: iconAiDoctor, label: "AI Fish Doctor", tint: "bg-blue-50", to: "/ai-doctor" },
+  { img: iconBuyFeed, label: "Buy Feed", tint: "bg-secondary/60" },
+  { img: iconSellFish, label: "Sell Fish", tint: "bg-secondary/60" },
+  { img: iconWaterDrop, label: "Water Monitor", tint: "bg-blue-50" },
+  { img: iconMarketPrices, label: "Market Prices", tint: "bg-yellow-50" },
+  { img: iconLoans, label: "Loans & Credit", tint: "bg-secondary/60" },
+  { img: iconSupport, label: "Extension Support", tint: "bg-yellow-50" },
 ];
 
 function HomePage() {
@@ -63,10 +75,10 @@ function HomePage() {
       </section>
 
       <section className="px-5 mt-4 grid grid-cols-2 gap-3">
-        <StatCard tint="bg-secondary/60" icon={<Package className="w-6 h-6 text-primary" />} label="Feed Today" value="4 Bags" sub="Recommended" />
-        <StatCard tint="bg-blue-50" icon={<Droplet className="w-6 h-6 text-blue-600" />} label="Water Quality" value="Good" sub="No issues" />
-        <StatCard tint="bg-yellow-50" icon={<TrendingUp className="w-6 h-6 text-green-700" />} label="Fish Growth" value="On Track" sub="↑ 12%" />
-        <StatCard tint="bg-purple-50" icon={<Calendar className="w-6 h-6 text-purple-700" />} label="Days to Harvest" value="21 Days" sub="Estimated" />
+        <StatCard tint="bg-secondary/60" img={iconFeedSack} label="Feed Today" value="4 Bags" sub="Recommended" />
+        <StatCard tint="bg-blue-50" img={iconWaterDrop} label="Water Quality" value="Good" sub="No issues" />
+        <StatCard tint="bg-yellow-50" img={iconGrowth} label="Fish Growth" value="On Track" sub="↑ 12%" />
+        <StatCard tint="bg-purple-50" img={iconCalendar} label="Days to Harvest" value="21 Days" sub="Estimated" />
       </section>
 
       <section className="mx-5 mt-4 rounded-2xl border border-border bg-card p-3 flex items-center gap-3">
@@ -92,11 +104,11 @@ function HomePage() {
           <a href="#" className="text-primary font-semibold text-[14px] flex items-center gap-0.5">View All <ChevronRight className="w-4 h-4" /></a>
         </div>
         <div className="mt-3 grid grid-cols-4 gap-3">
-          {quickActions.map(({ Icon, label, tint, to }) => {
+          {quickActions.map(({ img, label, tint, to }) => {
             const inner = (
               <>
                 <div className={`w-full aspect-square rounded-xl border border-border flex items-center justify-center ${tint}`}>
-                  <Icon className="w-6 h-6" />
+                  <img src={img} alt="" loading="lazy" width={512} height={512} className="w-9 h-9 object-contain" />
                 </div>
                 <div className="text-[11px] font-semibold text-center mt-1.5 text-foreground leading-tight">{label}</div>
               </>
@@ -126,10 +138,12 @@ function HomePage() {
   );
 }
 
-function StatCard({ tint, icon, label, value, sub }: { tint: string; icon: React.ReactNode; label: string; value: string; sub: string }) {
+function StatCard({ tint, img, label, value, sub }: { tint: string; img: string; label: string; value: string; sub: string }) {
   return (
     <div className={`${tint} rounded-2xl p-3 flex items-center gap-3`}>
-      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shrink-0">{icon}</div>
+      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shrink-0 overflow-hidden">
+        <img src={img} alt="" loading="lazy" width={512} height={512} className="w-9 h-9 object-contain" />
+      </div>
       <div className="min-w-0">
         <div className="text-[12px] text-muted-foreground">{label}</div>
         <div className="text-[16px] font-extrabold text-foreground leading-tight">{value}</div>
