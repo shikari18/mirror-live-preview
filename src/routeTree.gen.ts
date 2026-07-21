@@ -9,68 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WaterQualityRouteImport } from './routes/water-quality'
-import { Route as SellFishRouteImport } from './routes/sell-fish'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as MyFarmRouteImport } from './routes/my-farm'
-import { Route as MarketRouteImport } from './routes/market'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as HomeRouteImport } from './routes/home'
-import { Route as HarvestRouteImport } from './routes/harvest'
-import { Route as FeedCalculatorRouteImport } from './routes/feed-calculator'
-import { Route as AssistantRouteImport } from './routes/assistant'
-import { Route as AiDoctorRouteImport } from './routes/ai-doctor'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AiDoctorRouteImport } from './routes/ai-doctor'
+import { Route as AssistantRouteImport } from './routes/assistant'
+import { Route as FeedCalculatorRouteImport } from './routes/feed-calculator'
+import { Route as HarvestRouteImport } from './routes/harvest'
+import { Route as HomeRouteImport } from './routes/home'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MarketRouteImport } from './routes/market'
+import { Route as MyFarmRouteImport } from './routes/my-farm'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SellFishRouteImport } from './routes/sell-fish'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as WaterQualityRouteImport } from './routes/water-quality'
 import { Route as PondPondIdRouteImport } from './routes/pond.$pondId'
 
-const WaterQualityRoute = WaterQualityRouteImport.update({
-  id: '/water-quality',
-  path: '/water-quality',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SellFishRoute = SellFishRouteImport.update({
-  id: '/sell-fish',
-  path: '/sell-fish',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MyFarmRoute = MyFarmRouteImport.update({
-  id: '/my-farm',
-  path: '/my-farm',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MarketRoute = MarketRouteImport.update({
-  id: '/market',
-  path: '/market',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HomeRoute = HomeRouteImport.update({
-  id: '/home',
-  path: '/home',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HarvestRoute = HarvestRouteImport.update({
-  id: '/harvest',
-  path: '/harvest',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FeedCalculatorRoute = FeedCalculatorRouteImport.update({
-  id: '/feed-calculator',
-  path: '/feed-calculator',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AssistantRoute = AssistantRouteImport.update({
-  id: '/assistant',
-  path: '/assistant',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AiDoctorRoute = AiDoctorRouteImport.update({
@@ -78,9 +34,59 @@ const AiDoctorRoute = AiDoctorRouteImport.update({
   path: '/ai-doctor',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AssistantRoute = AssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedCalculatorRoute = FeedCalculatorRouteImport.update({
+  id: '/feed-calculator',
+  path: '/feed-calculator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HarvestRoute = HarvestRouteImport.update({
+  id: '/harvest',
+  path: '/harvest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketRoute = MarketRouteImport.update({
+  id: '/market',
+  path: '/market',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyFarmRoute = MyFarmRouteImport.update({
+  id: '/my-farm',
+  path: '/my-farm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellFishRoute = SellFishRouteImport.update({
+  id: '/sell-fish',
+  path: '/sell-fish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WaterQualityRoute = WaterQualityRouteImport.update({
+  id: '/water-quality',
+  path: '/water-quality',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PondPondIdRoute = PondPondIdRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/my-farm': typeof MyFarmRoute
   '/profile': typeof ProfileRoute
   '/sell-fish': typeof SellFishRoute
+  '/signup': typeof SignupRoute
   '/water-quality': typeof WaterQualityRoute
   '/pond/$pondId': typeof PondPondIdRoute
 }
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/my-farm': typeof MyFarmRoute
   '/profile': typeof ProfileRoute
   '/sell-fish': typeof SellFishRoute
+  '/signup': typeof SignupRoute
   '/water-quality': typeof WaterQualityRoute
   '/pond/$pondId': typeof PondPondIdRoute
 }
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/my-farm': typeof MyFarmRoute
   '/profile': typeof ProfileRoute
   '/sell-fish': typeof SellFishRoute
+  '/signup': typeof SignupRoute
   '/water-quality': typeof WaterQualityRoute
   '/pond/$pondId': typeof PondPondIdRoute
 }
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/my-farm'
     | '/profile'
     | '/sell-fish'
+    | '/signup'
     | '/water-quality'
     | '/pond/$pondId'
   fileRoutesByTo: FileRoutesByTo
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/my-farm'
     | '/profile'
     | '/sell-fish'
+    | '/signup'
     | '/water-quality'
     | '/pond/$pondId'
   id:
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/my-farm'
     | '/profile'
     | '/sell-fish'
+    | '/signup'
     | '/water-quality'
     | '/pond/$pondId'
   fileRoutesById: FileRoutesById
@@ -195,80 +207,18 @@ export interface RootRouteChildren {
   MyFarmRoute: typeof MyFarmRoute
   ProfileRoute: typeof ProfileRoute
   SellFishRoute: typeof SellFishRoute
+  SignupRoute: typeof SignupRoute
   WaterQualityRoute: typeof WaterQualityRoute
   PondPondIdRoute: typeof PondPondIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/water-quality': {
-      id: '/water-quality'
-      path: '/water-quality'
-      fullPath: '/water-quality'
-      preLoaderRoute: typeof WaterQualityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sell-fish': {
-      id: '/sell-fish'
-      path: '/sell-fish'
-      fullPath: '/sell-fish'
-      preLoaderRoute: typeof SellFishRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/my-farm': {
-      id: '/my-farm'
-      path: '/my-farm'
-      fullPath: '/my-farm'
-      preLoaderRoute: typeof MyFarmRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/market': {
-      id: '/market'
-      path: '/market'
-      fullPath: '/market'
-      preLoaderRoute: typeof MarketRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/home': {
-      id: '/home'
-      path: '/home'
-      fullPath: '/home'
-      preLoaderRoute: typeof HomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/harvest': {
-      id: '/harvest'
-      path: '/harvest'
-      fullPath: '/harvest'
-      preLoaderRoute: typeof HarvestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/feed-calculator': {
-      id: '/feed-calculator'
-      path: '/feed-calculator'
-      fullPath: '/feed-calculator'
-      preLoaderRoute: typeof FeedCalculatorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/assistant': {
-      id: '/assistant'
-      path: '/assistant'
-      fullPath: '/assistant'
-      preLoaderRoute: typeof AssistantRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ai-doctor': {
@@ -278,11 +228,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiDoctorRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/assistant': {
+      id: '/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feed-calculator': {
+      id: '/feed-calculator'
+      path: '/feed-calculator'
+      fullPath: '/feed-calculator'
+      preLoaderRoute: typeof FeedCalculatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/harvest': {
+      id: '/harvest'
+      path: '/harvest'
+      fullPath: '/harvest'
+      preLoaderRoute: typeof HarvestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/market': {
+      id: '/market'
+      path: '/market'
+      fullPath: '/market'
+      preLoaderRoute: typeof MarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-farm': {
+      id: '/my-farm'
+      path: '/my-farm'
+      fullPath: '/my-farm'
+      preLoaderRoute: typeof MyFarmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sell-fish': {
+      id: '/sell-fish'
+      path: '/sell-fish'
+      fullPath: '/sell-fish'
+      preLoaderRoute: typeof SellFishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/water-quality': {
+      id: '/water-quality'
+      path: '/water-quality'
+      fullPath: '/water-quality'
+      preLoaderRoute: typeof WaterQualityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pond/$pondId': {
@@ -307,9 +327,20 @@ const rootRouteChildren: RootRouteChildren = {
   MyFarmRoute: MyFarmRoute,
   ProfileRoute: ProfileRoute,
   SellFishRoute: SellFishRoute,
+  SignupRoute: SignupRoute,
   WaterQualityRoute: WaterQualityRoute,
   PondPondIdRoute: PondPondIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
