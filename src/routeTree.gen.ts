@@ -9,16 +9,30 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WaterQualityRouteImport } from './routes/water-quality'
+import { Route as SellFishRouteImport } from './routes/sell-fish'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MyFarmRouteImport } from './routes/my-farm'
 import { Route as MarketRouteImport } from './routes/market'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HomeRouteImport } from './routes/home'
+import { Route as HarvestRouteImport } from './routes/harvest'
+import { Route as FeedCalculatorRouteImport } from './routes/feed-calculator'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AiDoctorRouteImport } from './routes/ai-doctor'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PondPondIdRouteImport } from './routes/pond.$pondId'
 
+const WaterQualityRoute = WaterQualityRouteImport.update({
+  id: '/water-quality',
+  path: '/water-quality',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellFishRoute = SellFishRouteImport.update({
+  id: '/sell-fish',
+  path: '/sell-fish',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -42,6 +56,16 @@ const LoginRoute = LoginRouteImport.update({
 const HomeRoute = HomeRouteImport.update({
   id: '/home',
   path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HarvestRoute = HarvestRouteImport.update({
+  id: '/harvest',
+  path: '/harvest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedCalculatorRoute = FeedCalculatorRouteImport.update({
+  id: '/feed-calculator',
+  path: '/feed-calculator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssistantRoute = AssistantRouteImport.update({
@@ -69,22 +93,30 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-doctor': typeof AiDoctorRoute
   '/assistant': typeof AssistantRoute
+  '/feed-calculator': typeof FeedCalculatorRoute
+  '/harvest': typeof HarvestRoute
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/market': typeof MarketRoute
   '/my-farm': typeof MyFarmRoute
   '/profile': typeof ProfileRoute
+  '/sell-fish': typeof SellFishRoute
+  '/water-quality': typeof WaterQualityRoute
   '/pond/$pondId': typeof PondPondIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-doctor': typeof AiDoctorRoute
   '/assistant': typeof AssistantRoute
+  '/feed-calculator': typeof FeedCalculatorRoute
+  '/harvest': typeof HarvestRoute
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/market': typeof MarketRoute
   '/my-farm': typeof MyFarmRoute
   '/profile': typeof ProfileRoute
+  '/sell-fish': typeof SellFishRoute
+  '/water-quality': typeof WaterQualityRoute
   '/pond/$pondId': typeof PondPondIdRoute
 }
 export interface FileRoutesById {
@@ -92,11 +124,15 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ai-doctor': typeof AiDoctorRoute
   '/assistant': typeof AssistantRoute
+  '/feed-calculator': typeof FeedCalculatorRoute
+  '/harvest': typeof HarvestRoute
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/market': typeof MarketRoute
   '/my-farm': typeof MyFarmRoute
   '/profile': typeof ProfileRoute
+  '/sell-fish': typeof SellFishRoute
+  '/water-quality': typeof WaterQualityRoute
   '/pond/$pondId': typeof PondPondIdRoute
 }
 export interface FileRouteTypes {
@@ -105,33 +141,45 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-doctor'
     | '/assistant'
+    | '/feed-calculator'
+    | '/harvest'
     | '/home'
     | '/login'
     | '/market'
     | '/my-farm'
     | '/profile'
+    | '/sell-fish'
+    | '/water-quality'
     | '/pond/$pondId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/ai-doctor'
     | '/assistant'
+    | '/feed-calculator'
+    | '/harvest'
     | '/home'
     | '/login'
     | '/market'
     | '/my-farm'
     | '/profile'
+    | '/sell-fish'
+    | '/water-quality'
     | '/pond/$pondId'
   id:
     | '__root__'
     | '/'
     | '/ai-doctor'
     | '/assistant'
+    | '/feed-calculator'
+    | '/harvest'
     | '/home'
     | '/login'
     | '/market'
     | '/my-farm'
     | '/profile'
+    | '/sell-fish'
+    | '/water-quality'
     | '/pond/$pondId'
   fileRoutesById: FileRoutesById
 }
@@ -139,16 +187,34 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiDoctorRoute: typeof AiDoctorRoute
   AssistantRoute: typeof AssistantRoute
+  FeedCalculatorRoute: typeof FeedCalculatorRoute
+  HarvestRoute: typeof HarvestRoute
   HomeRoute: typeof HomeRoute
   LoginRoute: typeof LoginRoute
   MarketRoute: typeof MarketRoute
   MyFarmRoute: typeof MyFarmRoute
   ProfileRoute: typeof ProfileRoute
+  SellFishRoute: typeof SellFishRoute
+  WaterQualityRoute: typeof WaterQualityRoute
   PondPondIdRoute: typeof PondPondIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/water-quality': {
+      id: '/water-quality'
+      path: '/water-quality'
+      fullPath: '/water-quality'
+      preLoaderRoute: typeof WaterQualityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sell-fish': {
+      id: '/sell-fish'
+      path: '/sell-fish'
+      fullPath: '/sell-fish'
+      preLoaderRoute: typeof SellFishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -182,6 +248,20 @@ declare module '@tanstack/react-router' {
       path: '/home'
       fullPath: '/home'
       preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/harvest': {
+      id: '/harvest'
+      path: '/harvest'
+      fullPath: '/harvest'
+      preLoaderRoute: typeof HarvestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feed-calculator': {
+      id: '/feed-calculator'
+      path: '/feed-calculator'
+      fullPath: '/feed-calculator'
+      preLoaderRoute: typeof FeedCalculatorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assistant': {
@@ -219,11 +299,15 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiDoctorRoute: AiDoctorRoute,
   AssistantRoute: AssistantRoute,
+  FeedCalculatorRoute: FeedCalculatorRoute,
+  HarvestRoute: HarvestRoute,
   HomeRoute: HomeRoute,
   LoginRoute: LoginRoute,
   MarketRoute: MarketRoute,
   MyFarmRoute: MyFarmRoute,
   ProfileRoute: ProfileRoute,
+  SellFishRoute: SellFishRoute,
+  WaterQualityRoute: WaterQualityRoute,
   PondPondIdRoute: PondPondIdRoute,
 }
 export const routeTree = rootRouteImport

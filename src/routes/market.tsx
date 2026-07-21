@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Menu, Bell, MapPin, Search, SlidersHorizontal, ShoppingCart, Tag, Package, Fish, FlaskConical, Wrench, MoreHorizontal, Star, ChevronRight, ShieldCheck } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
@@ -75,12 +75,12 @@ function MarketPage() {
       </section>
 
       <section className="px-5 mt-4 grid grid-cols-2 gap-2">
-        <button className="h-12 rounded-xl bg-secondary text-primary font-bold flex items-center justify-center gap-2">
+        <Link to="/harvest" className="h-12 rounded-xl bg-secondary text-primary font-bold flex items-center justify-center gap-2">
           <ShoppingCart className="w-5 h-5" /> Buy
-        </button>
-        <button className="h-12 rounded-xl bg-card border border-border text-foreground font-bold flex items-center justify-center gap-2">
+        </Link>
+        <Link to="/sell-fish" className="h-12 rounded-xl bg-card border border-border text-foreground font-bold flex items-center justify-center gap-2">
           <Tag className="w-5 h-5" /> Sell
-        </button>
+        </Link>
       </section>
 
       <section className="px-5 mt-5 flex justify-between">

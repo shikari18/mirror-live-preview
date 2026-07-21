@@ -1,115 +1,149 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, HelpCircle, Camera, Video, Mic, X, ShieldPlus, Check, Phone, Lightbulb, ChevronRight, Bug } from "lucide-react";
+import { ArrowLeft, Bell, MapPin, Camera, Image as ImageIcon, Video, ClipboardList, ChevronDown, Send, ShieldCheck, X, Headphones, MessageSquare, ChevronRight } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
-import sickFish from "@/assets/sick-fish.jpg";
+import farmerImg from "@/assets/farmer.jpg";
+import pondImg from "@/assets/pond.jpg";
+import ulcers from "@/assets/disease-ulcers.jpg";
+import gasping from "@/assets/disease-gasping.jpg";
+import whitespots from "@/assets/disease-whitespots.jpg";
 
 export const Route = createFileRoute("/ai-doctor")({
-  component: AIDoctorPage,
+  component: DiseasePage,
   head: () => ({
     meta: [
-      { title: "AI Fish Doctor — FishFarm OS Ghana" },
-      { name: "description", content: "Diagnose fish health issues instantly with the AI Fish Doctor." },
-      { property: "og:title", content: "AI Fish Doctor — FishFarm OS Ghana" },
-      { property: "og:description", content: "Instant AI diagnosis for your fish." },
+      { title: "Disease Report — FishFarm OS Ghana" },
+      { name: "description", content: "Report signs of disease and get expert AI help fast." },
+      { property: "og:title", content: "Disease Report — FishFarm OS Ghana" },
+      { property: "og:description", content: "Early detection saves your fish." },
     ],
   }),
 });
 
-function AIDoctorPage() {
+const signs = [
+  { label: "Red Spots / Ulcers", tint: "bg-red-50" },
+  { label: "White Spots", tint: "bg-secondary/60" },
+  { label: "Frayed Fins", tint: "bg-yellow-50" },
+  { label: "Erratic Swimming", tint: "bg-blue-50" },
+  { label: "Loss of Appetite", tint: "bg-secondary/60" },
+];
+
+const reports = [
+  { img: ulcers, t: "Ulcers on body", meta: "Pond 1 • Tilapia", status: "Under Review", stColor: "bg-yellow-100 text-yellow-700", date: "May 12, 2025", time: "8:30 AM" },
+  { img: gasping, t: "Fish gasping at surface", meta: "Pond 2 • Catfish", status: "Resolved", stColor: "bg-secondary text-primary", date: "May 9, 2025", time: "10:15 AM" },
+  { img: whitespots, t: "White spots on skin", meta: "Pond 3 • Tilapia", status: "Resolved", stColor: "bg-secondary text-primary", date: "May 6, 2025", time: "9:40 AM" },
+];
+
+function DiseasePage() {
   return (
     <PhoneFrame>
-      <header className="px-5 pt-6 flex items-center justify-between">
-        <Link to="/home"><ArrowLeft className="w-6 h-6 text-foreground" /></Link>
-        <div className="text-[18px] font-extrabold text-foreground">AI Fish Doctor</div>
-        <HelpCircle className="w-6 h-6 text-primary" />
+      <header className="px-5 pt-6 flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <Link to="/home" className="pt-1"><ArrowLeft className="w-6 h-6 text-foreground" /></Link>
+          <div>
+            <div className="text-[22px] font-extrabold text-foreground leading-tight">Disease Report</div>
+            <div className="flex items-center gap-1 text-primary text-[13px] font-medium mt-1"><MapPin className="w-4 h-4" /> Ashanti Region ▾</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative"><Bell className="w-6 h-6 text-foreground" /><span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">3</span></div>
+          <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-primary" />
+        </div>
       </header>
 
-      <section className="px-5 mt-6">
-        <div className="text-[15px] font-bold text-foreground">Send Your Observation</div>
-        <div className="mt-3 grid grid-cols-3 gap-3">
+      <section className="mx-5 mt-4 rounded-2xl bg-secondary/50 p-4 flex items-start gap-3">
+        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0"><ShieldCheck className="w-5 h-5 text-primary-foreground" /></div>
+        <div className="flex-1 text-[12px]">
+          <div className="font-extrabold text-primary">Early detection saves your fish.</div>
+          <div className="text-muted-foreground">Report any signs of disease to get expert help.</div>
+        </div>
+        <X className="w-4 h-4 text-muted-foreground" />
+      </section>
+
+      <section className="mx-5 mt-4 rounded-2xl border border-border p-4">
+        <div className="text-[15px] font-extrabold text-foreground">1. Report New Case</div>
+        <div className="mt-3 grid grid-cols-4 gap-2">
           {[
-            { Icon: Camera, label: "Photo", sub: "Take a clear photo" },
-            { Icon: Video, label: "Video", sub: "Record a short video" },
-            { Icon: Mic, label: "Voice", sub: "Send a voice note" },
-          ].map(({ Icon, label, sub }) => (
-            <button key={label} className="rounded-2xl border border-border p-3 flex flex-col items-center gap-1 bg-card">
-              <Icon className="w-6 h-6 text-primary" />
-              <div className="text-[14px] font-bold text-foreground">{label}</div>
-              <div className="text-[10px] text-muted-foreground text-center leading-tight">{sub}</div>
+            { Icon: Camera, label: "Take Photo", sub: "Capture signs of disease", tint: "bg-secondary text-primary", active: true },
+            { Icon: ImageIcon, label: "Gallery", sub: "Upload from gallery", tint: "bg-purple-100 text-purple-700" },
+            { Icon: Video, label: "Record Video", sub: "Record fish behavior", tint: "bg-yellow-100 text-yellow-700" },
+            { Icon: ClipboardList, label: "Describe", sub: "Describe the symptoms", tint: "bg-blue-100 text-blue-700" },
+          ].map(({ Icon, label, sub, tint, active }) => (
+            <button key={label} className={`rounded-xl border ${active ? "border-primary bg-secondary/40" : "border-border"} p-2 flex flex-col items-center text-center`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tint}`}><Icon className="w-5 h-5" /></div>
+              <div className="text-[11px] font-bold mt-1 text-foreground leading-tight">{label}</div>
+              <div className="text-[9px] text-muted-foreground leading-tight mt-0.5">{sub}</div>
             </button>
           ))}
         </div>
 
-        <div className="mt-4 relative rounded-2xl overflow-hidden">
-          <img src={sickFish} alt="Sick tilapia" loading="lazy" className="w-full h-52 object-cover" />
-          <button className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow">
-            <X className="w-4 h-4 text-foreground" />
-          </button>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2">
-            <div className="text-[15px] font-extrabold text-foreground">AI Diagnosis</div>
-            <span className="text-[11px] font-bold text-primary bg-secondary rounded-full px-2 py-0.5">Moderate Risk</span>
-            <ShieldPlus className="w-6 h-6 text-primary ml-auto" />
-          </div>
-          <div className="mt-3 flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
-              <Bug className="w-5 h-5 text-purple-700" />
-            </div>
-            <div>
-              <div className="text-[17px] font-extrabold text-primary">Bacterial Infection</div>
-              <div className="text-[13px] text-muted-foreground mt-1">Signs of bacterial infection likely caused by poor water quality or stress.</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-border bg-card p-4">
-          <div className="text-[15px] font-extrabold text-foreground">What You Should Do</div>
-          <div className="mt-3 flex flex-col gap-3">
-            {[
-              { t: "Apply salt at 3ppt", d: "Mix and apply evenly in the pond.", emoji: "🧂" },
-              { t: "Reduce feeding for 2 days", d: "Allow fish to recover.", emoji: "🌾" },
-              { t: "Improve aeration", d: "Increase oxygen levels in the pond.", emoji: "💧" },
-              { t: "Monitor water quality", d: "Check oxygen, pH and ammonia levels.", emoji: "🧪" },
-            ].map((s) => (
-              <div key={s.t} className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
-                  <Check className="w-4 h-4 text-primary-foreground" strokeWidth={3} />
-                </div>
-                <div className="flex-1">
-                  <div className="text-[14px] font-bold text-foreground leading-tight">{s.t}</div>
-                  <div className="text-[12px] text-muted-foreground">{s.d}</div>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-secondary/60 flex items-center justify-center text-lg">{s.emoji}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl bg-secondary/40 p-4">
-          <div className="text-[14px] font-bold text-foreground">Buy Medicine Nearby</div>
-          <div className="mt-2 flex items-center gap-3 bg-card rounded-xl p-3 border border-border">
-            <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-lg">💊</div>
+        <div className="mt-4 rounded-xl border border-border divide-y divide-border">
+          <div className="p-3 flex items-center gap-3">
+            <img src={pondImg} alt="" className="w-10 h-10 rounded-lg object-cover" />
             <div className="flex-1">
-              <div className="text-[14px] font-bold text-foreground">Aqua Vet Pharmacy</div>
-              <div className="text-[12px] text-muted-foreground">2.3 km away</div>
-              <div className="text-[12px] text-primary font-semibold">Open now</div>
+              <div className="text-[11px] text-muted-foreground">Select Pond</div>
+              <div className="text-[14px] font-extrabold text-foreground">Pond 1</div>
             </div>
-            <button className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-              <Phone className="w-5 h-5 text-primary" />
-            </button>
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="p-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-secondary/60 flex items-center justify-center text-lg">🐟</div>
+            <div className="flex-1">
+              <div className="text-[11px] text-muted-foreground">Affected Fish Type</div>
+              <div className="text-[14px] font-extrabold text-foreground">Tilapia</div>
+            </div>
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
           </div>
         </div>
 
-        <div className="mt-4 mb-6 rounded-2xl bg-secondary/40 p-4 flex items-center gap-3">
-          <Lightbulb className="w-6 h-6 text-primary" />
-          <div className="flex-1">
-            <div className="text-[14px] font-extrabold text-primary">Prevention Tip</div>
-            <div className="text-[12px] text-muted-foreground">Maintain good water quality and do not overcrowd your pond.</div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+        <button className="mt-4 w-full h-12 rounded-xl bg-primary text-primary-foreground font-bold flex items-center justify-center gap-2">
+          <Send className="w-5 h-5" /> Submit Report
+        </button>
+      </section>
+
+      <section className="mx-5 mt-4 rounded-2xl border border-border p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-[15px] font-extrabold text-foreground">2. Common Signs to Look For</div>
+          <a className="text-primary text-[12px] font-semibold">View All</a>
         </div>
+        <div className="mt-3 flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
+          {signs.map((s) => (
+            <div key={s.label} className="w-20 shrink-0 text-center">
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${s.tint}`}>🐟</div>
+              <div className="text-[10px] font-bold text-foreground mt-1 leading-tight">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-5 mt-4 rounded-2xl border border-border p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-[15px] font-extrabold text-foreground">3. Recent Reports</div>
+          <a className="text-primary text-[12px] font-semibold">View All</a>
+        </div>
+        {reports.map((r, i) => (
+          <div key={i} className="mt-3 flex items-center gap-3 border-t border-border pt-3 first:border-0 first:pt-0">
+            <img src={r.img} alt="" className="w-14 h-14 rounded-lg object-cover" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-bold text-foreground truncate">{r.t}</div>
+              <div className="text-[11px] text-muted-foreground">{r.meta}</div>
+              <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${r.stColor}`}>{r.status}</span>
+            </div>
+            <div className="text-right text-[10px] text-muted-foreground">
+              <div>{r.date}</div>
+              <div>{r.time}</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </div>
+        ))}
+      </section>
+
+      <section className="mx-5 mt-4 mb-6 rounded-2xl bg-secondary/40 p-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center"><Headphones className="w-5 h-5 text-primary-foreground" /></div>
+        <div className="flex-1">
+          <div className="text-[13px] font-extrabold text-primary">Need urgent help?</div>
+          <div className="text-[11px] text-muted-foreground">Chat with our fish health experts.</div>
+        </div>
+        <button className="text-primary border border-primary rounded-lg px-3 py-1.5 text-[12px] font-bold flex items-center gap-1"><MessageSquare className="w-4 h-4" /> Chat Now</button>
       </section>
 
       <BottomNav />
