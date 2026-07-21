@@ -30,12 +30,12 @@ export const Route = createFileRoute("/home")({
 });
 
 const quickActions: { img: string; label: string; tint: string; to?: string }[] = [
-  { img: iconFeedCalc, label: "Feed Calculator", tint: "bg-secondary/60" },
+  { img: iconFeedCalc, label: "Feed Calculator", tint: "bg-secondary/60", to: "/feed-calculator" },
   { img: iconAiDoctor, label: "AI Fish Doctor", tint: "bg-blue-50", to: "/ai-doctor" },
-  { img: iconBuyFeed, label: "Buy Feed", tint: "bg-secondary/60" },
-  { img: iconSellFish, label: "Sell Fish", tint: "bg-secondary/60" },
-  { img: iconWaterDrop, label: "Water Monitor", tint: "bg-blue-50" },
-  { img: iconMarketPrices, label: "Market Prices", tint: "bg-yellow-50" },
+  { img: iconBuyFeed, label: "Buy Feed", tint: "bg-secondary/60", to: "/market" },
+  { img: iconSellFish, label: "Sell Fish", tint: "bg-secondary/60", to: "/sell-fish" },
+  { img: iconWaterDrop, label: "Water Monitor", tint: "bg-blue-50", to: "/water-quality" },
+  { img: iconMarketPrices, label: "Market Prices", tint: "bg-yellow-50", to: "/harvest" },
   { img: iconLoans, label: "Loans & Credit", tint: "bg-secondary/60" },
   { img: iconSupport, label: "Extension Support", tint: "bg-yellow-50" },
 ];
