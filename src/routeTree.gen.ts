@@ -9,38 +9,195 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as MyFarmRouteImport } from './routes/my-farm'
+import { Route as MarketRouteImport } from './routes/market'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as HomeRouteImport } from './routes/home'
+import { Route as AssistantRouteImport } from './routes/assistant'
+import { Route as AiDoctorRouteImport } from './routes/ai-doctor'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PondPondIdRouteImport } from './routes/pond.$pondId'
 
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyFarmRoute = MyFarmRouteImport.update({
+  id: '/my-farm',
+  path: '/my-farm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketRoute = MarketRouteImport.update({
+  id: '/market',
+  path: '/market',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantRoute = AssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiDoctorRoute = AiDoctorRouteImport.update({
+  id: '/ai-doctor',
+  path: '/ai-doctor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PondPondIdRoute = PondPondIdRouteImport.update({
+  id: '/pond/$pondId',
+  path: '/pond/$pondId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-doctor': typeof AiDoctorRoute
+  '/assistant': typeof AssistantRoute
+  '/home': typeof HomeRoute
+  '/login': typeof LoginRoute
+  '/market': typeof MarketRoute
+  '/my-farm': typeof MyFarmRoute
+  '/profile': typeof ProfileRoute
+  '/pond/$pondId': typeof PondPondIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-doctor': typeof AiDoctorRoute
+  '/assistant': typeof AssistantRoute
+  '/home': typeof HomeRoute
+  '/login': typeof LoginRoute
+  '/market': typeof MarketRoute
+  '/my-farm': typeof MyFarmRoute
+  '/profile': typeof ProfileRoute
+  '/pond/$pondId': typeof PondPondIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-doctor': typeof AiDoctorRoute
+  '/assistant': typeof AssistantRoute
+  '/home': typeof HomeRoute
+  '/login': typeof LoginRoute
+  '/market': typeof MarketRoute
+  '/my-farm': typeof MyFarmRoute
+  '/profile': typeof ProfileRoute
+  '/pond/$pondId': typeof PondPondIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/ai-doctor'
+    | '/assistant'
+    | '/home'
+    | '/login'
+    | '/market'
+    | '/my-farm'
+    | '/profile'
+    | '/pond/$pondId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/ai-doctor'
+    | '/assistant'
+    | '/home'
+    | '/login'
+    | '/market'
+    | '/my-farm'
+    | '/profile'
+    | '/pond/$pondId'
+  id:
+    | '__root__'
+    | '/'
+    | '/ai-doctor'
+    | '/assistant'
+    | '/home'
+    | '/login'
+    | '/market'
+    | '/my-farm'
+    | '/profile'
+    | '/pond/$pondId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiDoctorRoute: typeof AiDoctorRoute
+  AssistantRoute: typeof AssistantRoute
+  HomeRoute: typeof HomeRoute
+  LoginRoute: typeof LoginRoute
+  MarketRoute: typeof MarketRoute
+  MyFarmRoute: typeof MyFarmRoute
+  ProfileRoute: typeof ProfileRoute
+  PondPondIdRoute: typeof PondPondIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-farm': {
+      id: '/my-farm'
+      path: '/my-farm'
+      fullPath: '/my-farm'
+      preLoaderRoute: typeof MyFarmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/market': {
+      id: '/market'
+      path: '/market'
+      fullPath: '/market'
+      preLoaderRoute: typeof MarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant': {
+      id: '/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-doctor': {
+      id: '/ai-doctor'
+      path: '/ai-doctor'
+      fullPath: '/ai-doctor'
+      preLoaderRoute: typeof AiDoctorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +205,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pond/$pondId': {
+      id: '/pond/$pondId'
+      path: '/pond/$pondId'
+      fullPath: '/pond/$pondId'
+      preLoaderRoute: typeof PondPondIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiDoctorRoute: AiDoctorRoute,
+  AssistantRoute: AssistantRoute,
+  HomeRoute: HomeRoute,
+  LoginRoute: LoginRoute,
+  MarketRoute: MarketRoute,
+  MyFarmRoute: MyFarmRoute,
+  ProfileRoute: ProfileRoute,
+  PondPondIdRoute: PondPondIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
