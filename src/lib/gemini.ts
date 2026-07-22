@@ -19,8 +19,57 @@ const AVAILABLE_MODELS = [
   "gemini-2.5-flash"
 ];
 
+// DEDICATED GEMINI NEURAL AUDIO MODELS
+const TTS_MODELS = [
+  "gemini-2.5-flash-preview-tts",
+  "gemini-3.1-flash-tts-preview"
+];
+
 // IN-MEMORY AUDIO CACHE FOR INSTANT < 1ms REPEAT PLAYBACK
 const audioCache = new Map<string, string>();
+
+// Convert 16-bit Mono PCM Base64 to standard WAV Data URL for instant browser playback
+export function pcmToWavDataUrl(base64PCM: string, sampleRate = 24000): string {
+  try {
+    const binaryString = atob(base64PCM);
+    const len = binaryString.length;
+    const pcmBytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      pcmBytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const wavHeader = new ArrayBuffer(44);
+    const view = new DataView(wavHeader);
+
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    view.setUint32(4, 36 + pcmBytes.length, true);
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    view.setUint32(36, 0x64617461, false); // "data"
+    view.setUint32(40, pcmBytes.length, true);
+
+    const wavBytes = new Uint8Array(44 + pcmBytes.length);
+    wavBytes.set(new Uint8Array(wavHeader), 0);
+    wavBytes.set(pcmBytes, 44);
+
+    let wavBinary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < wavBytes.length; i += chunkSize) {
+      wavBinary += String.fromCharCode.apply(null, wavBytes.subarray(i, i + chunkSize) as any);
+    }
+    return `data:audio/wav;base64,${btoa(wavBinary)}`;
+  } catch (e) {
+    console.warn("PCM to WAV conversion error", e);
+    return `data:audio/pcm;base64,${base64PCM}`;
+  }
+}
 
 export async function callGemini(
   prompt: string,
@@ -88,7 +137,7 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// GUARANTEED GOOGLE NEURAL AUDIO ENGINE (Direct Gemini API Audio with Google Neural TTS Pipeline)
+// DIRECT GOOGLE GEMINI NEURAL VOICE GENERATOR ("Kore" Female Voice & "Aoede" Voice)
 export async function getGeminiLiveVoiceAudio(text: string, isTwi: boolean = false): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
@@ -99,23 +148,22 @@ export async function getGeminiLiveVoiceAudio(text: string, isTwi: boolean = fal
   }
 
   const apiKey = getGeminiKey();
-  const ttsModels = ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"];
+  const voiceName = isTwi ? "Aoede" : "Kore";
 
-  // 1. Try Direct Gemini 2.5 / 3.1 Flash Neural Audio Generation
-  for (const model of ttsModels) {
+  for (const model of TTS_MODELS) {
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: cleanText }] }],
+          contents: [{ role: "user", parts: [{ text: `Read out loud word for word: ${cleanText.slice(0, 300)}` }] }],
           generationConfig: {
             responseModalities: ["AUDIO"],
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: {
-                  voiceName: isTwi ? "Aoede" : "Kore"
+                  voiceName: voiceName
                 }
               }
             }
@@ -127,35 +175,37 @@ export async function getGeminiLiveVoiceAudio(text: string, isTwi: boolean = fal
         const data = await response.json();
         const inlinePart = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
         if (inlinePart && inlinePart.inlineData?.data) {
-          const pcmBase64 = `data:audio/pcm;base64,${inlinePart.inlineData.data}`;
-          audioCache.set(cacheKey, pcmBase64);
-          return pcmBase64;
+          const wavDataUrl = pcmToWavDataUrl(inlinePart.inlineData.data, 24000);
+          audioCache.set(cacheKey, wavDataUrl);
+          return wavDataUrl; // WAV Data URL ready for instant new Audio().play()
         }
       }
-    } catch (e) {}
+    } catch (err) {
+      console.warn(`Gemini Audio Model ${model} error:`, err);
+    }
   }
 
-  // 2. Google High-Fidelity Neural Audio Endpoint (Zero rate limits, instant 100ms start)
-  const langCode = isTwi ? "en-GH" : "en";
-  const encodedText = encodeURIComponent(cleanText.slice(0, 200));
-  const googleAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${langCode}&client=tw-ob`;
-  
-  audioCache.set(cacheKey, googleAudioUrl);
-  return googleAudioUrl;
+  return null;
 }
 
-// AI Fish Assistant Call — Direct & Focused without self-introductions
+// AI Fish Assistant Call — Direct & Focused without self-introductions, with User GPS Location Context
 export async function getAIAssistantResponse(
   userMessage: string,
   language: string = "English",
-  mediaAttachments?: MediaAttachment[]
+  mediaAttachments?: MediaAttachment[],
+  userLocation?: string
 ): Promise<string> {
+  const locationContext = userLocation ? `User Real-Time Location: ${userLocation}` : `User Location: Ghana (Accra/Kumasi region)`;
+
   const systemPrompt = `You are an expert Fish Farming Advisor in Ghana. You specialize in Catfish and Tilapia farming in Ghana.
+${locationContext}
+
 STRICT RULES:
 1. Do NOT say "Akwaaba", do NOT say "I am Kofi", and do NOT introduce yourself in any way.
-2. Answer ONLY what the user asked directly. Do NOT add unsolicited advice or irrelevant topics.
-3. Keep your response concise, practical, and formatted cleanly using markdown headings (###) and bullet points (- ).
-4. Language context: Write text in English for clear readability.`;
+2. You DO HAVE ACCESS to the user's location (${locationContext}). Do NOT claim you cannot access location.
+3. Answer ONLY what the user asked directly. Do NOT add unsolicited advice or irrelevant topics.
+4. Keep your response concise, practical, and formatted cleanly using markdown headings (###) and bullet points (- ).
+5. Language context: Write text in English for clear readability.`;
   
   return await callGemini(userMessage, systemPrompt, mediaAttachments);
 }

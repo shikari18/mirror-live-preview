@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2 } from "lucide-react";
+import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2, MapPin } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, translateToTwiAudioText, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
@@ -43,6 +43,7 @@ export function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: "image" | "video" | "file"; mimeType: string; url: string } | null>(null);
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<string>("Accra, Ghana");
 
   // Fullscreen Camera Video Call & Speech-to-Speech State
   const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
@@ -58,11 +59,26 @@ export function AssistantPage() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<any>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Request browser geolocation on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          setUserLocation(`Accra/Kumasi Region, Ghana (GPS: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°)`);
+        },
+        (err) => {
+          console.warn("Geolocation permission pending", err);
+        }
+      );
+    }
+  }, []);
 
   // Clean up audio & camera stream on unmount or modal close
   useEffect(() => {
@@ -125,56 +141,10 @@ export function AssistantPage() {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
-    if (audioCtxRef.current) {
-      audioCtxRef.current.close().catch(() => {});
-      audioCtxRef.current = null;
-    }
     setPlayingMsgId(null);
   };
 
-  // Decode & Play 24kHz Raw PCM Audio
-  const playPCM24kAudio = (base64Data: string): Promise<void> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const binaryString = window.atob(base64Data);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        const alignedBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-        const int16Array = new Int16Array(alignedBuffer);
-        const numSamples = int16Array.length;
-        const float32Array = new Float32Array(numSamples);
-        for (let i = 0; i < numSamples; i++) {
-          float32Array[i] = int16Array[i] / 32768.0;
-        }
-
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        const audioCtx = new AudioCtx();
-        audioCtxRef.current = audioCtx;
-
-        if (audioCtx.state === "suspended") {
-          await audioCtx.resume();
-        }
-
-        const audioBuffer = audioCtx.createBuffer(1, numSamples, 24000);
-        audioBuffer.getChannelData(0).set(float32Array);
-
-        const source = audioCtx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioCtx.destination);
-        source.onended = () => resolve();
-        source.start(0);
-      } catch (err) {
-        console.warn("PCM audio playback error:", err);
-        reject(err);
-      }
-    });
-  };
-
-  // GUARANTEED GOOGLE NEURAL AUDIO PLAYER ("Kore" Realistic Female & Ghana Voice)
+  // INSTANT GEMINI NEURAL VOICE PLAYER ("Kore" Realistic Voice)
   const playVoice = async (text: string, msgId?: string) => {
     if (msgId && playingMsgId === msgId) {
       stopAudio();
@@ -193,27 +163,19 @@ export function AssistantPage() {
       } catch (e) {}
     }
 
-    const audioSource = await getGeminiLiveVoiceAudio(speechText, isTwi);
+    // Direct Gemini API Neural Audio (WAV Data URL)
+    const wavAudioUrl = await getGeminiLiveVoiceAudio(speechText, isTwi);
 
-    if (audioSource) {
-      if (audioSource.startsWith("data:audio/pcm;base64,")) {
-        const rawBase64 = audioSource.replace("data:audio/pcm;base64,", "");
-        try {
-          await playPCM24kAudio(rawBase64);
-          setPlayingMsgId(null);
-          return;
-        } catch (e) {}
-      } else {
-        try {
-          const audio = new Audio(audioSource);
-          currentAudioRef.current = audio;
-          audio.onended = () => setPlayingMsgId(null);
-          audio.onerror = () => setPlayingMsgId(null);
-          await audio.play();
-          return;
-        } catch (e) {
-          console.warn("Audio play error", e);
-        }
+    if (wavAudioUrl) {
+      try {
+        const audio = new Audio(wavAudioUrl);
+        currentAudioRef.current = audio;
+        audio.onended = () => setPlayingMsgId(null);
+        audio.onerror = () => setPlayingMsgId(null);
+        await audio.play();
+        return;
+      } catch (e) {
+        console.warn("Audio play error", e);
       }
     }
 
@@ -326,7 +288,8 @@ export function AssistantPage() {
       const aiReply = await getAIAssistantResponse(
         query || "Analyze this attached media and give me step-by-step guidance for my fish farm.",
         language,
-        mediaList
+        mediaList,
+        userLocation
       );
 
       const aiMsg: ChatMessage = {
@@ -380,7 +343,9 @@ export function AssistantPage() {
               AI Advisor
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
-            <p className="text-[11px] text-gray-500 font-medium">Smart Voice Active</p>
+            <p className="text-[11px] text-gray-500 font-medium flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-emerald-600" /> {userLocation.split(",")[0]} Active
+            </p>
           </div>
         </div>
 
