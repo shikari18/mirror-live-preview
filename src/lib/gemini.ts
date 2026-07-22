@@ -18,6 +18,12 @@ const AVAILABLE_MODELS = [
   "gemini-2.5-flash"
 ];
 
+const TTS_MODELS = [
+  "gemini-3.1-flash-tts-preview",
+  "gemini-2.5-flash-preview-tts",
+  "gemini-2.5-pro-preview-tts"
+];
+
 export async function callGemini(
   prompt: string,
   systemInstruction?: string,
@@ -84,44 +90,47 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// DIRECT GEMINI NEURAL VOICE API ("Kore" Female Neural Voice)
+// DIRECT GEMINI NEURAL VOICE API WITH STABLE MULTI-MODEL FALLBACK ("Kore" Female Voice)
 export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | "Aoede" | "Puck" = "Kore"): Promise<string | null> {
   const apiKey = getGeminiKey();
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
-
   const cleanText = text.replace(/[#*`_]/g, "");
 
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: `Read out loud word for word: ${cleanText}` }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: voiceName
+  for (const model of TTS_MODELS) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: `Read out loud word for word: ${cleanText}` }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: voiceName
+                }
               }
             }
           }
-        }
-      })
-    });
+        })
+      });
 
-    if (!response.ok) {
-      return null;
-    }
+      if (!response.ok) {
+        console.warn(`TTS Model ${model} failed with status ${response.status}`);
+        continue;
+      }
 
-    const data = await response.json();
-    const inlinePart = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
-    if (inlinePart && inlinePart.inlineData?.data) {
-      return inlinePart.inlineData.data; // Base64 PCM data at 24,000 Hz
+      const data = await response.json();
+      const inlinePart = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+      if (inlinePart && inlinePart.inlineData?.data) {
+        return inlinePart.inlineData.data; // Base64 PCM data at 24,000 Hz
+      }
+    } catch (err) {
+      console.warn(`Gemini TTS model ${model} error:`, err);
     }
-  } catch (err) {
-    console.warn("Gemini Live Audio API error", err);
   }
+
   return null;
 }
 

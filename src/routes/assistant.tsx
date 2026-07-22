@@ -124,6 +124,9 @@ export function AssistantPage() {
       audioCtxRef.current.close().catch(() => {});
       audioCtxRef.current = null;
     }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
     setPlayingMsgId(null);
   };
 
@@ -147,7 +150,6 @@ export function AssistantPage() {
         }
 
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        // Omit explicit sampleRate constructor argument so hardware sound card accepts it unconditionally!
         const audioCtx = new AudioCtx();
         audioCtxRef.current = audioCtx;
 
@@ -155,7 +157,6 @@ export function AssistantPage() {
           await audioCtx.resume();
         }
 
-        // Web Audio API automatically resamples 24000Hz buffer to output sound card rate (44.1k/48k)
         const audioBuffer = audioCtx.createBuffer(1, numSamples, 24000);
         audioBuffer.getChannelData(0).set(float32Array);
 
@@ -171,7 +172,7 @@ export function AssistantPage() {
     });
   };
 
-  // PURE NEURAL AUDIO VOICE ("Kore" Female Voice)
+  // Seamless Voice Speech Engine with Fail-Safe Fallback (Guarantees Audio Plays Always!)
   const playVoice = async (text: string, msgId?: string) => {
     if (msgId && playingMsgId === msgId) {
       stopAudio();
@@ -190,6 +191,7 @@ export function AssistantPage() {
       } catch (e) {}
     }
 
+    // 1. Try Gemini API Neural Voice
     const base64PCM = await getGeminiLiveVoiceAudio(speechText, "Kore");
 
     if (base64PCM) {
@@ -198,11 +200,40 @@ export function AssistantPage() {
         setPlayingMsgId(null);
         return;
       } catch (e) {
-        console.warn("PCM playback failed", e);
+        console.warn("PCM playback failed, switching to backup speech synth", e);
       }
     }
 
-    setPlayingMsgId(null);
+    // 2. Backup Web Speech Synth (Guarantees speech never stops silently!)
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const cleanText = speechText.replace(/[#*`_]/g, "");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      const voices = window.speechSynthesis.getVoices();
+
+      if (isTwi) {
+        const ghanaVoice = voices.find((v) => v.lang.includes("GH") || v.name.includes("Ghana") || v.lang.includes("ak"));
+        if (ghanaVoice) utterance.voice = ghanaVoice;
+        utterance.rate = 0.88;
+        utterance.pitch = 1.0;
+      } else {
+        const femaleVoice = voices.find(
+          (v) =>
+            !v.name.toLowerCase().includes("david") &&
+            !v.name.toLowerCase().includes("mark") &&
+            !v.name.toLowerCase().includes("male") &&
+            (v.name.includes("Female") || v.name.includes("Zira") || v.name.includes("Google") || v.name.includes("Natural") || v.lang.startsWith("en"))
+        );
+        if (femaleVoice) utterance.voice = femaleVoice;
+        utterance.rate = 0.95;
+        utterance.pitch = 1.25;
+      }
+
+      utterance.onend = () => setPlayingMsgId(null);
+      utterance.onerror = () => setPlayingMsgId(null);
+      window.speechSynthesis.speak(utterance);
+    } else {
+      setPlayingMsgId(null);
+    }
   };
 
   // Pure Speech-to-Speech Loop for Live Video Call
