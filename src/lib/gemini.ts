@@ -25,7 +25,7 @@ const TTS_MODELS = [
   "gemini-3.1-flash-tts-preview"
 ];
 
-// IN-MEMORY AUDIO CACHE FOR INSTANT < 1ms REPEAT PLAYBACK
+// IN-MEMORY AUDIO CACHE FOR INSTANT REPEAT PLAYBACK
 const audioCache = new Map<string, string>();
 
 // Convert 16-bit Mono PCM Base64 to standard WAV Data URL for instant browser playback
@@ -185,7 +185,7 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     }
   }
 
-  // Backup Google High-Fidelity Audio URL
+  // Backup Google High-Fidelity Audio URL (Zero rate limits)
   const langCode = targetLanguage === "Twi" ? "en-GH" : targetLanguage === "Hausa" ? "ha" : "en";
   const encodedText = encodeURIComponent(cleanText.slice(0, 200));
   const googleAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${langCode}&client=tw-ob`;
