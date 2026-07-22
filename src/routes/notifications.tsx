@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Bell, CheckCircle, Droplet, ShoppingCart, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Bell, CheckCircle, Droplet, ShoppingCart, Sparkles, Trash2, Play, Volume2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
+import { useLanguage } from "@/lib/languageContext";
+import { translateToTwiAudioText } from "@/lib/gemini";
 
 export const Route = createFileRoute("/notifications")({
   component: NotificationsPage,
@@ -24,6 +26,8 @@ interface NotificationItem {
 }
 
 export function NotificationsPage() {
+  const { language } = useLanguage();
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: "1",
@@ -58,6 +62,39 @@ export function NotificationsPage() {
       read: true,
     },
   ]);
+
+  const playNotificationAudio = async (id: string, text: string) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      if (playingId === id && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        setPlayingId(null);
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+      setPlayingId(id);
+
+      let speechText = text;
+      if (language === "Twi" || language.toLowerCase().includes("twi")) {
+        try {
+          speechText = await translateToTwiAudioText(text);
+        } catch (e) {}
+      }
+
+      const utterance = new SpeechSynthesisUtterance(speechText);
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(
+        (v) => v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Premium")
+      );
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      utterance.rate = 0.95;
+      utterance.onend = () => setPlayingId(null);
+      utterance.onerror = () => setPlayingId(null);
+
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -111,33 +148,50 @@ export function NotificationsPage() {
           notifications.map((item) => (
             <div
               key={item.id}
-              className={`p-3.5 rounded-2xl border transition-all flex items-start gap-3 ${
-                item.read ? "bg-white border-gray-200 opacity-80" : "bg-[#0F6236]/5 border-[#0F6236]/30 shadow-xs"
+              className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between ${
+                item.read ? "bg-white border-gray-200" : "bg-[#0F6236]/5 border-[#0F6236]/30 shadow-xs"
               }`}
             >
-              <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                  item.type === "water"
-                    ? "bg-blue-100 text-blue-700"
-                    : item.type === "market"
-                    ? "bg-emerald-100 text-emerald-800"
-                    : item.type === "feed"
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-[#0F6236] text-white"
-                }`}
-              >
-                {item.type === "water" && <Droplet className="w-4 h-4" />}
-                {item.type === "market" && <ShoppingCart className="w-4 h-4" />}
-                {item.type === "feed" && <CheckCircle className="w-4 h-4" />}
-                {item.type === "ai" && <Sparkles className="w-4 h-4" />}
+              <div className="flex items-start gap-3">
+                <div
+                  className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                    item.type === "water"
+                      ? "bg-blue-100 text-blue-700"
+                      : item.type === "market"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : item.type === "feed"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-[#0F6236] text-white"
+                  }`}
+                >
+                  {item.type === "water" && <Droplet className="w-4 h-4" />}
+                  {item.type === "market" && <ShoppingCart className="w-4 h-4" />}
+                  {item.type === "feed" && <CheckCircle className="w-4 h-4" />}
+                  {item.type === "ai" && <Sparkles className="w-4 h-4" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-extrabold text-gray-900">{item.title}</h4>
+                    <span className="text-[10px] text-gray-400">{item.time}</span>
+                  </div>
+                  <p className="text-xs text-gray-600 font-medium mt-1 leading-relaxed">{item.message}</p>
+                </div>
               </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-extrabold text-gray-900">{item.title}</h4>
-                  <span className="text-[10px] text-gray-400">{item.time}</span>
-                </div>
-                <p className="text-xs text-gray-600 font-medium mt-1 leading-relaxed">{item.message}</p>
+              {/* Play Audio Button for Notification */}
+              <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-end">
+                <button
+                  onClick={() => playNotificationAudio(item.id, `${item.title}. ${item.message}`)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    playingId === item.id
+                      ? "bg-[#0F6236] text-white animate-pulse"
+                      : "bg-[#0F6236]/10 text-[#0F6236] hover:bg-[#0F6236]/20"
+                  }`}
+                >
+                  {playingId === item.id ? <Volume2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-[#0F6236]" />}
+                  {playingId === item.id ? "Playing Audio..." : "Play Alert Audio"}
+                </button>
               </div>
             </div>
           ))

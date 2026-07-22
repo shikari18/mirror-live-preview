@@ -67,7 +67,7 @@ export function HomePage() {
       setIsSetupComplete(true);
     }
 
-    // Schedule Background PWA Push Notifications for Rain & Feeding
+    // Schedule Background PWA Push Notifications ONLY WHEN USER MINIMIZES / EXITS APP
     if (typeof window !== "undefined" && "Notification" in window) {
       if (Notification.permission === "granted") {
         scheduleBackgroundAlerts();
@@ -84,25 +84,20 @@ export function HomePage() {
   const scheduleBackgroundAlerts = () => {
     const scheduled = localStorage.getItem("pwa_alerts_active");
     if (!scheduled) {
-      // Rain Alert Notification
+      // Trigger notification ONLY IF user has left/minimized the app (document.visibilityState === "hidden")
       setTimeout(() => {
-        if ("Notification" in window && Notification.permission === "granted") {
+        if (
+          typeof document !== "undefined" &&
+          document.visibilityState === "hidden" &&
+          "Notification" in window &&
+          Notification.permission === "granted"
+        ) {
           new Notification("🌧️ Rain & Oxygen Alert — Ghana Weather", {
             body: "Heavy rainfall expected in Ashanti & Greater Accra. Hold off feeding for 2 hours to avoid dissolved oxygen drops.",
             icon: "/pwa-192.png",
           });
         }
-      }, 10000);
-
-      // Evening Feed Notification
-      setTimeout(() => {
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("🐟 Pond Feeding Reminder", {
-            body: "It's 4:30 PM! Time for evening catfish feeding (32% protein pellets).",
-            icon: "/pwa-192.png",
-          });
-        }
-      }, 25000);
+      }, 12000);
 
       localStorage.setItem("pwa_alerts_active", "true");
     }

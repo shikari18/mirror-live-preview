@@ -2,8 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
-import farmerImg from "@/assets/farmer.jpg";
-import { getAIAssistantResponse, getAIVideoCallResponse, MediaAttachment } from "@/lib/gemini";
+import { getAIAssistantResponse, getAIVideoCallResponse, translateToTwiAudioText, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/assistant")({
@@ -35,7 +34,7 @@ export function AssistantPage() {
     {
       id: "1",
       sender: "ai",
-      text: `### Fish Farming Advice\nHow can I help you today? Ask a question or upload a photo/video:\n- 🐟 Feeding schedules & feed quality\n- 💧 Water pH & oxygen levels\n- 🩺 Fish disease treatment & medicine\n- 📈 Market prices in Ghana`,
+      text: `### Fish Farming Advice\nHow can I help you today? You can ask a question or upload a photo/video:\n- 🐟 Feeding schedules & feed quality\n- 💧 Water pH & oxygen levels\n- 🩺 Fish disease treatment & medicine\n- 📈 Market prices in Ghana`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -48,11 +47,7 @@ export function AssistantPage() {
   // Fullscreen Camera Video Call & Speech-to-Speech State
   const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("environment");
-  const [videoCallText, setVideoCallText] = useState("");
   const [isListeningSpeech, setIsListeningSpeech] = useState(false);
-  const [videoCallHistory, setVideoCallHistory] = useState<string[]>([
-    "Dr. Kwame: 'I am listening! Talk to me about your fish pond.'"
-  ]);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
@@ -67,6 +62,17 @@ export function AssistantPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Clean up audio & camera stream on unmount or modal close
+  useEffect(() => {
+    return () => {
+      stopWebcam();
+      stopSpeechRecognition();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (isVideoCallOpen && !isCameraOff) {
       startWebcam(cameraFacing);
@@ -74,11 +80,10 @@ export function AssistantPage() {
     } else {
       stopWebcam();
       stopSpeechRecognition();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     }
-    return () => {
-      stopWebcam();
-      stopSpeechRecognition();
-    };
   }, [isVideoCallOpen, cameraFacing, isCameraOff]);
 
   const startWebcam = async (facing: "user" | "environment") => {
@@ -117,7 +122,7 @@ export function AssistantPage() {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
   };
 
-  // Speech-to-Speech: Automatic Web Speech Recognition in Video Call
+  // Pure Speech-to-Speech Loop for Live Video Call
   const startSpeechRecognition = () => {
     if (typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
@@ -129,7 +134,6 @@ export function AssistantPage() {
       recognition.onstart = () => setIsListeningSpeech(true);
       recognition.onend = () => {
         setIsListeningSpeech(false);
-        // Automatically restart listening if call remains open
         if (isVideoCallOpen) {
           try { recognition.start(); } catch (e) {}
         }
@@ -160,13 +164,12 @@ export function AssistantPage() {
   };
 
   const handleUserVoiceInCall = async (userSpeech: string) => {
-    setVideoCallHistory((prev) => [...prev, `You: "${userSpeech}"`]);
+    if (isCallMuted || videoLoading) return;
     setVideoLoading(true);
 
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
-      setVideoCallHistory((prev) => [...prev, `Dr. Kwame: "${response}"`]);
-      speakVoiceOutLoud(response); // Speech-to-Speech: Speak Dr. Kwame's answer aloud!
+      speakGeminiVoice(response); // Speak Dr. Kwame AI's response back to user!
     } catch (err) {
       console.error(err);
     } finally {
@@ -174,8 +177,8 @@ export function AssistantPage() {
     }
   };
 
-  // Voice Audio Output function
-  const speakVoiceOutLoud = (text: string, msgId?: string) => {
+  // Google Gemini Realistic Voice Audio Output (Speaks Twi audio if Twi language selected)
+  const speakGeminiVoice = async (text: string, msgId?: string) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       if (speakingMsgId === msgId && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -184,12 +187,38 @@ export function AssistantPage() {
       }
 
       window.speechSynthesis.cancel();
-      const cleanText = text.replace(/[#*`_]/g, "");
+      if (msgId) setSpeakingMsgId(msgId);
+
+      let textToSpeak = text;
+      // If language in settings is Twi, translate to Twi spoken audio ONLY
+      if (language === "Twi" || language.toLowerCase().includes("twi")) {
+        try {
+          textToSpeak = await translateToTwiAudioText(text);
+        } catch (e) {
+          console.warn("Twi translation error", e);
+        }
+      }
+
+      const cleanText = textToSpeak.replace(/[#*`_]/g, "");
       const utterance = new SpeechSynthesisUtterance(cleanText);
+
+      // Select highest quality Google Realistic Voice
+      const voices = window.speechSynthesis.getVoices();
+      const googleVoice = voices.find(
+        (v) =>
+          v.name.includes("Google") ||
+          v.name.includes("Natural") ||
+          v.name.includes("Premium") ||
+          v.lang.includes("en-US") ||
+          v.lang.includes("en-GH")
+      );
+
+      if (googleVoice) {
+        utterance.voice = googleVoice;
+      }
+
       utterance.rate = 0.95;
       utterance.pitch = 1.0;
-
-      if (msgId) setSpeakingMsgId(msgId);
 
       utterance.onend = () => setSpeakingMsgId(null);
       utterance.onerror = () => setSpeakingMsgId(null);
@@ -316,7 +345,7 @@ export function AssistantPage() {
         </button>
       </header>
 
-      {/* Simplified Clean AI Chat Messages */}
+      {/* Clean AI Chat UI */}
       <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-[#F8FAF8] min-h-[460px]">
         {messages.map((msg) => (
           <div
@@ -345,7 +374,7 @@ export function AssistantPage() {
                 </div>
               )}
 
-              {/* Simple AI Reply Text */}
+              {/* English Written Text */}
               <div className="space-y-1">
                 {msg.text.split("\n").map((line, idx) => {
                   if (line.startsWith("### ")) {
@@ -373,7 +402,7 @@ export function AssistantPage() {
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
                   <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
                   <button
-                    onClick={() => speakVoiceOutLoud(msg.text, msg.id)}
+                    onClick={() => speakGeminiVoice(msg.text, msg.id)}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                       speakingMsgId === msg.id
                         ? "bg-[#0F6236] text-white animate-pulse"
@@ -381,7 +410,7 @@ export function AssistantPage() {
                     }`}
                   >
                     <Volume2 className="w-3.5 h-3.5" />
-                    {speakingMsgId === msg.id ? "Speaking..." : "Listen"}
+                    {speakingMsgId === msg.id ? "Speaking..." : "Listen Voice"}
                   </button>
                 </div>
               )}
@@ -464,7 +493,7 @@ export function AssistantPage() {
         </button>
       </div>
 
-      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL WITH SPEECH-TO-SPEECH */}
+      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL (PURE SPEECH-TO-SPEECH, ZERO TEXT SUBTITLES) */}
       {isVideoCallOpen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
           
@@ -484,7 +513,7 @@ export function AssistantPage() {
                 className="w-full h-full object-cover"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/90 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
           </div>
 
           {/* Top Bar with Camera Switcher */}
@@ -494,7 +523,7 @@ export function AssistantPage() {
               <div>
                 <h3 className="font-extrabold text-sm text-white">Dr. Kwame (Senior Specialist)</h3>
                 <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <Mic className="w-3 h-3 animate-pulse" /> Speech-to-Speech Active
+                  <Mic className="w-3 h-3 animate-pulse" /> Live Speech-to-Speech Active
                 </p>
               </div>
             </div>
@@ -509,74 +538,57 @@ export function AssistantPage() {
             </button>
           </div>
 
-          {/* Dr. Kwame Avatar Badge (Top Center) */}
+          {/* Dr. Kwame Avatar Badge (Center Screen) */}
           <div className="z-20 my-auto text-center">
-            <div className="w-20 h-20 rounded-full bg-[#0F6236]/90 border-4 border-white/30 shadow-2xl flex items-center justify-center text-white text-2xl font-extrabold mx-auto animate-pulse">
+            <div className="w-24 h-24 rounded-full bg-[#0F6236]/90 border-4 border-white/40 shadow-2xl flex items-center justify-center text-white text-3xl font-extrabold mx-auto animate-pulse">
               Dr. K
             </div>
-            <span className="inline-block mt-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold border border-white/20">
-              Dr. Kwame • Talk Naturally
+            <span className="inline-block mt-3 px-4 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold border border-white/20">
+              Dr. Kwame • Speak Naturally
             </span>
+            {videoLoading && (
+              <div className="mt-2 text-yellow-300 font-bold text-xs animate-pulse">
+                Dr. Kwame is responding to your voice...
+              </div>
+            )}
+            {isListeningSpeech && !videoLoading && (
+              <div className="mt-2 text-emerald-400 font-bold text-xs animate-pulse">
+                🎙️ Listening to your voice...
+              </div>
+            )}
           </div>
 
-          {/* Subtitles & Controls (Bottom) */}
-          <div className="w-full max-w-md px-5 pb-6 space-y-3 z-20">
-            {/* Live Subtitles Log */}
-            <div className="bg-black/80 backdrop-blur-md p-4 rounded-2xl border border-white/15 text-white text-xs space-y-1.5 max-h-36 overflow-y-auto">
-              {videoCallHistory.map((line, idx) => (
-                <p key={idx} className={line.startsWith("Dr. Kwame") ? "text-emerald-300 font-bold" : "text-gray-200 font-medium"}>
-                  {line}
-                </p>
-              ))}
-              {videoLoading && <p className="text-yellow-400 animate-pulse font-bold">Dr. Kwame is responding...</p>}
-              {isListeningSpeech && <p className="text-emerald-400 animate-pulse font-bold text-[11px]">🎙️ Listening to your voice...</p>}
-            </div>
-
-            {/* Speech-to-Speech Text Input Fallback */}
-            <form onSubmit={(e) => { e.preventDefault(); handleUserVoiceInCall(videoCallText); setVideoCallText(""); }} className="flex gap-2">
-              <input
-                type="text"
-                value={videoCallText}
-                onChange={(e) => setVideoCallText(e.target.value)}
-                placeholder="Talk aloud or type your question..."
-                className="flex-1 h-12 bg-black/70 backdrop-blur-md border border-white/30 text-white px-4 rounded-full text-xs outline-none focus:ring-2 focus:ring-[#0F6236]"
-              />
-              <button
-                type="submit"
-                disabled={videoLoading}
-                className="w-12 h-12 rounded-full bg-[#0F6236] text-white flex items-center justify-center font-bold cursor-pointer shrink-0 shadow-lg"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-
-            {/* Action Buttons Bar */}
-            <div className="flex justify-center items-center gap-5 pt-1">
+          {/* Action Controls Bar (Bottom) */}
+          <div className="w-full max-w-md px-5 pb-8 z-20">
+            <div className="flex justify-center items-center gap-6">
               <button
                 onClick={() => setIsCallMuted(!isCallMuted)}
-                className={`p-3.5 rounded-full cursor-pointer transition-all ${isCallMuted ? "bg-red-600 text-white" : "bg-white/20 text-white hover:bg-white/30"}`}
+                className={`p-4 rounded-full cursor-pointer transition-all shadow-lg ${isCallMuted ? "bg-red-600 text-white" : "bg-white/25 text-white hover:bg-white/35 backdrop-blur-md"}`}
+                title={isCallMuted ? "Unmute Mic" : "Mute Mic"}
               >
-                {isCallMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                {isCallMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
               </button>
               
               <button
                 onClick={() => setIsCameraOff(!isCameraOff)}
-                className={`p-3.5 rounded-full cursor-pointer transition-all ${isCameraOff ? "bg-red-600 text-white" : "bg-white/20 text-white hover:bg-white/30"}`}
+                className={`p-4 rounded-full cursor-pointer transition-all shadow-lg ${isCameraOff ? "bg-red-600 text-white" : "bg-white/25 text-white hover:bg-white/35 backdrop-blur-md"}`}
+                title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
               >
-                {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                {isCameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
               </button>
 
               <button
                 onClick={toggleCameraFacing}
-                className="p-3.5 rounded-full bg-white/20 text-white hover:bg-white/30 cursor-pointer"
+                className="p-4 rounded-full bg-white/25 text-white hover:bg-white/35 backdrop-blur-md cursor-pointer shadow-lg"
                 title="Switch Camera"
               >
-                <RefreshCw className="w-5 h-5" />
+                <RefreshCw className="w-6 h-6" />
               </button>
 
               <button
                 onClick={() => setIsVideoCallOpen(false)}
-                className="p-4 rounded-full bg-red-600 text-white shadow-xl hover:bg-red-700 cursor-pointer"
+                className="p-4.5 rounded-full bg-red-600 text-white shadow-2xl hover:bg-red-700 cursor-pointer"
+                title="End Video Call"
               >
                 <PhoneOff className="w-6 h-6" />
               </button>
