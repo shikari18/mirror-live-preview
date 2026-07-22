@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2, CheckCircle2 } from "lucide-react";
+import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { getAIAssistantResponse, getAIVideoCallResponse, MediaAttachment } from "@/lib/gemini";
@@ -35,7 +35,7 @@ export function AssistantPage() {
     {
       id: "1",
       sender: "ai",
-      text: `### Fish Farming Advice\nHow can I help you today? You can ask a question or upload a photo/video:\n- 🐟 **Feeding schedules** & feed quality\n- 💧 **Water pH** & oxygen levels\n- 🩺 **Fish disease** treatment & medicine\n- 📈 **Market prices** in Ghana`,
+      text: `### Fish Farming Advice\nHow can I help you today? Ask a question or upload a photo/video:\n- 🐟 Feeding schedules & feed quality\n- 💧 Water pH & oxygen levels\n- 🩺 Fish disease treatment & medicine\n- 📈 Market prices in Ghana`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -43,13 +43,15 @@ export function AssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: "image" | "video" | "file"; mimeType: string; url: string } | null>(null);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
 
-  // Fullscreen Camera Video Call State
+  // Fullscreen Camera Video Call & Speech-to-Speech State
   const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("environment");
   const [videoCallText, setVideoCallText] = useState("");
+  const [isListeningSpeech, setIsListeningSpeech] = useState(false);
   const [videoCallHistory, setVideoCallHistory] = useState<string[]>([
-    "Dr. Kwame: 'Point your camera at your pond or fish and ask me your question.'"
+    "Dr. Kwame: 'I am listening! Talk to me about your fish pond.'"
   ]);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -59,6 +61,7 @@ export function AssistantPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,11 +70,14 @@ export function AssistantPage() {
   useEffect(() => {
     if (isVideoCallOpen && !isCameraOff) {
       startWebcam(cameraFacing);
+      startSpeechRecognition();
     } else {
       stopWebcam();
+      stopSpeechRecognition();
     }
     return () => {
       stopWebcam();
+      stopSpeechRecognition();
     };
   }, [isVideoCallOpen, cameraFacing, isCameraOff]);
 
@@ -109,6 +115,87 @@ export function AssistantPage() {
 
   const toggleCameraFacing = () => {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
+  };
+
+  // Speech-to-Speech: Automatic Web Speech Recognition in Video Call
+  const startSpeechRecognition = () => {
+    if (typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => setIsListeningSpeech(true);
+      recognition.onend = () => {
+        setIsListeningSpeech(false);
+        // Automatically restart listening if call remains open
+        if (isVideoCallOpen) {
+          try { recognition.start(); } catch (e) {}
+        }
+      };
+
+      recognition.onresult = async (event: any) => {
+        const lastIndex = event.results.length - 1;
+        const spokenText = event.results[lastIndex][0].transcript;
+        if (spokenText && spokenText.trim()) {
+          handleUserVoiceInCall(spokenText.trim());
+        }
+      };
+
+      try {
+        recognition.start();
+        recognitionRef.current = recognition;
+      } catch (e) {
+        console.warn("Speech recognition error", e);
+      }
+    }
+  };
+
+  const stopSpeechRecognition = () => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch (e) {}
+      recognitionRef.current = null;
+    }
+  };
+
+  const handleUserVoiceInCall = async (userSpeech: string) => {
+    setVideoCallHistory((prev) => [...prev, `You: "${userSpeech}"`]);
+    setVideoLoading(true);
+
+    try {
+      const response = await getAIVideoCallResponse(userSpeech, language);
+      setVideoCallHistory((prev) => [...prev, `Dr. Kwame: "${response}"`]);
+      speakVoiceOutLoud(response); // Speech-to-Speech: Speak Dr. Kwame's answer aloud!
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setVideoLoading(false);
+    }
+  };
+
+  // Voice Audio Output function
+  const speakVoiceOutLoud = (text: string, msgId?: string) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      if (speakingMsgId === msgId && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        setSpeakingMsgId(null);
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+      const cleanText = text.replace(/[#*`_]/g, "");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+
+      if (msgId) setSpeakingMsgId(msgId);
+
+      utterance.onend = () => setSpeakingMsgId(null);
+      utterance.onerror = () => setSpeakingMsgId(null);
+
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,32 +273,12 @@ export function AssistantPage() {
     }
   };
 
-  const handleVideoSpeak = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!videoCallText.trim() || videoLoading) return;
-
-    const userSpeech = videoCallText;
-    setVideoCallHistory((prev) => [...prev, `You: "${userSpeech}"`]);
-    setVideoCallText("");
-    setVideoLoading(true);
-
-    try {
-      const response = await getAIVideoCallResponse(userSpeech, language);
-      setVideoCallHistory((prev) => [...prev, `Dr. Kwame: "${response}"`]);
-    } catch (err) {
-      console.error(err);
-      setVideoCallHistory((prev) => [...prev, `Dr. Kwame: "Connection issue. Please repeat your question."`]);
-    } finally {
-      setVideoLoading(false);
-    }
-  };
-
   const parseInlineBold = (str: string) => {
     const parts = str.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         return (
-          <strong key={i} className="font-black text-gray-900">
+          <strong key={i} className="font-extrabold text-gray-900">
             {part.slice(2, -2)}
           </strong>
         );
@@ -222,7 +289,7 @@ export function AssistantPage() {
 
   return (
     <PhoneFrame>
-      {/* Clean Modern Header */}
+      {/* Header */}
       <header className="px-5 pt-3 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20 shadow-2xs">
         <div className="flex items-center gap-3">
           <Link to="/home" className="p-1 cursor-pointer hover:bg-gray-100 rounded-full">
@@ -236,7 +303,7 @@ export function AssistantPage() {
               AI Advisor
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
-            <p className="text-[11px] text-gray-500 font-medium">Smart Farm Assistant</p>
+            <p className="text-[11px] text-gray-500 font-medium">Smart Assistant</p>
           </div>
         </div>
 
@@ -249,33 +316,27 @@ export function AssistantPage() {
         </button>
       </header>
 
-      {/* Redesigned AI Chat UI */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#F4F7F4] min-h-[460px]">
+      {/* Simplified Clean AI Chat Messages */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-[#F8FAF8] min-h-[460px]">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
           >
             <div
-              className={`max-w-[90%] p-4 rounded-2xl text-xs leading-relaxed ${
+              className={`max-w-[88%] p-3.5 rounded-2xl text-xs leading-relaxed ${
                 msg.sender === "user"
-                  ? "bg-[#0F6236] text-white font-medium rounded-br-none shadow-md"
-                  : "bg-white text-gray-900 border-l-4 border-l-[#0F6236] border-y border-r border-gray-200/80 rounded-bl-none shadow-xs space-y-2"
+                  ? "bg-[#0F6236] text-white font-medium rounded-br-none shadow-xs"
+                  : "bg-white text-gray-900 border border-gray-200 rounded-bl-none shadow-xs"
               }`}
             >
-              {msg.sender === "ai" && (
-                <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#0F6236] uppercase tracking-wider border-b border-gray-100 pb-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-[#0F6236]" /> AI Farm Recommendation
-                </div>
-              )}
-
-              {/* Render Attachment preview */}
+              {/* Attachment Preview */}
               {msg.attachment && (
-                <div className="mb-2 p-2 bg-black/10 rounded-xl overflow-hidden">
+                <div className="mb-2 p-1.5 bg-black/5 rounded-xl overflow-hidden">
                   {msg.attachment.type === "image" ? (
-                    <img src={msg.attachment.url} alt="Uploaded" className="w-full h-44 object-cover rounded-lg" />
+                    <img src={msg.attachment.url} alt="Uploaded" className="w-full h-40 object-cover rounded-lg" />
                   ) : msg.attachment.type === "video" ? (
-                    <video src={msg.attachment.url} controls className="w-full h-44 object-cover rounded-lg" />
+                    <video src={msg.attachment.url} controls className="w-full h-40 object-cover rounded-lg" />
                   ) : (
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
                       <FileText className="w-5 h-5 text-[#0F6236]" /> {msg.attachment.name}
@@ -284,12 +345,12 @@ export function AssistantPage() {
                 </div>
               )}
 
-              {/* Redesigned AI Reply Content */}
-              <div className="space-y-2">
+              {/* Simple AI Reply Text */}
+              <div className="space-y-1">
                 {msg.text.split("\n").map((line, idx) => {
                   if (line.startsWith("### ")) {
                     return (
-                      <h4 key={idx} className="font-black text-sm text-[#0F6236] pt-1.5 pb-0.5 border-b border-gray-100">
+                      <h4 key={idx} className="font-extrabold text-xs text-[#0F6236] pt-1 pb-0.5">
                         {parseInlineBold(line.replace("### ", ""))}
                       </h4>
                     );
@@ -297,26 +358,44 @@ export function AssistantPage() {
                   if (line.startsWith("- ") || line.startsWith("* ")) {
                     const content = line.substring(2);
                     return (
-                      <div key={idx} className="flex items-start gap-2 text-xs text-gray-800 pl-0.5 font-medium my-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#0F6236] shrink-0 mt-0.5" />
+                      <div key={idx} className="flex items-start gap-1.5 text-xs text-gray-800 font-medium my-0.5">
+                        <span className="text-[#0F6236] font-bold">•</span>
                         <span>{parseInlineBold(content)}</span>
                       </div>
                     );
                   }
-                  return <p key={idx} className="text-xs text-gray-800 font-medium my-0.5 leading-relaxed">{parseInlineBold(line)}</p>;
+                  return <p key={idx} className="text-xs text-gray-800 font-medium my-0.5">{parseInlineBold(line)}</p>;
                 })}
               </div>
 
-              <div className="pt-2 border-t border-gray-100 text-right">
-                <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
-              </div>
+              {/* Speaker Button at the BOTTOM of AI Reply */}
+              {msg.sender === "ai" && (
+                <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
+                  <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
+                  <button
+                    onClick={() => speakVoiceOutLoud(msg.text, msg.id)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                      speakingMsgId === msg.id
+                        ? "bg-[#0F6236] text-white animate-pulse"
+                        : "bg-gray-100 text-[#0F6236] hover:bg-gray-200"
+                    }`}
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    {speakingMsgId === msg.id ? "Speaking..." : "Listen"}
+                  </button>
+                </div>
+              )}
             </div>
+
+            {msg.sender === "user" && (
+              <span className="text-[10px] text-gray-400 mt-1 px-1">{msg.time}</span>
+            )}
           </div>
         ))}
 
         {loading && (
           <div className="flex items-center gap-2 text-xs text-[#0F6236] font-bold bg-white p-3.5 rounded-2xl border border-gray-200 w-fit shadow-xs">
-            <Loader2 className="w-4 h-4 animate-spin text-[#0F6236]" /> AI is evaluating your request...
+            <Loader2 className="w-4 h-4 animate-spin text-[#0F6236]" /> AI is evaluating...
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -385,7 +464,7 @@ export function AssistantPage() {
         </button>
       </div>
 
-      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL */}
+      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL WITH SPEECH-TO-SPEECH */}
       {isVideoCallOpen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
           
@@ -414,7 +493,9 @@ export function AssistantPage() {
               <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
               <div>
                 <h3 className="font-extrabold text-sm text-white">Dr. Kwame (Senior Specialist)</h3>
-                <p className="text-[11px] text-emerald-400 font-semibold">Live Camera Stream Active</p>
+                <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                  <Mic className="w-3 h-3 animate-pulse" /> Speech-to-Speech Active
+                </p>
               </div>
             </div>
 
@@ -434,7 +515,7 @@ export function AssistantPage() {
               Dr. K
             </div>
             <span className="inline-block mt-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold border border-white/20">
-              Dr. Kwame • Senior Consultant
+              Dr. Kwame • Talk Naturally
             </span>
           </div>
 
@@ -448,15 +529,16 @@ export function AssistantPage() {
                 </p>
               ))}
               {videoLoading && <p className="text-yellow-400 animate-pulse font-bold">Dr. Kwame is responding...</p>}
+              {isListeningSpeech && <p className="text-emerald-400 animate-pulse font-bold text-[11px]">🎙️ Listening to your voice...</p>}
             </div>
 
-            {/* Speech Input */}
-            <form onSubmit={handleVideoSpeak} className="flex gap-2">
+            {/* Speech-to-Speech Text Input Fallback */}
+            <form onSubmit={(e) => { e.preventDefault(); handleUserVoiceInCall(videoCallText); setVideoCallText(""); }} className="flex gap-2">
               <input
                 type="text"
                 value={videoCallText}
                 onChange={(e) => setVideoCallText(e.target.value)}
-                placeholder="Speak to Dr. Kwame about what your camera shows..."
+                placeholder="Talk aloud or type your question..."
                 className="flex-1 h-12 bg-black/70 backdrop-blur-md border border-white/30 text-white px-4 rounded-full text-xs outline-none focus:ring-2 focus:ring-[#0F6236]"
               />
               <button
