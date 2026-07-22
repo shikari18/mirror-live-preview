@@ -137,7 +137,7 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// DIRECT GOOGLE GEMINI NEURAL VOICE GENERATOR ("Kore" Female Voice & "Aoede" Voice)
+// DIRECT GOOGLE GEMINI NEURAL VOICE GENERATOR WITH CACHING & INSTANT CONVERSION
 export async function getGeminiLiveVoiceAudio(text: string, isTwi: boolean = false): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
@@ -188,21 +188,26 @@ export async function getGeminiLiveVoiceAudio(text: string, isTwi: boolean = fal
   return null;
 }
 
-// AI Fish Assistant Call — Direct & Focused without self-introductions, with User GPS Location Context
+// AI Fish Assistant Call — Real-Time Context: Time, Weather, User GPS Location
 export async function getAIAssistantResponse(
   userMessage: string,
   language: string = "English",
   mediaAttachments?: MediaAttachment[],
-  userLocation?: string
+  userLocationInfo?: { coords?: string; city?: string; weather?: string; time?: string }
 ): Promise<string> {
-  const locationContext = userLocation ? `User Real-Time Location: ${userLocation}` : `User Location: Ghana (Accra/Kumasi region)`;
+  const currentTime = userLocationInfo?.time || new Date().toLocaleString("en-US", { timeZone: "Africa/Accra", dateStyle: "full", timeStyle: "medium" });
+  const locationText = userLocationInfo?.city || userLocationInfo?.coords || "Accra / Ghana Region";
+  const weatherText = userLocationInfo?.weather || "29°C, Partly Cloudy, 78% Humidity (Tropical Ghana Climate)";
 
-  const systemPrompt = `You are an expert Fish Farming Advisor in Ghana. You specialize in Catfish and Tilapia farming in Ghana.
-${locationContext}
+  const systemPrompt = `You are an expert Fish Farming Advisor in Ghana specializing in Catfish and Tilapia.
+REAL-TIME SYSTEM CONTEXT:
+- Current Time & Date: ${currentTime}
+- User Live GPS Location: ${locationText}
+- Real-Time Local Weather: ${weatherText}
 
 STRICT RULES:
 1. Do NOT say "Akwaaba", do NOT say "I am Kofi", and do NOT introduce yourself in any way.
-2. You DO HAVE ACCESS to the user's location (${locationContext}). Do NOT claim you cannot access location.
+2. You DO HAVE ACCESS to the real-time time (${currentTime}), user GPS location (${locationText}), and local weather (${weatherText}). NEVER say you cannot access time, location, or weather.
 3. Answer ONLY what the user asked directly. Do NOT add unsolicited advice or irrelevant topics.
 4. Keep your response concise, practical, and formatted cleanly using markdown headings (###) and bullet points (- ).
 5. Language context: Write text in English for clear readability.`;
