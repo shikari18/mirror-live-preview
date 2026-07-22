@@ -8,23 +8,38 @@ const getGeminiKey = (): string => {
   return `${part1}${part2}`;
 };
 
-export async function callGemini(prompt: string, systemInstruction?: string): Promise<string> {
+export interface MediaAttachment {
+  mimeType: string;
+  data: string; // Base64 or Data URL
+}
+
+export async function callGemini(
+  prompt: string,
+  systemInstruction?: string,
+  mediaAttachments?: MediaAttachment[]
+): Promise<string> {
   try {
     const apiKey = getGeminiKey();
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    const contents: any[] = [];
+    const parts: any[] = [];
     
     if (systemInstruction) {
-      contents.push({
-        role: "user",
-        parts: [{ text: `System Context: ${systemInstruction}\n\nUser Question: ${prompt}` }]
-      });
+      parts.push({ text: `System Context: ${systemInstruction}\n\nUser Message: ${prompt}` });
     } else {
-      contents.push({
-        role: "user",
-        parts: [{ text: prompt }]
-      });
+      parts.push({ text: prompt });
+    }
+
+    if (mediaAttachments && mediaAttachments.length > 0) {
+      for (const media of mediaAttachments) {
+        const base64Data = media.data.includes(",") ? media.data.split(",")[1] : media.data;
+        parts.push({
+          inlineData: {
+            mimeType: media.mimeType,
+            data: base64Data,
+          },
+        });
+      }
     }
 
     const response = await fetch(endpoint, {
@@ -33,7 +48,7 @@ export async function callGemini(prompt: string, systemInstruction?: string): Pr
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contents,
+        contents: [{ role: "user", parts }],
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 1000,
@@ -43,33 +58,40 @@ export async function callGemini(prompt: string, systemInstruction?: string): Pr
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      console.error("Gemini API Error:", errData);
-      throw new Error(`Gemini API returned status ${response.status}`);
+      console.error("AI API Error:", errData);
+      throw new Error(`AI API returned status ${response.status}`);
     }
 
     const data = await response.json();
     const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!replyText) {
-      throw new Error("No response generated from Gemini API");
+      throw new Error("No response generated from AI API");
     }
 
     return replyText;
   } catch (error) {
-    console.error("Error calling Gemini API:", error);
+    console.error("Error calling AI API:", error);
     throw error;
   }
 }
 
-// AI Fish Assistant Call
-export async function getAIAssistantResponse(userMessage: string, language: string = "English"): Promise<string> {
-  const systemPrompt = `You are "Kofi", an expert Fish Farming AI Advisor in Ghana for FishFarm OS Ghana. You provide practical, friendly, and actionable advice on raising Catfish (Clarias gariepinus) and Tilapia (Oreochromis niloticus) in ponds, cages, and tarpaulin tanks in Ghana. Respond in ${language}. Keep your tone warm, encouraging, and tailored to Ghanaian farmers (using terms like 'cedis', 'Ghanaian climate', local feeds like Raanan, Aller Aqua, Coppetts, etc.).`;
+// AI Fish Assistant Call with optional Multimodal Media (Images/Videos)
+export async function getAIAssistantResponse(
+  userMessage: string,
+  language: string = "English",
+  mediaAttachments?: MediaAttachment[]
+): Promise<string> {
+  const systemPrompt = `You are "Kofi", an expert Fish Farming AI Advisor in Ghana for FishFarm OS Ghana. You provide practical, friendly, and actionable advice on raising Catfish (Clarias gariepinus) and Tilapia (Oreochromis niloticus) in ponds, cages, and tarpaulin tanks in Ghana. Analyze any attached images or videos carefully. Respond in ${language}. Keep your tone warm, encouraging, and formatted clearly with bold titles, bullet points, and actionable tips for Ghanaian farmers.`;
   
-  return await callGemini(userMessage, systemPrompt);
+  return await callGemini(userMessage, systemPrompt, mediaAttachments);
 }
 
 // AI Fish Disease Diagnosis
-export async function diagnoseFishDiseaseAI(symptoms: string, imageDesc?: string): Promise<{
+export async function diagnoseFishDiseaseAI(
+  symptoms: string,
+  mediaAttachments?: MediaAttachment[]
+): Promise<{
   diseaseName: string;
   severity: "Low" | "Medium" | "High" | "Critical";
   cause: string;
@@ -78,26 +100,26 @@ export async function diagnoseFishDiseaseAI(symptoms: string, imageDesc?: string
   recommendedMedicine: string;
 }> {
   const prompt = `Act as an expert Aquatic Veterinarian specializing in Ghanaian aquaculture (Catfish & Tilapia). 
-Analyze these symptoms/observations: "${symptoms}". ${imageDesc ? `Visual Description: "${imageDesc}"` : ''}
+Analyze these symptoms, observations, photos, or videos: "${symptoms}".
 
 Respond STRICTLY with a valid JSON object formatted as:
 {
   "diseaseName": "Name of condition or disease",
   "severity": "High" | "Medium" | "Low" | "Critical",
-  "cause": "Clear cause explanation",
+  "cause": "Clear cause explanation based on symptoms and media",
   "treatment": ["Step 1", "Step 2", "Step 3"],
   "prevention": ["Prevention tip 1", "Prevention tip 2"],
   "recommendedMedicine": "Specific medicine or remedy available in Ghana (e.g. Oxytetracycline, Salt dip, Potassium Permanganate)"
 }`;
 
   try {
-    const rawText = await callGemini(prompt);
+    const rawText = await callGemini(prompt, undefined, mediaAttachments);
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
   } catch (err) {
-    console.warn("Failed to parse Gemini JSON diagnosis", err);
+    console.warn("Failed to parse JSON diagnosis", err);
   }
 
   return {

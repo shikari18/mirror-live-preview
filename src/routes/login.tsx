@@ -26,7 +26,25 @@ function LoginPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate({ to: "/home" });
+    if (phone) {
+      localStorage.setItem("user_phone", `+233 ${phone}`);
+    }
+
+    const isOnboardingComplete = localStorage.getItem("user_onboarding_completed");
+    if (isOnboardingComplete === "true") {
+      navigate({ to: "/home" });
+    } else {
+      navigate({ to: "/onboarding" });
+    }
+  };
+
+  const handleGoogleLogin = () => {
+    const isOnboardingComplete = localStorage.getItem("user_onboarding_completed");
+    if (isOnboardingComplete === "true") {
+      navigate({ to: "/home" });
+    } else {
+      navigate({ to: "/onboarding" });
+    }
   };
 
   return (
@@ -94,16 +112,10 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="text-gray-400 hover:text-gray-600 p-1"
+                  className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                 </button>
-              </div>
-              
-              <div className="text-right mt-1.5">
-                <a href="#" className="text-[13.5px] font-bold text-[#0F6236] hover:underline">
-                  {t("forgotPassword")}
-                </a>
               </div>
             </div>
 
@@ -126,7 +138,7 @@ function LoginPage() {
             {/* Google Sign In Button */}
             <button
               type="button"
-              onClick={() => navigate({ to: "/home" })}
+              onClick={handleGoogleLogin}
               className="w-full h-13 bg-white border border-gray-200 hover:bg-gray-50 active:scale-[0.98] transition-all text-gray-900 text-[15.5px] font-bold rounded-[16px] shadow-xs flex items-center justify-center gap-2.5 cursor-pointer"
             >
               <GoogleLogo className="w-4.5 h-4.5" />
@@ -143,7 +155,6 @@ function LoginPage() {
           </form>
         </div>
 
-        {/* Wavy Fish Background Decor */}
         <WavyFishBackground />
       </main>
     </div>

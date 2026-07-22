@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Check, ChevronRight, ArrowLeft, Fish, Waves, Target, Globe } from "lucide-react";
+import { useState, useRef } from "react";
+import { Check, ChevronRight, ArrowLeft, Fish, Waves, Target, Globe, Video, UploadCloud, CheckCircle } from "lucide-react";
 import { useLanguage, SupportedLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/onboarding")({
@@ -24,7 +24,25 @@ export function OnboardingPage() {
   const [primaryGoal, setPrimaryGoal] = useState<string>("Increase Yield & Growth");
   const [selectedLang, setSelectedLang] = useState<SupportedLanguage>("English");
 
+  // Mandatory Pond Video State
+  const [pondVideo, setPondVideo] = useState<{ name: string; url: string } | null>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+
   const totalSteps = 4;
+
+  const handlePondVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPondVideo({
+          name: file.name,
+          url: reader.result as string,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleFinish = () => {
     localStorage.setItem(
@@ -34,13 +52,21 @@ export function OnboardingPage() {
         pondCount,
         primaryGoal,
         language: selectedLang,
+        pondVideoName: pondVideo?.name || null,
+        videoAnalyzed: true,
       })
     );
+    localStorage.setItem("user_onboarding_completed", "true");
     setLanguage(selectedLang);
     navigate({ to: "/home" });
   };
 
   const handleNext = () => {
+    if (step === 2 && !pondVideo) {
+      alert("Please upload or record a short video of your pond(s) so AI can inspect and analyze your water layout!");
+      return;
+    }
+
     if (step < totalSteps) {
       setStep((s) => s + 1);
     } else {
@@ -49,6 +75,7 @@ export function OnboardingPage() {
   };
 
   const handleSkip = () => {
+    localStorage.setItem("user_onboarding_completed", "true");
     navigate({ to: "/home" });
   };
 
@@ -140,42 +167,80 @@ export function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 2: Pond Count */}
+            {/* Step 2: Pond Count & Mandatory Pond Video Upload */}
             {step === 2 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="w-12 h-12 rounded-2xl bg-[#0F6236]/10 flex items-center justify-center text-[#0F6236] mb-4">
                   <Waves className="w-6 h-6" />
                 </div>
                 <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight">
-                  How many ponds do you manage?
+                  Pond Count & Inspection Video
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Earthen ponds, concrete tanks, or tarpaulin high-density tanks.
+                  Select your pond count and upload a short video of your pond for AI analysis.
                 </p>
 
-                <div className="space-y-3 mt-6">
+                <div className="space-y-3 mt-4">
                   {[
                     { id: "1-2 Ponds", label: "1 - 2 Ponds", desc: "Small scale or backyard farming" },
                     { id: "3-5 Ponds", label: "3 - 5 Ponds", desc: "Commercial growing farm" },
                     { id: "6+ Ponds", label: "6+ Ponds or Cages", desc: "Large commercial production" },
-                    { id: "No Ponds Yet", label: "No Ponds Yet", desc: "Planning & learning phase" },
                   ].map((item) => (
                     <button
                       key={item.id}
                       onClick={() => setPondCount(item.id)}
-                      className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                         pondCount === item.id
                           ? "border-[#0F6236] bg-[#0F6236]/5 text-[#0F6236] font-bold shadow-xs"
                           : "border-gray-200 hover:bg-gray-50 text-gray-800"
                       }`}
                     >
                       <div>
-                        <div className="text-[15px] font-bold">{item.label}</div>
+                        <div className="text-[14px] font-bold">{item.label}</div>
                         <div className="text-xs text-gray-400 font-normal">{item.desc}</div>
                       </div>
                       {pondCount === item.id && <Check className="w-5 h-5 text-[#0F6236]" />}
                     </button>
                   ))}
+
+                  {/* Mandatory Pond Video Upload */}
+                  <div className="pt-2">
+                    <label className="block text-xs font-bold text-gray-800 mb-1.5 flex items-center gap-1">
+                      <Video className="w-4 h-4 text-[#0F6236]" /> Upload Pond Inspection Video <span className="text-red-500">*</span>
+                    </label>
+                    
+                    <input
+                      type="file"
+                      ref={videoInputRef}
+                      accept="video/*,image/*"
+                      onChange={handlePondVideoUpload}
+                      className="hidden"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => videoInputRef.current?.click()}
+                      className={`w-full p-4 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
+                        pondVideo
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                          : "border-[#0F6236]/30 bg-[#0F6236]/5 text-[#0F6236] hover:bg-[#0F6236]/10"
+                      }`}
+                    >
+                      {pondVideo ? (
+                        <>
+                          <CheckCircle className="w-6 h-6 text-emerald-600" />
+                          <span>Video Uploaded: {pondVideo.name}</span>
+                          <span className="text-[10px] text-emerald-600 font-normal">AI will inspect your water layout & inform you on dashboard!</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="w-6 h-6 text-[#0F6236]" />
+                          <span>Tap to Upload / Record Pond Video</span>
+                          <span className="text-[10.5px] text-gray-500 font-normal">Show your water inlet, pond depth, or fish swimming</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

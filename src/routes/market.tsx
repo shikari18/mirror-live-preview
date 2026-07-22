@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { MapPin, ShoppingCart, Tag, Sparkles, TrendingUp, Loader2, MessageSquare, Phone, Package } from "lucide-react";
+import { MapPin, ShoppingCart, Tag, Sparkles, TrendingUp, Loader2, MessageSquare, Phone, Package, ArrowLeft } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { getAIMarketInsights } from "@/lib/gemini";
@@ -64,24 +64,29 @@ export function MarketPage() {
 
   return (
     <PhoneFrame>
-      {/* Header */}
-      <header className="px-5 pt-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] font-extrabold text-foreground">{t("market")}</h1>
-          <div className="flex items-center gap-1 text-[#0F6236] text-[12.5px] font-medium mt-0.5">
-            <MapPin className="w-3.5 h-3.5" /> Greater Accra & Ashanti, Ghana
+      {/* Header - Aligned & Compact */}
+      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white">
+        <div className="flex items-center gap-3">
+          <Link to="/home" className="p-1">
+            <ArrowLeft className="w-5 h-5 text-gray-800" />
+          </Link>
+          <div>
+            <h1 className="text-[19px] font-extrabold text-foreground leading-tight">{t("market")}</h1>
+            <div className="flex items-center gap-1 text-[#0F6236] text-[12px] font-medium mt-0.5">
+              <MapPin className="w-3.5 h-3.5" /> Greater Accra & Ashanti, Ghana
+            </div>
           </div>
         </div>
-        <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
+        <img src={farmerImg} alt="Kofi" className="w-9 h-9 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
       {/* Buy & Sell Action Bar */}
       <section className="px-5 mt-4 grid grid-cols-2 gap-2.5">
-        <Link to="/harvest" className="h-12 rounded-2xl bg-[#0F6236] text-white font-bold flex items-center justify-center gap-2 shadow-md shadow-[#0F6236]/20">
-          <ShoppingCart className="w-4.5 h-4.5" /> Buy Feed & Supplies
+        <Link to="/harvest" className="h-11 rounded-2xl bg-[#0F6236] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-[#0F6236]/20">
+          <ShoppingCart className="w-4 h-4" /> Buy Supplies
         </Link>
-        <Link to="/sell-fish" className="h-12 rounded-2xl bg-white border border-gray-200 text-gray-900 font-bold flex items-center justify-center gap-2 shadow-xs hover:bg-gray-50">
-          <Tag className="w-4.5 h-4.5 text-[#0F6236]" /> + Sell My Produce
+        <Link to="/sell-fish" className="h-11 rounded-2xl bg-white border border-gray-200 text-gray-900 font-bold text-xs flex items-center justify-center gap-2 shadow-xs hover:bg-gray-50">
+          <Tag className="w-4 h-4 text-[#0F6236]" /> + Sell Produce
         </Link>
       </section>
 
@@ -89,7 +94,7 @@ export function MarketPage() {
       <section className="mx-5 mt-4 rounded-2xl bg-[#0F6236]/10 p-3.5 border border-[#0F6236]/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 font-extrabold text-xs text-[#0F6236]">
-            <Sparkles className="w-3.5 h-3.5" /> AI Market Forecast (Ghana)
+            <Sparkles className="w-3.5 h-3.5" /> Live Market Forecast
           </div>
           <div className="flex gap-1">
             {["Catfish", "Tilapia"].map((f) => (
@@ -175,7 +180,6 @@ export function MarketPage() {
                   </div>
                 </div>
 
-                {/* Contact Seller Button - Specific to Chosen Preference */}
                 <button
                   onClick={() => handleContactSeller(item)}
                   className={`mt-3 w-full h-8 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs ${

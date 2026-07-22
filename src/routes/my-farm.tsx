@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Plus, Waves, Fish, MapPin, ChevronRight, Package, Droplet, FlaskConical, Calendar, AlertCircle } from "lucide-react";
+import { Plus, Waves, MapPin, ArrowLeft } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { useLanguage } from "@/lib/languageContext";
@@ -67,15 +67,20 @@ export function MyFarmPage() {
 
   return (
     <PhoneFrame>
-      {/* Header */}
-      <header className="px-5 pt-6 flex items-center justify-between border-b border-gray-100 bg-white pb-3">
-        <div>
-          <h1 className="text-[20px] font-extrabold text-gray-900">{t("myFarm")}</h1>
-          <div className="flex items-center gap-1 text-[#0F6236] text-[12.5px] font-medium mt-0.5">
-            <MapPin className="w-3.5 h-3.5" /> Ashanti Region, Ghana
+      {/* Header - Aligned & Compact */}
+      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white">
+        <div className="flex items-center gap-3">
+          <Link to="/home" className="p-1">
+            <ArrowLeft className="w-5 h-5 text-gray-800" />
+          </Link>
+          <div>
+            <h1 className="text-[19px] font-extrabold text-gray-900 leading-tight">{t("myFarm")}</h1>
+            <div className="flex items-center gap-1 text-[#0F6236] text-[12px] font-medium mt-0.5">
+              <MapPin className="w-3.5 h-3.5" /> Ashanti Region, Ghana
+            </div>
           </div>
         </div>
-        <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
+        <img src={farmerImg} alt="Kofi" className="w-9 h-9 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
       {/* Farm Overview Banner */}
@@ -162,7 +167,7 @@ export function MyFarmPage() {
           <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-gray-100">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
               <h3 className="font-extrabold text-base text-gray-900">Add New Pond</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 font-bold hover:text-gray-600">✕</button>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 font-bold hover:text-gray-600 cursor-pointer">✕</button>
             </div>
 
             <form onSubmit={handleAddPond} className="space-y-3 text-xs">

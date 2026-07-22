@@ -18,6 +18,7 @@ import { Route as HomeRouteImport } from './routes/home'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarketRouteImport } from './routes/market'
 import { Route as MyFarmRouteImport } from './routes/my-farm'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SellFishRouteImport } from './routes/sell-fish'
@@ -71,6 +72,11 @@ const MyFarmRoute = MyFarmRouteImport.update({
   path: '/my-farm',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/market': typeof MarketRoute
   '/my-farm': typeof MyFarmRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/sell-fish': typeof SellFishRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/market': typeof MarketRoute
   '/my-farm': typeof MyFarmRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/sell-fish': typeof SellFishRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/market': typeof MarketRoute
   '/my-farm': typeof MyFarmRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/sell-fish': typeof SellFishRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/market'
     | '/my-farm'
+    | '/notifications'
     | '/onboarding'
     | '/profile'
     | '/sell-fish'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/market'
     | '/my-farm'
+    | '/notifications'
     | '/onboarding'
     | '/profile'
     | '/sell-fish'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/market'
     | '/my-farm'
+    | '/notifications'
     | '/onboarding'
     | '/profile'
     | '/sell-fish'
@@ -229,6 +241,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MarketRoute: typeof MarketRoute
   MyFarmRoute: typeof MyFarmRoute
+  NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
   ProfileRoute: typeof ProfileRoute
   SellFishRoute: typeof SellFishRoute
@@ -303,6 +316,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MyFarmRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -365,6 +385,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MarketRoute: MarketRoute,
   MyFarmRoute: MyFarmRoute,
+  NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
   ProfileRoute: ProfileRoute,
   SellFishRoute: SellFishRoute,
