@@ -178,7 +178,7 @@ export function AssistantPage() {
     setVoiceProgress("");
   };
 
-  // INSTANT GOOGLE GEMINI NEURAL VOICE PLAYER WITH DYNAMIC DOWNLOAD PROGRESS (%) & UNLIMITED REPLAY
+  // INSTANT SAME-ORIGIN GOOGLE NEURAL VOICE PLAYER WITH UNLIMITED REPLAY
   const playVoice = async (text: string, msgId?: string) => {
     if (msgId && playingMsgId === msgId) {
       stopAudio();
@@ -190,8 +190,8 @@ export function AssistantPage() {
 
     if (msgId) setPlayingMsgId(msgId);
 
-    // Step 1: Start Download Progress Indicator (15% -> 40% -> 75% -> 95%)
-    let pct = 15;
+    // Step 1: Start Download Progress Indicator (20% -> 50% -> 80% -> 95%)
+    let pct = 20;
     setVoiceProgress(`Downloading Voice ${pct}%...`);
     
     progressIntervalRef.current = setInterval(() => {
@@ -207,19 +207,19 @@ export function AssistantPage() {
       } catch (e) {}
     }
 
-    // Step 2: Fetch Google Gemini Neural Audio
-    const wavAudioUrl = await getGeminiLiveVoiceAudio(speechText, language);
+    // Step 2: Fetch Same-Origin Audio URL (/api/tts)
+    const audioUrl = await getGeminiLiveVoiceAudio(speechText, language);
 
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
     }
 
-    if (wavAudioUrl) {
+    if (audioUrl) {
       setVoiceProgress("Downloading Voice 100%!");
       
       try {
-        const audio = new Audio(wavAudioUrl);
+        const audio = new Audio(audioUrl);
         currentAudioRef.current = audio;
 
         audio.onplay = () => {
@@ -230,7 +230,8 @@ export function AssistantPage() {
           stopAudio();
         };
 
-        audio.onerror = () => {
+        audio.onerror = (e) => {
+          console.warn("Audio element error", e);
           stopAudio();
         };
 
