@@ -122,7 +122,7 @@ export function AssistantPage() {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
   };
 
-  // Realistic Female English Voice & Ghanaian Accent Twi Voice Output
+  // Pure Female Gemini-style Voice & Ghanaian Accent Voice Output
   const speakVoice = async (text: string, msgId?: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
@@ -149,15 +149,15 @@ export function AssistantPage() {
     const cleanText = speechText.replace(/[#*`_]/g, "");
     const utterance = new SpeechSynthesisUtterance(cleanText);
 
-    // Get installed system & Google voices
+    // Get installed voices and strictly filter out all male voices
     let voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) {
       window.speechSynthesis.onvoiceschanged = () => {
         voices = window.speechSynthesis.getVoices();
-        applyVoiceSettings(utterance, voices, isTwi);
+        applyStrictFemaleVoice(utterance, voices, isTwi);
       };
     } else {
-      applyVoiceSettings(utterance, voices, isTwi);
+      applyStrictFemaleVoice(utterance, voices, isTwi);
     }
 
     utterance.onend = () => setPlayingMsgId(null);
@@ -166,26 +166,52 @@ export function AssistantPage() {
     window.speechSynthesis.speak(utterance);
   };
 
-  const applyVoiceSettings = (utterance: SpeechSynthesisUtterance, voices: SpeechSynthesisVoice[], isTwi: boolean) => {
+  const applyStrictFemaleVoice = (utterance: SpeechSynthesisUtterance, voices: SpeechSynthesisVoice[], isTwi: boolean) => {
     if (isTwi) {
-      // Ghanaian accent configuration
       const ghanaVoice = voices.find(
         (v) => v.lang.includes("GH") || v.name.includes("Ghana") || v.name.includes("African") || v.lang.includes("ak")
       );
       if (ghanaVoice) utterance.voice = ghanaVoice;
-      utterance.rate = 0.88; // Authentic Ghanaian speech rhythm
-      utterance.pitch = 0.95;
+      utterance.rate = 0.88;
+      utterance.pitch = 1.0;
     } else {
-      // Realistic Natural Female English voice configuration
-      const femaleVoice = voices.find(
-        (v) =>
-          (v.name.includes("Female") || v.name.includes("Zira") || v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Samantha") || v.name.includes("Victoria") || v.name.includes("Karen") || v.name.includes("Moira")) &&
-          (v.lang.startsWith("en"))
-      ) || voices.find((v) => v.lang.startsWith("en"));
+      // EXPLICIT MALE VOICE FILTER (Strictly remove David, Mark, George, James, Richard, Stefan, Male)
+      const femaleOnlyVoices = voices.filter((v) => {
+        const nameLower = v.name.toLowerCase();
+        return (
+          !nameLower.includes("david") &&
+          !nameLower.includes("mark") &&
+          !nameLower.includes("george") &&
+          !nameLower.includes("james") &&
+          !nameLower.includes("richard") &&
+          !nameLower.includes("stefan") &&
+          !nameLower.includes("male") &&
+          !nameLower.includes("guy")
+        );
+      });
 
-      if (femaleVoice) utterance.voice = femaleVoice;
+      // Priority search for female voices (Zira, Hazel, Catherine, Samantha, Victoria, Google Female)
+      const selectedFemaleVoice = femaleOnlyVoices.find((v) => {
+        const nameLower = v.name.toLowerCase();
+        return (
+          nameLower.includes("zira") ||
+          nameLower.includes("hazel") ||
+          nameLower.includes("catherine") ||
+          nameLower.includes("female") ||
+          nameLower.includes("samantha") ||
+          nameLower.includes("victoria") ||
+          nameLower.includes("siri") ||
+          nameLower.includes("google") ||
+          nameLower.includes("natural")
+        );
+      }) || femaleOnlyVoices[0];
+
+      if (selectedFemaleVoice) {
+        utterance.voice = selectedFemaleVoice;
+      }
+
       utterance.rate = 0.95;
-      utterance.pitch = 1.05; // Slightly raised pitch for realistic female voice tone
+      utterance.pitch = 1.25; // Raised pitch guarantees a clear, high, realistic female voice tone!
     }
   };
 
@@ -236,7 +262,7 @@ export function AssistantPage() {
 
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
-      speakVoice(response); // Speak AI response back to user!
+      speakVoice(response);
     } catch (err) {
       console.error(err);
     } finally {
