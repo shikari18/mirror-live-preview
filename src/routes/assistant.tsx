@@ -127,7 +127,7 @@ export function AssistantPage() {
     setPlayingMsgId(null);
   };
 
-  // Decode & Play 24kHz Raw PCM Audio with Resume Protection
+  // Decode & Play 24kHz Raw PCM Audio with Full Sample Alignment
   const playPCM24kAudio = (base64Data: string): Promise<void> => {
     return new Promise(async (resolve, reject) => {
       try {
@@ -138,7 +138,8 @@ export function AssistantPage() {
           bytes[i] = binaryString.charCodeAt(i);
         }
 
-        const int16Array = new Int16Array(bytes.buffer);
+        const alignedBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+        const int16Array = new Int16Array(alignedBuffer);
         const numSamples = int16Array.length;
         const float32Array = new Float32Array(numSamples);
         for (let i = 0; i < numSamples; i++) {

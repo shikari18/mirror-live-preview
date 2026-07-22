@@ -58,7 +58,7 @@ export async function callGemini(
           contents: [{ role: "user", parts }],
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 300,
+            maxOutputTokens: 400,
           },
         }),
       });
@@ -84,13 +84,12 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// ULTRA-FAST DIRECT GEMINI NEURAL VOICE API ("Kore" Female Neural Voice)
+// DIRECT GEMINI NEURAL VOICE API ("Kore" Female Neural Voice)
 export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | "Aoede" | "Puck" = "Kore"): Promise<string | null> {
   const apiKey = getGeminiKey();
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
 
-  // Truncate text to 180 chars max for instant 100ms audio generation
-  const cleanText = text.replace(/[#*`_]/g, "").slice(0, 180);
+  const cleanText = text.replace(/[#*`_]/g, "");
 
   try {
     const response = await fetch(endpoint, {
