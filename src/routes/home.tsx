@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Settings, Bell, MapPin, Check, ChevronRight, Volume2, Play, Sparkles } from "lucide-react";
+import { Settings, Bell, MapPin, Check, ChevronRight, Volume2, Play, Sparkles, AlertCircle, Plus } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import feedSacks from "@/assets/feed-sacks.jpg";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/home")({
   head: () => ({
     meta: [
       { title: "Home — FishFarm OS Ghana" },
-      { name: "description", content: "Your fish farm dashboard: today's status, quick actions and community group buys." },
+      { name: "description", content: "Your fish farm dashboard: today's status, quick actions and market prices." },
     ],
   }),
 });
@@ -32,8 +32,8 @@ export const Route = createFileRoute("/home")({
 const quickActions: { img: string; label: string; tint: string; to?: string }[] = [
   { img: iconFeedCalc, label: "Feed Calculator", tint: "bg-secondary/60", to: "/feed-calculator" },
   { img: iconAiDoctor, label: "AI Fish Doctor", tint: "bg-blue-50", to: "/ai-doctor" },
-  { img: iconBuyFeed, label: "Buy Feed", tint: "bg-secondary/60", to: "/market" },
-  { img: iconSellFish, label: "Sell Fish", tint: "bg-secondary/60", to: "/sell-fish" },
+  { img: iconBuyFeed, label: "Buy Supplies", tint: "bg-secondary/60", to: "/market" },
+  { img: iconSellFish, label: "Sell Harvest", tint: "bg-secondary/60", to: "/sell-fish" },
   { img: iconWaterDrop, label: "Water Monitor", tint: "bg-blue-50", to: "/water-quality" },
   { img: iconMarketPrices, label: "Market Prices", tint: "bg-yellow-50", to: "/market" },
   { img: iconLoans, label: "AI Assistant", tint: "bg-secondary/60", to: "/assistant" },
@@ -41,12 +41,25 @@ const quickActions: { img: string; label: string; tint: string; to?: string }[] 
 ];
 
 export function HomePage() {
-  const { language, t } = useLanguage();
-  const [userName, setUserName] = useState("Kofi");
+  const { language } = useLanguage();
+  const [userName, setUserName] = useState("");
+  const [pondsCount, setPondsCount] = useState<number>(0);
+  const [totalFish, setTotalFish] = useState<number>(0);
+  const [isSetupComplete, setIsSetupComplete] = useState<boolean>(false);
 
   useEffect(() => {
     const savedName = localStorage.getItem("user_name");
     if (savedName) setUserName(savedName);
+
+    const savedPonds = localStorage.getItem("user_ponds");
+    if (savedPonds) {
+      const parsed = JSON.parse(savedPonds);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setPondsCount(parsed.length);
+        setTotalFish(parsed.reduce((sum: number, p: any) => sum + (p.count || 0), 0));
+        setIsSetupComplete(true);
+      }
+    }
   }, []);
 
   return (
@@ -58,7 +71,9 @@ export function HomePage() {
             <Settings className="w-6 h-6" />
           </Link>
           <div>
-            <div className="text-[20px] font-extrabold text-foreground">Akwaaba, {userName} 👋</div>
+            <div className="text-[20px] font-extrabold text-foreground">
+              {userName ? `Akwaaba, ${userName} 👋` : "Akwaaba, Farmer 👋"}
+            </div>
             <div className="flex items-center gap-1 text-[#0F6236] text-[12.5px] font-medium">
               <MapPin className="w-3.5 h-3.5" /> Ashanti Region, Ghana • {language}
             </div>
@@ -70,35 +85,55 @@ export function HomePage() {
             <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-background" />
           </Link>
           <Link to="/profile">
-            <img src={farmerImg} alt={userName} className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
+            <img src={farmerImg} alt="User" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
           </Link>
         </div>
       </header>
 
-      {/* Today's Farm Status Banner */}
-      <section className="mx-5 mt-5 rounded-2xl bg-[#0F6236] text-white p-5 relative overflow-hidden shadow-lg shadow-[#0F6236]/20">
-        <img src={fishDecor} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-20" />
-        <div className="relative">
-          <div className="flex items-center gap-1.5 text-[12px] opacity-90 font-semibold">
-            <Sparkles className="w-3.5 h-3.5" /> Today's Gemini AI Status
+      {/* Dynamic Banner: Shows Setup Alert IF User has not provided ponds or details */}
+      {!isSetupComplete ? (
+        <section className="mx-5 mt-5 rounded-2xl bg-amber-500 text-white p-5 relative overflow-hidden shadow-lg shadow-amber-500/20">
+          <div className="relative z-10">
+            <div className="flex items-center gap-1.5 text-[12px] opacity-95 font-bold uppercase">
+              <AlertCircle className="w-4 h-4" /> Setup Incomplete
+            </div>
+            <div className="mt-1 text-[20px] font-extrabold leading-tight">Complete Your Farm Profile</div>
+            <div className="mt-1 text-[13px] opacity-95">Add your ponds and fish details so AI can monitor your farm.</div>
+            <div className="mt-3 flex gap-2">
+              <Link to="/onboarding" className="px-4 py-2 rounded-xl bg-white text-amber-800 font-bold text-xs shadow-sm">
+                Start Questionnaire
+              </Link>
+              <Link to="/my-farm" className="px-4 py-2 rounded-xl bg-amber-700 text-white font-bold text-xs shadow-sm flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5" /> Add First Pond
+              </Link>
+            </div>
           </div>
-          <div className="mt-1 text-[22px] font-extrabold leading-tight">All Ponds Healthy</div>
-          <div className="mt-1 text-[13px] opacity-95">Water DO: 5.8 mg/L • Temp: 28°C • Optimal Growth</div>
-        </div>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-13 h-13 rounded-full bg-white/20 flex items-center justify-center">
-          <Check className="w-7 h-7 text-white" strokeWidth={3} />
-        </div>
-      </section>
+        </section>
+      ) : (
+        <section className="mx-5 mt-5 rounded-2xl bg-[#0F6236] text-white p-5 relative overflow-hidden shadow-lg shadow-[#0F6236]/20">
+          <img src={fishDecor} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+          <div className="relative">
+            <div className="flex items-center gap-1.5 text-[12px] opacity-90 font-semibold">
+              <Sparkles className="w-3.5 h-3.5" /> Live Farm Status
+            </div>
+            <div className="mt-1 text-[22px] font-extrabold leading-tight">{pondsCount} Active Ponds Healthy</div>
+            <div className="mt-1 text-[13px] opacity-95">Total Stock: {totalFish.toLocaleString()} Fish • Water Quality: Optimal</div>
+          </div>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-13 h-13 rounded-full bg-white/20 flex items-center justify-center">
+            <Check className="w-7 h-7 text-white" strokeWidth={3} />
+          </div>
+        </section>
+      )}
 
-      {/* Farm Stats Cards */}
+      {/* Dynamic Farm Stats Cards */}
       <section className="px-5 mt-4 grid grid-cols-2 gap-3">
-        <StatCard tint="bg-secondary/60" img={iconFeedSack} label="Feed Today" value="6.25 kg" sub="Recommended" />
-        <StatCard tint="bg-blue-50" img={iconWaterDrop} label="Water Quality" value="94 / 100" sub="Optimal DO & pH" />
-        <StatCard tint="bg-yellow-50" img={iconGrowth} label="Fish Growth" value="On Track" sub="↑ 14% this week" />
-        <StatCard tint="bg-purple-50" img={iconCalendar} label="Harvest Date" value="21 Days" sub="Target: 1.4kg" />
+        <StatCard tint="bg-secondary/60" img={iconFeedSack} label="Feed Needed Today" value={isSetupComplete ? `${(totalFish * 0.03 * 0.05).toFixed(1)} kg` : "Pending Setup"} sub="Calculated" />
+        <StatCard tint="bg-blue-50" img={iconWaterDrop} label="Water Status" value={isSetupComplete ? "Good" : "No Data"} sub="Pond Health" />
+        <StatCard tint="bg-yellow-50" img={iconGrowth} label="Active Ponds" value={`${pondsCount} Ponds`} sub="In Production" />
+        <StatCard tint="bg-purple-50" img={iconCalendar} label="Total Stocked" value={`${totalFish.toLocaleString()} Fish`} sub="Live Count" />
       </section>
 
-      {/* Daily Voice Assistant Teaser */}
+      {/* Voice Assistant Section */}
       <section className="mx-5 mt-4 rounded-2xl border border-gray-200 bg-white p-3.5 flex items-center gap-3 shadow-xs">
         <Link to="/assistant" className="w-11 h-11 rounded-full bg-[#0F6236] flex items-center justify-center shrink-0 text-white shadow-xs">
           <Volume2 className="w-5 h-5" />
@@ -112,17 +147,17 @@ export function HomePage() {
             })}
           </div>
           <Link to="/assistant" className="mt-1 text-[11px] text-[#0F6236] font-bold inline-flex items-center gap-1">
-            <Play className="w-3 h-3 fill-[#0F6236]" /> Listen to Kofi's Daily Tip
+            <Play className="w-3 h-3 fill-[#0F6236]" /> Listen to Daily Farming Tip
           </Link>
         </div>
       </section>
 
-      {/* Quick Actions Grid */}
+      {/* Features Grid */}
       <section className="px-5 mt-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[17px] font-extrabold text-gray-900">Farm Features</h2>
           <Link to="/settings" className="text-[#0F6236] font-bold text-xs">
-            Settings & Lang
+            Settings
           </Link>
         </div>
         <div className="grid grid-cols-4 gap-3">
@@ -170,7 +205,7 @@ function StatCard({ tint, img, label, value, sub }: { tint: string; img: string;
       </div>
       <div className="min-w-0">
         <div className="text-[11px] text-gray-500 font-medium">{label}</div>
-        <div className="text-[15px] font-extrabold text-gray-900 leading-tight">{value}</div>
+        <div className="text-[14px] font-extrabold text-gray-900 leading-tight">{value}</div>
         <div className="text-[10px] text-[#0F6236] font-bold">{sub}</div>
       </div>
     </div>

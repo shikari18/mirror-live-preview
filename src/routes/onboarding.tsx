@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Check, ChevronRight, ArrowLeft, Fish, Waves, Target, Globe } from "lucide-react";
-import { FishFarmLogo } from "@/components/ui/FishFarmLogo";
 import { useLanguage, SupportedLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/onboarding")({
@@ -62,7 +61,7 @@ export function OnboardingPage() {
           {step > 1 ? (
             <button
               onClick={() => setStep((s) => s - 1)}
-              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100"
+              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -89,7 +88,7 @@ export function OnboardingPage() {
           {/* Skip Button */}
           <button
             onClick={handleSkip}
-            className="text-sm font-bold text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg"
+            className="text-sm font-bold text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg cursor-pointer"
           >
             Skip
           </button>
@@ -121,7 +120,7 @@ export function OnboardingPage() {
                     <button
                       key={item.id}
                       onClick={() => setFishType(item.id)}
-                      className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                         fishType === item.id
                           ? "border-[#0F6236] bg-[#0F6236]/5 text-[#0F6236] font-bold shadow-xs"
                           : "border-gray-200 hover:bg-gray-50 text-gray-800"
@@ -164,7 +163,7 @@ export function OnboardingPage() {
                     <button
                       key={item.id}
                       onClick={() => setPondCount(item.id)}
-                      className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                         pondCount === item.id
                           ? "border-[#0F6236] bg-[#0F6236]/5 text-[#0F6236] font-bold shadow-xs"
                           : "border-gray-200 hover:bg-gray-50 text-gray-800"
@@ -191,7 +190,7 @@ export function OnboardingPage() {
                   What is your primary goal?
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Our Gemini AI will prioritize your daily recommendations.
+                  Our AI will prioritize your daily recommendations.
                 </p>
 
                 <div className="space-y-3 mt-6">
@@ -204,7 +203,7 @@ export function OnboardingPage() {
                     <button
                       key={item.id}
                       onClick={() => setPrimaryGoal(item.id)}
-                      className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                         primaryGoal === item.id
                           ? "border-[#0F6236] bg-[#0F6236]/5 text-[#0F6236] font-bold shadow-xs"
                           : "border-gray-200 hover:bg-gray-50 text-gray-800"
@@ -245,7 +244,7 @@ export function OnboardingPage() {
                     <button
                       key={item.id}
                       onClick={() => setSelectedLang(item.id)}
-                      className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all ${
+                      className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                         selectedLang === item.id
                           ? "border-[#0F6236] bg-[#0F6236]/5 text-[#0F6236] font-bold shadow-xs"
                           : "border-gray-200 hover:bg-gray-50 text-gray-800"

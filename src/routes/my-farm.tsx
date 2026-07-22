@@ -1,137 +1,218 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Menu, Bell, MapPin, ChevronRight, Fish, Waves, Package, TrendingUp, Droplet, FlaskConical, Calendar, Lightbulb } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Waves, Fish, MapPin, ChevronRight, Package, Droplet, FlaskConical, Calendar, AlertCircle } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
-import pondImg from "@/assets/pond.jpg";
+import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/my-farm")({
   component: MyFarmPage,
   head: () => ({
     meta: [
       { title: "My Farm — FishFarm OS Ghana" },
-      { name: "description", content: "Manage your ponds, stock, tasks and growth in one place." },
-      { property: "og:title", content: "My Farm — FishFarm OS Ghana" },
-      { property: "og:description", content: "Manage your fish farm ponds and tasks." },
+      { name: "description", content: "Manage your ponds, stock, and growth in one place." },
     ],
   }),
 });
 
-const ponds = [
-  { id: "1", name: "Pond 1", species: "Tilapia", stocked: "1,000 fish", tag: "Healthy", tint: "bg-secondary text-primary", growth: "15%", harvest: "18 Days" },
-  { id: "2", name: "Pond 2", species: "Catfish", stocked: "800 fish", tag: "Good", tint: "bg-secondary text-primary", growth: "10%", harvest: "25 Days" },
-  { id: "3", name: "Pond 3", species: "Tilapia", stocked: "900 fish", tag: "Healthy", tint: "bg-secondary text-primary", growth: "12%", harvest: "20 Days" },
-  { id: "4", name: "Pond 4", species: "Mixed Fish", stocked: "550 fish", tag: "Monitor", tint: "bg-yellow-100 text-yellow-800", growth: "8%", harvest: "30 Days" },
-];
+export interface UserPond {
+  id: string;
+  name: string;
+  species: string;
+  count: number;
+  stockDate: string;
+  status: "Optimal" | "Healthy" | "Monitor";
+}
 
-const tasks = [
-  { title: "Check Water Quality", where: "Pond 2", when: "Due Today", tint: "bg-yellow-100 text-yellow-800", Icon: Droplet, iconColor: "text-blue-600 bg-blue-50" },
-  { title: "Feed Fish", where: "All Ponds", when: "Due Today", tint: "bg-yellow-100 text-yellow-800", Icon: Package, iconColor: "text-primary bg-secondary" },
-  { title: "Test pH Level", where: "Pond 1", when: "Due Tomorrow", tint: "bg-blue-100 text-blue-700", Icon: FlaskConical, iconColor: "text-purple-700 bg-purple-50" },
-  { title: "Record Growth", where: "All Ponds", when: "Due in 2 Days", tint: "bg-secondary text-primary", Icon: Calendar, iconColor: "text-purple-700 bg-purple-50" },
-];
+export function MyFarmPage() {
+  const { t } = useLanguage();
+  const [ponds, setPonds] = useState<UserPond[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-function MyFarmPage() {
+  // Form State
+  const [pondName, setPondName] = useState("");
+  const [species, setSpecies] = useState("Catfish (Clarias)");
+  const [count, setCount] = useState<number>(1000);
+
+  useEffect(() => {
+    loadPonds();
+  }, []);
+
+  const loadPonds = () => {
+    const saved = localStorage.getItem("user_ponds");
+    if (saved) {
+      setPonds(JSON.parse(saved));
+    }
+  };
+
+  const handleAddPond = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newPond: UserPond = {
+      id: Date.now().toString(),
+      name: pondName || `Pond ${ponds.length + 1}`,
+      species,
+      count,
+      stockDate: new Date().toLocaleDateString(),
+      status: "Healthy",
+    };
+
+    const updated = [...ponds, newPond];
+    localStorage.setItem("user_ponds", JSON.stringify(updated));
+    setPonds(updated);
+    setIsModalOpen(false);
+    setPondName("");
+  };
+
+  const totalFish = ponds.reduce((acc, p) => acc + p.count, 0);
+
   return (
     <PhoneFrame>
-      <header className="px-5 pt-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Menu className="w-6 h-6 text-foreground" />
-          <div>
-            <div className="text-[20px] font-extrabold text-foreground">My Farm</div>
-            <div className="flex items-center gap-1 text-primary text-[13px] font-medium">
-              <MapPin className="w-4 h-4" /> Ashanti Region ▾
-            </div>
+      {/* Header */}
+      <header className="px-5 pt-6 flex items-center justify-between border-b border-gray-100 bg-white pb-3">
+        <div>
+          <h1 className="text-[20px] font-extrabold text-gray-900">{t("myFarm")}</h1>
+          <div className="flex items-center gap-1 text-[#0F6236] text-[12.5px] font-medium mt-0.5">
+            <MapPin className="w-3.5 h-3.5" /> Ashanti Region, Ghana
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Bell className="w-6 h-6 text-foreground" />
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">3</span>
-          </div>
-          <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-primary" />
-        </div>
+        <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
-      <section className="mx-5 mt-5 rounded-2xl bg-primary text-primary-foreground p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-[15px] font-extrabold">Farm Overview</div>
-          <ChevronRight className="w-5 h-5" />
+      {/* Farm Overview Banner */}
+      <section className="mx-5 mt-4 rounded-2xl bg-[#0F6236] text-white p-4 shadow-lg shadow-[#0F6236]/20">
+        <div className="flex items-center justify-between border-b border-white/20 pb-2 mb-3">
+          <span className="text-xs font-bold uppercase text-emerald-200">Live Farm Summary</span>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-3 py-1 rounded-xl bg-white text-[#0F6236] font-bold text-xs shadow-xs hover:bg-gray-100 transition-all cursor-pointer flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Pond
+          </button>
         </div>
-        <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-          {[
-            { Icon: Fish, label: "Ponds", value: "4", sub: "Active" },
-            { Icon: Waves, label: "Total Stock", value: "3,250", sub: "Fish" },
-            { Icon: Package, label: "Next Harvest", value: "21 Days", sub: "Estimated" },
-            { Icon: TrendingUp, label: "Avg. Growth", value: "12%", sub: "This Week" },
-          ].map(({ Icon, label, value, sub }) => (
-            <div key={label} className="flex flex-col items-center gap-1">
-              <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
-                <Icon className="w-5 h-5" />
-              </div>
-              <div className="text-[10px] opacity-90">{label}</div>
-              <div className="text-[14px] font-extrabold leading-tight">{value}</div>
-              <div className="text-[10px] opacity-80">{sub}</div>
-            </div>
-          ))}
-        </div>
-      </section>
 
-      <section className="px-5 mt-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[18px] font-extrabold text-foreground">My Ponds</h2>
-          <a href="#" className="text-primary font-semibold text-[14px] flex items-center gap-0.5">View All <ChevronRight className="w-4 h-4" /></a>
-        </div>
-        <div className="mt-3 flex flex-col gap-3">
-          {ponds.map((p) => (
-            <Link key={p.id} to="/pond/$pondId" params={{ pondId: p.id }} className="rounded-2xl border border-border bg-card p-3 flex items-center gap-3">
-              <img src={pondImg} alt={p.name} loading="lazy" className="w-20 h-20 rounded-xl object-cover" />
-              <div className="flex-1 min-w-0">
-                <div className="text-[15px] font-extrabold text-foreground">{p.name}</div>
-                <div className="text-[13px] font-bold text-primary">{p.species}</div>
-                <div className="text-[12px] text-muted-foreground">Stocked: {p.stocked}</div>
-              </div>
-              <div className="text-right">
-                <span className={`inline-block text-[11px] font-bold rounded-full px-2 py-0.5 ${p.tint}`}>{p.tag}</span>
-                <div className="text-[12px] text-foreground mt-1">Growth: <span className="font-bold">{p.growth}</span></div>
-                <div className="text-[11px] text-muted-foreground">Est. Harvest: {p.harvest}</div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="px-5 mt-6">
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[16px] font-extrabold text-foreground">Farm Tasks</h2>
-            <a href="#" className="text-primary font-semibold text-[13px]">View All</a>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <div className="text-[10px] text-emerald-100">Total Ponds</div>
+            <div className="text-xl font-extrabold">{ponds.length}</div>
           </div>
-          <div className="mt-3 grid grid-cols-4 gap-2">
-            {tasks.map(({ title, where, when, tint, Icon, iconColor }) => (
-              <div key={title} className="flex flex-col items-center text-center">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconColor}`}>
-                  <Icon className="w-5 h-5" />
+          <div>
+            <div className="text-[10px] text-emerald-100">Total Stocked</div>
+            <div className="text-xl font-extrabold">{totalFish.toLocaleString()}</div>
+          </div>
+          <div>
+            <div className="text-[10px] text-emerald-100">Farm Status</div>
+            <div className="text-xs font-bold text-emerald-300 mt-1">{ponds.length > 0 ? "Active" : "Pending Setup"}</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Ponds List */}
+      <section className="px-5 mt-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-extrabold text-gray-900">Your Active Ponds</h2>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="text-xs font-bold text-[#0F6236] hover:underline cursor-pointer"
+          >
+            + Add New Pond
+          </button>
+        </div>
+
+        {ponds.length === 0 ? (
+          <div className="p-8 text-center bg-white rounded-2xl border border-gray-200 shadow-xs">
+            <Waves className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+            <h3 className="font-bold text-gray-800 text-sm">No ponds added yet</h3>
+            <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
+              Add your first earthen pond, concrete tank, or tarpaulin high-density tank to start tracking stock.
+            </p>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="mt-4 px-4 py-2 rounded-xl bg-[#0F6236] text-white text-xs font-bold shadow-md cursor-pointer inline-flex items-center gap-1"
+            >
+              <Plus className="w-4 h-4" /> Add Your First Pond
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {ponds.map((p) => (
+              <div key={p.id} className="p-3.5 bg-white rounded-2xl border border-gray-200 shadow-xs flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center font-bold text-lg">
+                    🌊
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-gray-900">{p.name}</h3>
+                    <p className="text-xs font-bold text-[#0F6236]">{p.species}</p>
+                    <p className="text-[11px] text-gray-500">Stocked: {p.count.toLocaleString()} fish • {p.stockDate}</p>
+                  </div>
                 </div>
-                <div className="text-[11px] font-bold text-foreground mt-1.5 leading-tight">{title}</div>
-                <div className="text-[10px] text-muted-foreground">{where}</div>
-                <span className={`mt-1 text-[9px] font-bold rounded-full px-2 py-0.5 ${tint}`}>{when}</span>
+
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                  {p.status}
+                </span>
               </div>
             ))}
           </div>
-        </div>
+        )}
       </section>
 
-      <section className="mx-5 mt-4 mb-6 rounded-2xl bg-secondary/40 p-4 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
-          <Lightbulb className="w-5 h-5 text-primary" />
+      {/* Add Pond Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-gray-100">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+              <h3 className="font-extrabold text-base text-gray-900">Add New Pond</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 font-bold hover:text-gray-600">✕</button>
+            </div>
+
+            <form onSubmit={handleAddPond} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Pond Name / Number</label>
+                <input
+                  type="text"
+                  required
+                  value={pondName}
+                  onChange={(e) => setPondName(e.target.value)}
+                  placeholder="e.g. Pond 1, Nursery Tank 2"
+                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Fish Species</label>
+                <select
+                  value={species}
+                  onChange={(e) => setSpecies(e.target.value)}
+                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                >
+                  <option>Catfish (Clarias gariepinus)</option>
+                  <option>Tilapia (Nile Tilapia)</option>
+                  <option>Mixed Species</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Stock Count (Number of Fish)</label>
+                <input
+                  type="number"
+                  required
+                  value={count}
+                  onChange={(e) => setCount(Number(e.target.value) || 0)}
+                  placeholder="e.g. 1000"
+                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full h-12 bg-[#0F6236] text-white font-bold rounded-xl text-sm shadow-md shadow-[#0F6236]/20 cursor-pointer mt-2"
+              >
+                Save Pond
+              </button>
+            </form>
+          </div>
         </div>
-        <div className="flex-1">
-          <div className="text-[14px] font-extrabold text-primary">Farm Tip of the Day</div>
-          <div className="text-[12px] text-muted-foreground">Maintain good water quality and consistent feeding for healthy fish growth.</div>
-        </div>
-        <ChevronRight className="w-5 h-5 text-muted-foreground" />
-      </section>
+      )}
 
       <BottomNav />
     </PhoneFrame>

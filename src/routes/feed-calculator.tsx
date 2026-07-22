@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Calculator, Info, Sparkles, Loader2, TrendingUp, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import feedBag from "@/assets/feed-bag-illus.png";
@@ -26,9 +26,7 @@ export function FeedCalcPage() {
   const [loadingAI, setLoadingAI] = useState<boolean>(false);
   const [aiAdvice, setAiAdvice] = useState<string>("");
 
-  // Biomass calculation (kg) = (fishCount * avgWeight) / 1000
   const totalBiomassKg = (fishCount * avgWeight) / 1000;
-  // Daily Feed (kg) = totalBiomassKg * (feedingRate / 100)
   const dailyFeedKg = totalBiomassKg * (feedingRate / 100);
   const feedPerMeal = dailyFeedKg / timesPerDay;
   const weeklyFeedKg = dailyFeedKg * 7;
@@ -37,7 +35,7 @@ export function FeedCalcPage() {
   const handleGetAITips = async () => {
     setLoadingAI(true);
     try {
-      const prompt = `Give concise (2-3 sentences) expert advice for feeding ${fishCount} fish weighing an average of ${avgWeight}g with ${dailyFeedKg.toFixed(2)}kg of feed daily in Ghana ponds. Mention ideal pellet size (mm) and feeding times (e.g. 8am and 4pm).`;
+      const prompt = `Give concise (2-3 sentences) expert advice for feeding ${fishCount} fish weighing an average of ${avgWeight}g with ${dailyFeedKg.toFixed(2)}kg of feed daily in Ghana ponds. Mention ideal pellet size (mm) and feeding times.`;
       const res = await callGemini(prompt, "You are a professional aquaculture feeding specialist in Ghana.");
       setAiAdvice(res);
     } catch (e) {
@@ -49,7 +47,6 @@ export function FeedCalcPage() {
 
   return (
     <PhoneFrame>
-      {/* Header */}
       <header className="px-5 pt-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/home" className="p-1">
@@ -63,7 +60,6 @@ export function FeedCalcPage() {
         <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
-      {/* Input Form */}
       <section className="mx-5 mt-4 rounded-2xl border border-border p-4 bg-white shadow-xs space-y-3">
         <div className="text-[14px] font-extrabold text-foreground">1. Enter Pond Parameters</div>
 
@@ -120,17 +116,16 @@ export function FeedCalcPage() {
         >
           {loadingAI ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Optimizing with Gemini...
+              <Loader2 className="w-4 h-4 animate-spin" /> Optimizing Feeding Plan...
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4" /> Optimize Feed Plan with Gemini AI
+              <Sparkles className="w-4 h-4" /> Optimize Feed Plan with AI
             </>
           )}
         </button>
       </section>
 
-      {/* Results Section */}
       <section className="mx-5 mt-4 rounded-2xl bg-[#0F6236]/10 p-4 border border-[#0F6236]/20">
         <div className="text-[13px] font-extrabold text-[#0F6236] uppercase tracking-wider">Calculated Results</div>
         <div className="mt-2 flex items-center gap-4">
@@ -159,42 +154,14 @@ export function FeedCalcPage() {
           </div>
         </div>
 
-        {/* AI Custom Advice */}
         {aiAdvice && (
           <div className="mt-3 p-3 rounded-xl bg-white border border-[#0F6236]/30 text-xs text-gray-800 animate-in fade-in">
             <div className="flex items-center gap-1.5 font-bold text-[#0F6236] mb-1">
-              <Sparkles className="w-4 h-4" /> Gemini AI Feeding Advice:
+              <Sparkles className="w-4 h-4" /> AI Feeding Advice:
             </div>
             <p className="leading-relaxed">{aiAdvice}</p>
           </div>
         )}
-      </section>
-
-      {/* Recommended Pellet Size Guide */}
-      <section className="mx-5 mt-4 mb-6 rounded-2xl border border-border p-4 bg-white">
-        <div className="text-[14px] font-extrabold text-foreground mb-3">Pellet Size Guide (Ghana)</div>
-        <div className="grid grid-cols-4 gap-2 text-center text-xs">
-          <div className="bg-blue-50 p-2 rounded-xl">
-            <div className="font-bold text-blue-900">Fingerling</div>
-            <div className="text-[10px] text-gray-500">5g – 20g</div>
-            <div className="font-extrabold text-blue-700 mt-1">1.5 - 2mm</div>
-          </div>
-          <div className="bg-emerald-50 p-2 rounded-xl">
-            <div className="font-bold text-emerald-900">Juvenile</div>
-            <div className="text-[10px] text-gray-500">20g – 100g</div>
-            <div className="font-extrabold text-emerald-700 mt-1">3mm</div>
-          </div>
-          <div className="bg-amber-50 p-2 rounded-xl">
-            <div className="font-bold text-amber-900">Grower</div>
-            <div className="text-[10px] text-gray-500">100g – 400g</div>
-            <div className="font-extrabold text-amber-700 mt-1">4mm - 6mm</div>
-          </div>
-          <div className="bg-purple-50 p-2 rounded-xl">
-            <div className="font-bold text-purple-900">Finisher</div>
-            <div className="text-[10px] text-gray-500">400g+</div>
-            <div className="font-extrabold text-purple-700 mt-1">9mm</div>
-          </div>
-        </div>
       </section>
 
       <BottomNav />

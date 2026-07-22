@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { ArrowLeft, Globe, Cpu, Volume2, Wifi, LogOut, Check, ChevronRight, User, MapPin } from "lucide-react";
+import { ArrowLeft, Globe, Cpu, Volume2, Wifi, LogOut, ChevronRight, MapPin } from "lucide-react";
 import { useLanguage } from "@/lib/languageContext";
 import { LanguageModal } from "@/components/ui/LanguageModal";
 
@@ -20,7 +20,7 @@ export function SettingsPage() {
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
 
   const [userName, setUserName] = useState("Farmer Kofi");
-  const [region, setRegion] = useState("Ashanti Region, Ghana");
+  const [region] = useState("Ashanti Region, Ghana");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [offlineSync, setOfflineSync] = useState(true);
 
@@ -32,6 +32,7 @@ export function SettingsPage() {
   const handleLogout = () => {
     localStorage.removeItem("user_name");
     localStorage.removeItem("user_phone");
+    localStorage.removeItem("user_ponds");
     navigate({ to: "/login" });
   };
 
@@ -79,7 +80,7 @@ export function SettingsPage() {
               </div>
               <div>
                 <div className="text-xs font-bold text-[#0F6236] uppercase tracking-wider">AI Intelligence</div>
-                <div className="text-sm font-extrabold text-gray-900">Gemini 2.5 Flash Connected</div>
+                <div className="text-sm font-extrabold text-gray-900">Smart AI Engine Connected</div>
               </div>
             </div>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -92,7 +93,7 @@ export function SettingsPage() {
             {/* Language Selector */}
             <button
               onClick={() => setIsLangModalOpen(true)}
-              className="w-full bg-white p-4 rounded-2xl border border-gray-200/80 flex items-center justify-between hover:bg-gray-50 transition-all text-left"
+              className="w-full bg-white p-4 rounded-2xl border border-gray-200/80 flex items-center justify-between hover:bg-gray-50 transition-all text-left cursor-pointer"
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">

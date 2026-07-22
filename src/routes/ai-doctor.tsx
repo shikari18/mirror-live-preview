@@ -1,20 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowLeft, Bell, MapPin, Camera, Send, ShieldCheck, X, Headphones, MessageSquare, ChevronRight, Sparkles, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ArrowLeft, MapPin, Camera, ShieldCheck, Sparkles, Loader2, Video, Paperclip, CheckCircle } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import ulcers from "@/assets/disease-ulcers.jpg";
 import gasping from "@/assets/disease-gasping.jpg";
-import whitespots from "@/assets/disease-whitespots.jpg";
 import { diagnoseFishDiseaseAI } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
+import { UserPond } from "./my-farm";
 
 export const Route = createFileRoute("/ai-doctor")({
   component: DiseasePage,
   head: () => ({
     meta: [
       { title: "AI Fish Doctor — FishFarm OS Ghana" },
-      { name: "description", content: "Report signs of disease and get instant AI diagnosis powered by Gemini 2.5." },
+      { name: "description", content: "Report signs of disease and get instant AI diagnosis & treatments." },
     ],
   }),
 });
@@ -32,16 +32,51 @@ export function DiseasePage() {
   const { t } = useLanguage();
   const [selectedSymptom, setSelectedSymptom] = useState<string>("Red Spots & Body Ulcers");
   const [description, setDescription] = useState<string>("");
-  const [pond, setPond] = useState<string>("Pond 1 (Catfish)");
+  const [ponds, setPonds] = useState<UserPond[]>([]);
+  const [selectedPond, setSelectedPond] = useState<string>("Pond 1");
   const [loading, setLoading] = useState<boolean>(false);
   const [diagnosisResult, setDiagnosisResult] = useState<any | null>(null);
+
+  // File Upload State
+  const [uploadedMedia, setUploadedMedia] = useState<{ name: string; type: string; url: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("user_ponds");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setPonds(parsed);
+        setSelectedPond(parsed[0].name);
+      }
+    }
+  }, []);
+
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedMedia({
+          name: file.name,
+          type: file.type.startsWith("video") ? "video" : "image",
+          url: reader.result as string,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleDiagnose = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setDiagnosisResult(null);
 
-    const fullSymptomsText = `${selectedSymptom}. ${description}`;
+    let fullSymptomsText = `${selectedSymptom} in ${selectedPond}. ${description}`;
+    if (uploadedMedia) {
+      fullSymptomsText += ` [Attached ${uploadedMedia.type}: ${uploadedMedia.name}]`;
+    }
+
     try {
       const result = await diagnoseFishDiseaseAI(fullSymptomsText);
       setDiagnosisResult(result);
@@ -55,26 +90,21 @@ export function DiseasePage() {
   return (
     <PhoneFrame>
       {/* Header */}
-      <header className="px-5 pt-6 flex items-start justify-between">
+      <header className="px-5 pt-6 flex items-start justify-between border-b border-gray-100 bg-white pb-3">
         <div className="flex items-start gap-3">
           <Link to="/home" className="pt-1">
-            <ArrowLeft className="w-6 h-6 text-foreground" />
+            <ArrowLeft className="w-6 h-6 text-gray-800" />
           </Link>
           <div>
-            <div className="text-[22px] font-extrabold text-foreground leading-tight">
+            <h1 className="text-[20px] font-extrabold text-gray-900 leading-tight">
               {t("aiDoctor")}
-            </div>
-            <div className="flex items-center gap-1 text-[#0F6236] text-[13px] font-medium mt-0.5">
-              <MapPin className="w-4 h-4" /> Ashanti Region, Ghana
+            </h1>
+            <div className="flex items-center gap-1 text-[#0F6236] text-[12.5px] font-medium mt-0.5">
+              <MapPin className="w-3.5 h-3.5" /> Ashanti Region, Ghana
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center font-bold text-xs">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <img src={farmerImg} alt="Farmer Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
-        </div>
+        <img src={farmerImg} alt="Farmer" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
       {/* Warning Banner */}
@@ -83,76 +113,110 @@ export function DiseasePage() {
           <ShieldCheck className="w-4 h-4" />
         </div>
         <div className="flex-1 text-[12.5px]">
-          <div className="font-extrabold text-[#0F6236]">Early AI Detection Saves Your Stock</div>
-          <div className="text-gray-600">Select symptoms or type observations for real-time Gemini diagnosis.</div>
+          <div className="font-extrabold text-[#0F6236]">Early AI Visual Detection</div>
+          <div className="text-gray-600">Select symptoms, upload fish photos or video to diagnose fish disease.</div>
         </div>
       </section>
 
       {/* Diagnostic Form */}
-      <section className="mx-5 mt-4 rounded-2xl border border-border p-4 bg-white shadow-xs">
-        <div className="flex items-center justify-between">
-          <div className="text-[15px] font-extrabold text-foreground flex items-center gap-2">
-            <span>1. Select Observed Symptoms</span>
-          </div>
+      <section className="mx-5 mt-4 rounded-2xl border border-gray-200 p-4 bg-white shadow-xs">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
+          <span className="text-sm font-extrabold text-gray-900">Fish Health Assessment</span>
           <span className="text-[10px] font-bold text-[#0F6236] bg-[#0F6236]/10 px-2 py-0.5 rounded-full">
-            Gemini 2.5 AI
+            Instant AI Doctor
           </span>
         </div>
 
-        <form onSubmit={handleDiagnose} className="mt-3 space-y-3">
+        <form onSubmit={handleDiagnose} className="space-y-3">
           {/* Select Common Symptom */}
-          <div className="grid grid-cols-2 gap-2">
-            {commonSymptomsList.map((sym) => (
-              <button
-                type="button"
-                key={sym}
-                onClick={() => setSelectedSymptom(sym)}
-                className={`p-2.5 rounded-xl border text-left text-xs font-semibold transition-all ${
-                  selectedSymptom === sym
-                    ? "border-[#0F6236] bg-[#0F6236]/10 text-[#0F6236]"
-                    : "border-gray-200 text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                🐟 {sym}
-              </button>
-            ))}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">Select Observed Symptoms</label>
+            <div className="grid grid-cols-2 gap-2">
+              {commonSymptomsList.map((sym) => (
+                <button
+                  type="button"
+                  key={sym}
+                  onClick={() => setSelectedSymptom(sym)}
+                  className={`p-2.5 rounded-xl border text-left text-xs font-semibold transition-all cursor-pointer ${
+                    selectedSymptom === sym
+                      ? "border-[#0F6236] bg-[#0F6236]/10 text-[#0F6236]"
+                      : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  🐟 {sym}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Select Target Pond */}
+          {/* Target Pond */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Target Pond</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1">Affected Pond</label>
             <select
-              value={pond}
-              onChange={(e) => setPond(e.target.value)}
+              value={selectedPond}
+              onChange={(e) => setSelectedPond(e.target.value)}
               className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 text-gray-800 outline-none"
             >
-              <option>Pond 1 (Catfish - 1,200 fish)</option>
-              <option>Pond 2 (Tilapia - 800 fish)</option>
-              <option>Pond 3 (Catfish Nursery - 3,000 fingerlings)</option>
+              {ponds.length > 0 ? (
+                ponds.map((p) => <option key={p.id} value={p.name}>{p.name} ({p.species})</option>)
+              ) : (
+                <option value="Pond 1">Pond 1</option>
+              )}
             </select>
+          </div>
+
+          {/* Photo / Video Upload Field */}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1">Upload Photo or Video of Sick Fish</label>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*,video/*"
+              onChange={handleMediaUpload}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full h-12 rounded-xl border-2 border-dashed border-[#0F6236]/30 bg-[#0F6236]/5 hover:bg-[#0F6236]/10 flex items-center justify-center gap-2 text-xs font-bold text-[#0F6236] transition-all cursor-pointer"
+            >
+              {uploadedMedia ? (
+                <>
+                  <CheckCircle className="w-4 h-4 text-emerald-600" /> Attached: {uploadedMedia.name}
+                </>
+              ) : (
+                <>
+                  <Camera className="w-4 h-4" /> Tap to Add Fish Photo or Video
+                </>
+              )}
+            </button>
+
+            {uploadedMedia && uploadedMedia.type === "image" && (
+              <img src={uploadedMedia.url} alt="Uploaded sick fish" className="mt-2 w-full h-32 object-cover rounded-xl border" />
+            )}
           </div>
 
           {/* Description Input */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Additional Observations / Water Details</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1">Additional Observations / Notes</label>
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Fish started swimming sluggishly this morning, water looks cloudy..."
-              className="w-full p-3 rounded-xl border border-gray-200 text-xs text-gray-800 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
+              placeholder="e.g. Fish floating near water inlet, stopped feeding..."
+              className="w-full p-3 rounded-xl border border-gray-200 text-xs text-gray-800 outline-none focus:ring-2 focus:ring-[#0F6236]/20 bg-gray-50"
             />
           </div>
 
-          {/* Submit AI Button */}
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 rounded-xl bg-[#0F6236] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-[#0F6236]/20 active:scale-[0.98] transition-all cursor-pointer"
+            className="w-full h-12 rounded-xl bg-[#0F6236] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-[#0F6236]/20 cursor-pointer"
           >
             {loading ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" /> Analyzing with Gemini AI...
+                <Loader2 className="w-5 h-5 animate-spin" /> AI Analyzing Symptoms & Media...
               </>
             ) : (
               <>
@@ -167,7 +231,7 @@ export function DiseasePage() {
           <div className="mt-5 p-4 rounded-2xl bg-[#0F6236]/5 border border-[#0F6236]/30 animate-in fade-in">
             <div className="flex items-center justify-between border-b border-[#0F6236]/20 pb-3">
               <div>
-                <span className="text-[10px] font-extrabold uppercase text-[#0F6236] tracking-wider">AI Diagnosis Result</span>
+                <span className="text-[10px] font-extrabold uppercase text-[#0F6236]">AI Diagnostic Result</span>
                 <h3 className="text-base font-extrabold text-gray-900">{diagnosisResult.diseaseName}</h3>
               </div>
               <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
@@ -186,7 +250,7 @@ export function DiseasePage() {
               </div>
 
               <div>
-                <span className="font-bold text-gray-900 block mb-1">Recommended Action Plan:</span>
+                <span className="font-bold text-gray-900 block mb-1">Recommended Treatment:</span>
                 <ul className="space-y-1 pl-4 list-disc text-gray-700 font-medium">
                   {diagnosisResult.treatment?.map((t: string, idx: number) => (
                     <li key={idx}>{t}</li>
@@ -201,30 +265,6 @@ export function DiseasePage() {
             </div>
           </div>
         )}
-      </section>
-
-      {/* Historical Cases */}
-      <section className="mx-5 mt-4 mb-6 rounded-2xl border border-border p-4 bg-white">
-        <div className="text-[15px] font-extrabold text-foreground mb-3">Previous AI Assessments</div>
-        <div className="space-y-3 divide-y divide-gray-100">
-          <div className="flex items-center gap-3 pt-2">
-            <img src={ulcers} alt="Ulcers" className="w-12 h-12 rounded-xl object-cover" />
-            <div className="flex-1">
-              <div className="text-xs font-bold text-gray-900">Body Ulcers on Tilapia</div>
-              <div className="text-[11px] text-gray-500">Pond 1 • Salt Treatment Applied</div>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">Resolved</span>
-          </div>
-
-          <div className="flex items-center gap-3 pt-3">
-            <img src={gasping} alt="Gasping" className="w-12 h-12 rounded-xl object-cover" />
-            <div className="flex-1">
-              <div className="text-xs font-bold text-gray-900">Gasping at Surface</div>
-              <div className="text-[11px] text-gray-500">Pond 2 • Aeration Restored</div>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">Resolved</span>
-          </div>
-        </div>
       </section>
 
       <BottomNav />

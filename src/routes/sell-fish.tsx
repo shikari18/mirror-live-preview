@@ -1,163 +1,328 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Bell, MapPin, ShieldCheck, TrendingUp, Zap, Plus, List, MoreVertical, ChevronRight, Users, Clock, Tag, Lightbulb } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { ArrowLeft, MapPin, Plus, Phone, MessageSquare, Image as ImageIcon, CheckCircle, Tag, Package, Fish, FlaskConical, Wrench, ChevronRight } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
-import hero from "@/assets/sell-hero.jpg";
-import tilapia from "@/assets/harvest-tilapia.jpg";
-import catfish from "@/assets/harvest-catfish.jpg";
+import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/sell-fish")({
   component: SellFishPage,
   head: () => ({
     meta: [
-      { title: "Sell Fish Marketplace — FishFarm OS Ghana" },
-      { name: "description", content: "List your harvests and reach trusted buyers across Ghana." },
-      { property: "og:title", content: "Sell Fish — FishFarm OS Ghana" },
-      { property: "og:description", content: "Sell your fish. Grow your business." },
-      { property: "og:image", content: hero },
+      { title: "Sell Fish & Supplies — FishFarm OS Ghana" },
+      { name: "description", content: "List your harvests, feed, or equipment for sale across Ghana." },
     ],
   }),
 });
 
-const listings = [
-  { name: "Tilapia", size: "500 – 800g", qty: 250, loc: "Ejisu, Ashanti Region", price: "GH¢ 12.50", when: "Today, 8:30 AM", state: "Active", offers: 3, img: tilapia },
-  { name: "Catfish", size: "1.0 – 1.5kg", qty: 120, loc: "Mampong, Ashanti Region", price: "GH¢ 18.00", when: "Yesterday, 6:15 PM", state: "Active", offers: 5, img: catfish },
-  { name: "Tilapia", size: "300 – 500g", qty: 300, loc: "Kumasi, Ashanti Region", price: "GH¢ 11.00", when: "May 11, 2025", state: "Pending", img: tilapia },
-];
+export interface MarketplaceItem {
+  id: string;
+  category: "Fish" | "Feed" | "Fingerlings" | "Chemicals" | "Equipment";
+  title: string;
+  price: string;
+  description: string;
+  location: string;
+  phone: string;
+  contactMethod: "whatsapp" | "phone";
+  imageUrl?: string;
+  sellerName: string;
+  createdAt: string;
+}
 
-function SellFishPage() {
+export function SellFishPage() {
+  const navigate = useNavigate();
+  const { t } = useLanguage();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [userListings, setUserListings] = useState<MarketplaceItem[]>([]);
+
+  // Form State
+  const [category, setCategory] = useState<MarketplaceItem["category"]>("Fish");
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("Ashanti Region, Ghana");
+  const [phone, setPhone] = useState("+233 ");
+  const [contactMethod, setContactMethod] = useState<"whatsapp" | "phone">("whatsapp");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadListings();
+    const savedPhone = localStorage.getItem("user_phone");
+    if (savedPhone) setPhone(savedPhone);
+  }, []);
+
+  const loadListings = () => {
+    const saved = localStorage.getItem("user_marketplace_items");
+    if (saved) {
+      setUserListings(JSON.parse(saved));
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newItem: MarketplaceItem = {
+      id: Date.now().toString(),
+      category,
+      title,
+      price: price.startsWith("GH₵") ? price : `GH₵ ${price}`,
+      description,
+      location,
+      phone,
+      contactMethod,
+      imageUrl: imagePreview || undefined,
+      sellerName: localStorage.getItem("user_name") || "Ghana Fish Farmer",
+      createdAt: new Date().toLocaleDateString(),
+    };
+
+    const existing = JSON.parse(localStorage.getItem("user_marketplace_items") || "[]");
+    const updated = [newItem, ...existing];
+    localStorage.setItem("user_marketplace_items", JSON.stringify(updated));
+
+    setUserListings(updated);
+    setIsModalOpen(false);
+    // Reset form
+    setTitle("");
+    setPrice("");
+    setDescription("");
+    setImagePreview(null);
+  };
+
   return (
     <PhoneFrame>
-      <header className="px-5 pt-6 flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <Link to="/market" className="pt-1"><ArrowLeft className="w-6 h-6 text-foreground" /></Link>
+      {/* Header */}
+      <header className="px-5 pt-6 flex items-center justify-between border-b border-gray-100 bg-white pb-3">
+        <div className="flex items-center gap-3">
+          <Link to="/market" className="p-1">
+            <ArrowLeft className="w-6 h-6 text-gray-800" />
+          </Link>
           <div>
-            <div className="text-[20px] font-extrabold text-foreground leading-tight">Sell Fish Marketplace</div>
-            <div className="flex items-center gap-1 text-primary text-[13px] font-medium mt-1"><MapPin className="w-4 h-4" /> Ashanti Region ▾</div>
+            <h1 className="text-[20px] font-extrabold text-gray-900 leading-tight">Sell Items & Harvests</h1>
+            <p className="text-xs text-gray-500 font-medium">List fish, feed, or equipment across Ghana</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative"><Bell className="w-6 h-6 text-foreground" /><span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">3</span></div>
-          <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-primary" />
-        </div>
+        <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
-      <section className="mx-5 mt-4 rounded-2xl bg-secondary/50 p-4 relative overflow-hidden">
-        <div className="max-w-[55%]">
-          <div className="text-[16px] font-extrabold text-primary leading-tight">Sell Your Fish. Grow Your Business.</div>
-          <div className="text-[11px] text-muted-foreground mt-1">Connect with trusted buyers and get the best prices for your fish.</div>
-          <div className="mt-3 flex gap-2 flex-wrap">
-            <Pill Icon={ShieldCheck} label="Trusted Buyers" />
-            <Pill Icon={TrendingUp} label="Best Prices" />
-            <Pill Icon={Zap} label="Fast Payment" />
-          </div>
+      {/* Action Banner */}
+      <section className="mx-5 mt-4 p-4 rounded-2xl bg-[#0F6236] text-white flex items-center justify-between shadow-lg shadow-[#0F6236]/20">
+        <div>
+          <h2 className="text-lg font-extrabold">Sell Your Fish & Supplies</h2>
+          <p className="text-xs text-emerald-100 mt-0.5">Reach hundreds of buyers in Accra & Kumasi</p>
         </div>
-        <img src={hero} alt="" className="absolute right-0 bottom-0 w-40 h-full object-cover" />
-      </section>
-
-      <section className="mx-5 mt-4 grid grid-cols-2 rounded-2xl bg-primary text-primary-foreground overflow-hidden">
-        <button className="p-4 text-left flex items-center gap-2">
-          <Plus className="w-5 h-5" />
-          <div>
-            <div className="font-extrabold text-[14px]">List New Fish</div>
-            <div className="text-[11px] opacity-80">Create a new listing</div>
-          </div>
-        </button>
-        <button className="p-4 text-left flex items-center gap-2 border-l border-white/20">
-          <List className="w-5 h-5" />
-          <div>
-            <div className="font-extrabold text-[14px]">My Listings</div>
-            <div className="text-[11px] opacity-80">Manage your listings</div>
-          </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="px-4 py-2.5 rounded-xl bg-white text-[#0F6236] font-bold text-xs shadow-md hover:bg-gray-100 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+        >
+          <Plus className="w-4 h-4" /> + Post Item
         </button>
       </section>
 
-      <section className="mx-5 mt-4 rounded-2xl border border-border p-4">
-        <div className="text-[14px] font-extrabold text-foreground">Quick Sell <span className="text-[11px] font-normal text-muted-foreground">(Post in minutes)</span></div>
-        <div className="mt-3 flex items-start justify-between">
-          {["Add Details", "Set Price", "Find Buyers", "Get Paid"].map((s, i) => (
-            <div key={s} className="flex-1 flex flex-col items-center text-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold ${i === 0 ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{i + 1}</div>
-              <div className="text-[11px] font-bold text-foreground mt-1">{s}</div>
-              <div className="text-[9px] text-muted-foreground leading-tight px-1">{["Fish type, size, quantity","Choose your price","Buyers see your listing","Secure & fast payment"][i]}</div>
-            </div>
-          ))}
+      {/* User Active Listings */}
+      <section className="px-5 mt-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-extrabold text-gray-900">Your Active Listings</h3>
+          <span className="text-xs font-bold text-[#0F6236]">{userListings.length} Active</span>
         </div>
-      </section>
 
-      <section className="mx-5 mt-4 rounded-2xl border border-border p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-[15px] font-extrabold text-foreground">Recent Listings</div>
-          <a className="text-primary text-[12px] font-semibold flex items-center">View All <ChevronRight className="w-3 h-3" /></a>
-        </div>
-        {listings.map((l, i) => (
-          <div key={i} className="mt-3 flex gap-3 border-t border-border pt-3 first:border-0 first:pt-0">
-            <div className="relative">
-              <img src={l.img} alt="" className="w-20 h-20 rounded-lg object-cover" />
-              <span className={`absolute top-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded ${l.state === "Active" ? "bg-secondary text-primary" : "bg-yellow-100 text-yellow-700"}`}>{l.state}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-[14px] font-extrabold text-foreground">{l.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{l.size}</div>
-                  <div className="text-[11px] text-muted-foreground">Quantity: {l.qty} fish</div>
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3 text-primary" />{l.loc}</div>
+        {userListings.length === 0 ? (
+          <div className="p-8 text-center bg-white rounded-2xl border border-gray-200 shadow-xs">
+            <Tag className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+            <h4 className="font-bold text-gray-800 text-sm">No items listed yet</h4>
+            <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
+              Click "+ Post Item" to list your fresh fish, fingerlings, feed, or equipment for sale!
+            </p>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="mt-4 px-4 py-2 rounded-xl bg-[#0F6236] text-white text-xs font-bold shadow-md cursor-pointer"
+            >
+              + Create First Listing
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {userListings.map((item) => (
+              <div key={item.id} className="p-3.5 bg-white rounded-2xl border border-gray-200 shadow-xs flex items-center gap-3">
+                {item.imageUrl ? (
+                  <img src={item.imageUrl} alt={item.title} className="w-16 h-16 rounded-xl object-cover shrink-0 border border-gray-100" />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center font-bold text-xl shrink-0">
+                    🐟
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-[#0F6236] uppercase bg-[#0F6236]/10 px-2 py-0.5 rounded-full">
+                      {item.category}
+                    </span>
+                    <span className="text-[10px] text-gray-400">{item.createdAt}</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-gray-900 truncate mt-1">{item.title}</h4>
+                  <div className="text-sm font-extrabold text-[#0F6236]">{item.price}</div>
+                  <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
+                    <MapPin className="w-3 h-3 text-[#0F6236]" /> {item.location}
+                  </div>
                 </div>
-                <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </div>
-            </div>
-            <div className="text-right shrink-0">
-              <div className="text-[14px] font-extrabold text-primary">{l.price}<span className="text-[10px] text-muted-foreground">/kg</span></div>
-              <div className="text-[10px] text-muted-foreground">Posted: {l.when}</div>
-              <button className="mt-2 text-primary text-[11px] font-bold border border-primary rounded-md px-2 py-1">{l.offers ? `View Offers (${l.offers})` : "Edit Listing"}</button>
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </section>
 
-      <section className="mx-5 mt-4 rounded-2xl bg-secondary/40 p-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center"><ShieldCheck className="w-5 h-5 text-primary-foreground" /></div>
-        <div className="flex-1">
-          <div className="text-[13px] font-extrabold text-primary">Safe. Secure. Reliable.</div>
-          <div className="text-[11px] text-muted-foreground">All transactions are protected. Get paid securely after delivery confirmation.</div>
-        </div>
-        <a className="text-primary text-[11px] font-semibold flex items-center">Learn More <ChevronRight className="w-3 h-3" /></a>
-      </section>
-
-      <section className="mx-5 mt-4 rounded-2xl border border-border p-4">
-        <div className="text-[14px] font-extrabold text-foreground">Market Insights</div>
-        <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-          {[
-            { Icon: TrendingUp, t: "High Demand", d: "Tilapia, Catfish", sub: "This Week", tint: "bg-blue-50 text-blue-700" },
-            { Icon: Tag, t: "Best Price", d: "GH¢ 18.00/kg", sub: "Catfish", tint: "bg-secondary text-primary" },
-            { Icon: Users, t: "Active Buyers", d: "24", sub: "In your region", tint: "bg-purple-100 text-purple-700" },
-            { Icon: Clock, t: "Avg. Response", d: "2.5 hours", sub: "From buyers", tint: "bg-yellow-100 text-yellow-700" },
-          ].map((m, i) => (
-            <div key={i} className="rounded-xl p-2">
-              <div className={`w-9 h-9 rounded-full mx-auto flex items-center justify-center ${m.tint}`}><m.Icon className="w-4 h-4" /></div>
-              <div className="text-[11px] font-bold text-foreground mt-1">{m.t}</div>
-              <div className="text-[10px] font-extrabold text-primary">{m.d}</div>
-              <div className="text-[9px] text-muted-foreground">{m.sub}</div>
+      {/* Listing Modal Form */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+              <h3 className="font-extrabold text-base text-gray-900">Post Item for Sale</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 font-bold hover:text-gray-600">✕</button>
             </div>
-          ))}
-        </div>
-      </section>
 
-      <section className="mx-5 mt-4 mb-6 rounded-xl bg-yellow-50 p-3 text-[11px] flex items-start gap-2">
-        <Lightbulb className="w-4 h-4 text-yellow-600 shrink-0 mt-0.5" />
-        <div><span className="font-bold text-foreground">Tip:</span> <span className="text-muted-foreground">Clear photos and accurate details help you get better offers faster.</span></div>
-      </section>
+            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+              {/* Category */}
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Item Category</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(["Fish", "Feed", "Fingerlings", "Chemicals", "Equipment"] as const).map((cat) => (
+                    <button
+                      type="button"
+                      key={cat}
+                      onClick={() => setCategory(cat)}
+                      className={`p-2 rounded-xl border font-bold text-[11px] ${
+                        category === cat ? "border-[#0F6236] bg-[#0F6236]/10 text-[#0F6236]" : "border-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Title / Item Name</label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Fresh Catfish (1.2kg), 32% Raanan Feed"
+                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                />
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Price (GH₵)</label>
+                <input
+                  type="text"
+                  required
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="e.g. GH₵ 50 / kg"
+                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                />
+              </div>
+
+              {/* Location */}
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Location in Ghana</label>
+                <input
+                  type="text"
+                  required
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Kumasi, Ejisu, Accra"
+                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                />
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Contact Phone Number</label>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+233 24 123 4567"
+                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                />
+              </div>
+
+              {/* Contact Method Preference */}
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">How Should Buyers Reach You?</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setContactMethod("whatsapp")}
+                    className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold ${
+                      contactMethod === "whatsapp" ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-600"
+                    }`}
+                  >
+                    <MessageSquare className="w-4 h-4 text-emerald-600" /> WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setContactMethod("phone")}
+                    className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold ${
+                      contactMethod === "phone" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600"
+                    }`}
+                  >
+                    <Phone className="w-4 h-4 text-blue-600" /> Mobile Call
+                  </button>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Item Description</label>
+                <textarea
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Details about quality, weight, delivery options..."
+                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50 outline-none"
+                />
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Upload Photo (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="w-full text-xs text-gray-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#0F6236]/10 file:text-[#0F6236]"
+                />
+                {imagePreview && (
+                  <img src={imagePreview} alt="Preview" className="mt-2 w-full h-24 object-cover rounded-xl border" />
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="w-full h-12 bg-[#0F6236] text-white font-bold rounded-xl text-sm shadow-md shadow-[#0F6236]/20 cursor-pointer mt-2"
+              >
+                Publish Listing
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </PhoneFrame>
-  );
-}
-
-function Pill({ Icon, label }: { Icon: any; label: string }) {
-  return (
-    <div className="flex items-center gap-1 bg-white rounded-full px-2 py-1 text-[10px] font-semibold text-foreground border border-border">
-      <Icon className="w-3 h-3 text-primary" /> {label}
-    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, MapPin, ShieldCheck, Sparkles, Loader2, FlaskConical } from "lucide-react";
+import { ArrowLeft, MapPin, Sparkles, Loader2, FlaskConical } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { evaluateWaterQualityAI } from "@/lib/gemini";
@@ -66,9 +66,9 @@ export function WaterQualityPage() {
       {/* Input Parameters Form */}
       <section className="mx-5 mt-4 rounded-2xl border border-border p-4 bg-white shadow-xs">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-[14px] font-extrabold text-gray-900">Enter Live Pond Measurements</span>
+          <span className="text-[14px] font-extrabold text-gray-900">Enter Live Measurements</span>
           <span className="text-[10px] font-bold text-[#0F6236] bg-[#0F6236]/10 px-2 py-0.5 rounded-full">
-            Gemini Evaluator
+            AI Evaluator
           </span>
         </div>
 
@@ -126,7 +126,7 @@ export function WaterQualityPage() {
           >
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Evaluating with Gemini AI...
+                <Loader2 className="w-4 h-4 animate-spin" /> Evaluating Water Quality...
               </>
             ) : (
               <>
@@ -136,12 +136,11 @@ export function WaterQualityPage() {
           </button>
         </form>
 
-        {/* AI Result Score & Recommendations */}
         {evaluation && (
           <div className="mt-4 p-4 rounded-2xl bg-[#0F6236]/5 border border-[#0F6236]/30 animate-in fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-extrabold text-[#0F6236] uppercase">AI Water Health Score</span>
+                <span className="text-[10px] font-extrabold text-[#0F6236] uppercase">AI Health Score</span>
                 <div className="text-2xl font-extrabold text-gray-900">{evaluation.score} <span className="text-xs text-gray-500 font-normal">/ 100</span></div>
               </div>
               <span className={`text-xs font-bold px-3 py-1 rounded-full ${
