@@ -127,7 +127,7 @@ export function AssistantPage() {
     setPlayingMsgId(null);
   };
 
-  // Decode & Play 24kHz Raw PCM Audio with Full Sample Alignment
+  // Resampled 24kHz Raw PCM Audio Player using Hardware AudioContext
   const playPCM24kAudio = (base64Data: string): Promise<void> => {
     return new Promise(async (resolve, reject) => {
       try {
@@ -147,13 +147,15 @@ export function AssistantPage() {
         }
 
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        const audioCtx = new AudioCtx({ sampleRate: 24000 });
+        // Omit explicit sampleRate constructor argument so hardware sound card accepts it unconditionally!
+        const audioCtx = new AudioCtx();
         audioCtxRef.current = audioCtx;
 
         if (audioCtx.state === "suspended") {
           await audioCtx.resume();
         }
 
+        // Web Audio API automatically resamples 24000Hz buffer to output sound card rate (44.1k/48k)
         const audioBuffer = audioCtx.createBuffer(1, numSamples, 24000);
         audioBuffer.getChannelData(0).set(float32Array);
 
