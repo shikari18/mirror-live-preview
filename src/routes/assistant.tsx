@@ -30,12 +30,12 @@ interface ChatMessage {
 }
 
 export function AssistantPage() {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
       sender: "ai",
-      text: `### Akwaaba! 👋\nI am **Kofi**, your virtual Fish Farming AI Advisor in Ghana.\n\nHow can I help you today? You can ask me or upload a photo/video of your pond:\n- 🐟 Feeding schedules & feed quality\n- 💧 Water pH & oxygen levels\n- 🩺 Fish disease treatment & medicine\n- 📈 Market prices in Ghana`,
+      text: `### Akwaaba! 👋\nI am **Kofi**, your virtual Fish Farming AI Advisor in Ghana.\n\nHow can I help you today? You can ask me or upload a photo/video of your pond:\n- 🐟 **Feeding schedules** & feed quality\n- 💧 **Water pH** & oxygen levels\n- 🩺 **Fish disease** treatment & medicine\n- 📈 **Market prices** in Ghana`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -129,12 +129,8 @@ export function AssistantPage() {
 
       if (msgId) setSpeakingMsgId(msgId);
 
-      utterance.onend = () => {
-        setSpeakingMsgId(null);
-      };
-      utterance.onerror = () => {
-        setSpeakingMsgId(null);
-      };
+      utterance.onend = () => setSpeakingMsgId(null);
+      utterance.onerror = () => setSpeakingMsgId(null);
 
       window.speechSynthesis.speak(utterance);
     }
@@ -188,7 +184,6 @@ export function AssistantPage() {
     setLoading(true);
 
     try {
-      // Direct call to Gemini API using key — NO hardcoded data
       const aiReply = await getAIAssistantResponse(
         query || "Please analyze this attached media and give me step-by-step guidance for my fish farm.",
         language,
@@ -203,11 +198,11 @@ export function AssistantPage() {
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
-      console.error("Gemini API Call Error:", err);
+      console.error("AI Response Error:", err);
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: "ai",
-        text: `⚠️ **API Connection Error**: Unable to get response from AI server. Please verify your internet connection and try sending again.`,
+        text: `⚠️ **Connection Error**: Unable to reach AI server. Please check your internet connection and tap send to try again.`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -234,6 +229,21 @@ export function AssistantPage() {
     } finally {
       setVideoLoading(false);
     }
+  };
+
+  // Helper to parse **bold** text inline into styled green tags
+  const parseInlineBold = (str: string) => {
+    const parts = str.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        return (
+          <strong key={i} className="font-extrabold text-[#0F6236] bg-[#0F6236]/10 px-1.5 py-0.5 rounded border border-[#0F6236]/20">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
   };
 
   return (
@@ -300,25 +310,26 @@ export function AssistantPage() {
                 </div>
               )}
 
-              {/* Rich Styled AI Reply Content */}
+              {/* Rich Styled AI Reply Content with Inline Bold Parsing */}
               <div className="space-y-1.5">
                 {msg.text.split("\n").map((line, idx) => {
                   if (line.startsWith("### ")) {
                     return (
                       <div key={idx} className="font-extrabold text-sm text-[#0F6236] pt-1 pb-0.5 border-b border-[#0F6236]/10 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#0F6236]" /> {line.replace("### ", "")}
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0F6236]" /> {parseInlineBold(line.replace("### ", ""))}
                       </div>
                     );
                   }
-                  if (line.startsWith("- ")) {
+                  if (line.startsWith("- ") || line.startsWith("* ")) {
+                    const content = line.substring(2);
                     return (
                       <div key={idx} className="flex items-start gap-1.5 text-xs text-gray-800 pl-1 font-medium my-1">
                         <CheckCircle2 className="w-3.5 h-3.5 text-[#0F6236] shrink-0 mt-0.5" />
-                        <span>{line.replace("- ", "")}</span>
+                        <span>{parseInlineBold(content)}</span>
                       </div>
                     );
                   }
-                  return <p key={idx} className="text-xs text-gray-800 font-medium my-0.5">{line}</p>;
+                  return <p key={idx} className="text-xs text-gray-800 font-medium my-0.5">{parseInlineBold(line)}</p>;
                 })}
               </div>
 

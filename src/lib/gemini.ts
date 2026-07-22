@@ -13,67 +13,77 @@ export interface MediaAttachment {
   data: string; // Base64 or Data URL
 }
 
+const AVAILABLE_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-2.5-flash"
+];
+
 export async function callGemini(
   prompt: string,
   systemInstruction?: string,
   mediaAttachments?: MediaAttachment[]
 ): Promise<string> {
-  try {
-    const apiKey = getGeminiKey();
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    const parts: any[] = [];
-    
-    if (systemInstruction) {
-      parts.push({ text: `System Context: ${systemInstruction}\n\nUser Message: ${prompt}` });
-    } else {
-      parts.push({ text: prompt });
-    }
-
-    if (mediaAttachments && mediaAttachments.length > 0) {
-      for (const media of mediaAttachments) {
-        const base64Data = media.data.includes(",") ? media.data.split(",")[1] : media.data;
-        parts.push({
-          inlineData: {
-            mimeType: media.mimeType,
-            data: base64Data,
-          },
-        });
-      }
-    }
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1000,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      console.error("AI API Error:", errData);
-      throw new Error(`AI API returned status ${response.status}`);
-    }
-
-    const data = await response.json();
-    const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!replyText) {
-      throw new Error("No response generated from AI API");
-    }
-
-    return replyText;
-  } catch (error) {
-    console.error("Error calling AI API:", error);
-    throw error;
+  const apiKey = getGeminiKey();
+  const parts: any[] = [];
+  
+  if (systemInstruction) {
+    parts.push({ text: `System Context: ${systemInstruction}\n\nUser Message: ${prompt}` });
+  } else {
+    parts.push({ text: prompt });
   }
+
+  if (mediaAttachments && mediaAttachments.length > 0) {
+    for (const media of mediaAttachments) {
+      const base64Data = media.data.includes(",") ? media.data.split(",")[1] : media.data;
+      parts.push({
+        inlineData: {
+          mimeType: media.mimeType,
+          data: base64Data,
+        },
+      });
+    }
+  }
+
+  let lastError: Error | null = null;
+
+  // Try available models in sequence to prevent 429 quota exhaustion
+  for (const model of AVAILABLE_MODELS) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1000,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        console.warn(`Model ${model} returned status ${response.status}:`, errData);
+        continue; // Try next fallback model
+      }
+
+      const data = await response.json();
+      const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (replyText) {
+        return replyText;
+      }
+    } catch (err: any) {
+      console.warn(`Attempt with ${model} failed:`, err);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
 // AI Fish Assistant Call with optional Multimodal Media (Images/Videos)
@@ -82,7 +92,7 @@ export async function getAIAssistantResponse(
   language: string = "English",
   mediaAttachments?: MediaAttachment[]
 ): Promise<string> {
-  const systemPrompt = `You are "Kofi", an expert Fish Farming AI Advisor in Ghana for FishFarm OS Ghana. You provide practical, friendly, and actionable advice on raising Catfish (Clarias gariepinus) and Tilapia (Oreochromis niloticus) in ponds, cages, and tarpaulin tanks in Ghana. Analyze any attached images or videos carefully. Respond in ${language}. Keep your tone warm, encouraging, and formatted clearly with bold titles, bullet points, and actionable tips for Ghanaian farmers.`;
+  const systemPrompt = `You are "Kofi", an expert Fish Farming AI Advisor in Ghana for FishFarm OS Ghana. You provide practical, friendly, and actionable advice on raising Catfish (Clarias gariepinus) and Tilapia (Oreochromis niloticus) in ponds, cages, and tarpaulin tanks in Ghana. Analyze any attached images or videos carefully. Respond in ${language}. Format your response clearly with markdown headings (###), bold text (**important terms**), and bullet points (- advice item).`;
   
   return await callGemini(userMessage, systemPrompt, mediaAttachments);
 }
