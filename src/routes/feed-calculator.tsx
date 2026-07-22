@@ -47,20 +47,20 @@ export function FeedCalcPage() {
 
   return (
     <PhoneFrame>
-      <header className="px-5 pt-6 flex items-center justify-between">
+      <header className="px-5 pt-6 pb-3 flex items-center justify-between border-b border-gray-100 bg-white">
         <div className="flex items-center gap-3">
-          <Link to="/home" className="p-1">
-            <ArrowLeft className="w-6 h-6 text-foreground" />
+          <Link to="/home" className="p-1 cursor-pointer">
+            <ArrowLeft className="w-5 h-5 text-gray-800" />
           </Link>
           <div>
-            <h1 className="text-[20px] font-extrabold text-foreground leading-tight">{t("feedCalc")}</h1>
-            <p className="text-xs text-muted-foreground">Calculate daily feed & optimize costs</p>
+            <h1 className="text-[19px] font-extrabold text-foreground leading-tight">{t("feedCalc")}</h1>
+            <p className="text-xs text-gray-500 font-medium">Calculate daily feed & optimize costs</p>
           </div>
         </div>
-        <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
+        <img src={farmerImg} alt="Kofi" className="w-9 h-9 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
-      <section className="mx-5 mt-4 rounded-2xl border border-border p-4 bg-white shadow-xs space-y-3">
+      <section className="mx-5 mt-4 rounded-2xl border border-gray-200 p-4 bg-white shadow-xs space-y-3">
         <div className="text-[14px] font-extrabold text-foreground">1. Enter Pond Parameters</div>
 
         <div className="grid grid-cols-2 gap-3">
