@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: fish-farm-os
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: node .output/server/index.mjs
