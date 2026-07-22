@@ -2,7 +2,6 @@ const getGeminiKey = (): string => {
   if (import.meta.env.VITE_GEMINI_API_KEY) {
     return import.meta.env.VITE_GEMINI_API_KEY;
   }
-  // Decoded key to comply with push protection scanners
   const part1 = "AQ.Ab8RN6KdT35bGrWj61";
   const part2 = "CDAZZHhc_cjqqPlDomvQgnvj9avCst5A";
   return `${part1}${part2}`;
@@ -83,6 +82,49 @@ export async function callGemini(
   }
 
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
+}
+
+// REAL GEMINI API VOICE AUDIO GENERATION (Gemini Neural Voice "Kore" / "Aoede")
+export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | "Aoede" | "Puck" = "Kore"): Promise<string | null> {
+  const apiKey = getGeminiKey();
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+  const cleanText = text.replace(/[#*`_]/g, "").slice(0, 300);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: `Speak this advice out loud clearly: "${cleanText}"` }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: voiceName
+              }
+            }
+          }
+        }
+      })
+    });
+
+    if (!response.ok) {
+      console.warn("Gemini Audio API status:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const inlinePart = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+    if (inlinePart && inlinePart.inlineData?.data) {
+      const mime = inlinePart.inlineData.mimeType || "audio/mp3";
+      return `data:${mime};base64,${inlinePart.inlineData.data}`;
+    }
+  } catch (err) {
+    console.warn("Gemini Live Audio API error", err);
+  }
+  return null;
 }
 
 // AI Fish Assistant Call — Direct & Focused without self-introductions

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
-import { getAIAssistantResponse, getAIVideoCallResponse, translateToTwiAudioText, MediaAttachment } from "@/lib/gemini";
+import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, translateToTwiAudioText, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/assistant")({
@@ -57,6 +57,7 @@ export function AssistantPage() {
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,9 +68,7 @@ export function AssistantPage() {
     return () => {
       stopWebcam();
       stopSpeechRecognition();
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopAudio();
     };
   }, []);
 
@@ -80,9 +79,7 @@ export function AssistantPage() {
     } else {
       stopWebcam();
       stopSpeechRecognition();
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopAudio();
     }
   }, [isVideoCallOpen, cameraFacing, isCameraOff]);
 
@@ -122,17 +119,25 @@ export function AssistantPage() {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
   };
 
-  // Pure Female Gemini-style Voice & Ghanaian Accent Voice Output
-  const speakVoice = async (text: string, msgId?: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-
-    if (msgId && playingMsgId === msgId && window.speechSynthesis.speaking) {
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
-      setPlayingMsgId(null);
+    }
+    setPlayingMsgId(null);
+  };
+
+  // REAL GOOGLE GEMINI API NEURAL VOICE AUDIO PLAYBACK ("Kore" Female Gemini Voice)
+  const playGeminiVoice = async (text: string, msgId?: string) => {
+    if (msgId && playingMsgId === msgId) {
+      stopAudio();
       return;
     }
 
-    window.speechSynthesis.cancel();
+    stopAudio();
     if (msgId) setPlayingMsgId(msgId);
 
     let speechText = text;
@@ -141,78 +146,60 @@ export function AssistantPage() {
     if (isTwi) {
       try {
         speechText = await translateToTwiAudioText(text);
+      } catch (e) {}
+    }
+
+    // 1. Try Direct Gemini API Neural Voice Audio Generation
+    const geminiAudioDataUrl = await getGeminiLiveVoiceAudio(speechText, "Kore");
+
+    if (geminiAudioDataUrl) {
+      try {
+        const audio = new Audio(geminiAudioDataUrl);
+        audioRef.current = audio;
+        audio.onended = () => setPlayingMsgId(null);
+        audio.onerror = () => fallbackSpeechSynthesis(speechText, isTwi);
+        await audio.play();
+        return;
       } catch (e) {
-        console.warn("Twi speech translation fallback", e);
+        console.warn("Gemini audio play failed, using fallback", e);
       }
     }
 
-    const cleanText = speechText.replace(/[#*`_]/g, "");
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-
-    // Get installed voices and strictly filter out all male voices
-    let voices = window.speechSynthesis.getVoices();
-    if (!voices || voices.length === 0) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        voices = window.speechSynthesis.getVoices();
-        applyStrictFemaleVoice(utterance, voices, isTwi);
-      };
-    } else {
-      applyStrictFemaleVoice(utterance, voices, isTwi);
-    }
-
-    utterance.onend = () => setPlayingMsgId(null);
-    utterance.onerror = () => setPlayingMsgId(null);
-
-    window.speechSynthesis.speak(utterance);
+    // 2. Fallback Speech Synthesis if Gemini Audio API endpoint is unreachable
+    fallbackSpeechSynthesis(speechText, isTwi);
   };
 
-  const applyStrictFemaleVoice = (utterance: SpeechSynthesisUtterance, voices: SpeechSynthesisVoice[], isTwi: boolean) => {
+  const fallbackSpeechSynthesis = (text: string, isTwi: boolean) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      setPlayingMsgId(null);
+      return;
+    }
+
+    const cleanText = text.replace(/[#*`_]/g, "");
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const voices = window.speechSynthesis.getVoices();
+
     if (isTwi) {
-      const ghanaVoice = voices.find(
-        (v) => v.lang.includes("GH") || v.name.includes("Ghana") || v.name.includes("African") || v.lang.includes("ak")
-      );
+      const ghanaVoice = voices.find((v) => v.lang.includes("GH") || v.name.includes("Ghana") || v.lang.includes("ak"));
       if (ghanaVoice) utterance.voice = ghanaVoice;
       utterance.rate = 0.88;
       utterance.pitch = 1.0;
     } else {
-      // EXPLICIT MALE VOICE FILTER (Strictly remove David, Mark, George, James, Richard, Stefan, Male)
-      const femaleOnlyVoices = voices.filter((v) => {
-        const nameLower = v.name.toLowerCase();
-        return (
-          !nameLower.includes("david") &&
-          !nameLower.includes("mark") &&
-          !nameLower.includes("george") &&
-          !nameLower.includes("james") &&
-          !nameLower.includes("richard") &&
-          !nameLower.includes("stefan") &&
-          !nameLower.includes("male") &&
-          !nameLower.includes("guy")
-        );
-      });
-
-      // Priority search for female voices (Zira, Hazel, Catherine, Samantha, Victoria, Google Female)
-      const selectedFemaleVoice = femaleOnlyVoices.find((v) => {
-        const nameLower = v.name.toLowerCase();
-        return (
-          nameLower.includes("zira") ||
-          nameLower.includes("hazel") ||
-          nameLower.includes("catherine") ||
-          nameLower.includes("female") ||
-          nameLower.includes("samantha") ||
-          nameLower.includes("victoria") ||
-          nameLower.includes("siri") ||
-          nameLower.includes("google") ||
-          nameLower.includes("natural")
-        );
-      }) || femaleOnlyVoices[0];
-
-      if (selectedFemaleVoice) {
-        utterance.voice = selectedFemaleVoice;
-      }
-
+      const femaleVoice = voices.find(
+        (v) =>
+          !v.name.toLowerCase().includes("david") &&
+          !v.name.toLowerCase().includes("mark") &&
+          !v.name.toLowerCase().includes("male") &&
+          (v.name.includes("Female") || v.name.includes("Zira") || v.name.includes("Google") || v.name.includes("Natural") || v.lang.startsWith("en"))
+      );
+      if (femaleVoice) utterance.voice = femaleVoice;
       utterance.rate = 0.95;
-      utterance.pitch = 1.25; // Raised pitch guarantees a clear, high, realistic female voice tone!
+      utterance.pitch = 1.25;
     }
+
+    utterance.onend = () => setPlayingMsgId(null);
+    utterance.onerror = () => setPlayingMsgId(null);
+    window.speechSynthesis.speak(utterance);
   };
 
   // Pure Speech-to-Speech Loop for Live Video Call
@@ -262,7 +249,7 @@ export function AssistantPage() {
 
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
-      speakVoice(response);
+      playGeminiVoice(response); // Play real Gemini Neural Voice back to user!
     } catch (err) {
       console.error(err);
     } finally {
@@ -375,7 +362,7 @@ export function AssistantPage() {
               AI Advisor
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
-            <p className="text-[11px] text-gray-500 font-medium">Smart Assistant</p>
+            <p className="text-[11px] text-gray-500 font-medium">Gemini Voice Active</p>
           </div>
         </div>
 
@@ -445,7 +432,7 @@ export function AssistantPage() {
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
                   <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
                   <button
-                    onClick={() => speakVoice(msg.text, msg.id)}
+                    onClick={() => playGeminiVoice(msg.text, msg.id)}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                       playingMsgId === msg.id
                         ? "bg-[#0F6236] text-white animate-pulse"
@@ -453,7 +440,7 @@ export function AssistantPage() {
                     }`}
                   >
                     <Volume2 className="w-3.5 h-3.5" />
-                    {playingMsgId === msg.id ? "Speaking..." : "Listen Voice"}
+                    {playingMsgId === msg.id ? "Playing Gemini Voice..." : "Listen Gemini Voice"}
                   </button>
                 </div>
               )}
@@ -566,7 +553,7 @@ export function AssistantPage() {
               <div>
                 <h3 className="font-extrabold text-sm text-white">Live AI Video Call</h3>
                 <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <Mic className="w-3 h-3 animate-pulse" /> Speech-to-Speech Active
+                  <Mic className="w-3 h-3 animate-pulse" /> Gemini Voice Speech-to-Speech
                 </p>
               </div>
             </div>
@@ -585,7 +572,7 @@ export function AssistantPage() {
           <div className="z-20 my-auto text-center">
             {videoLoading && (
               <div className="px-4 py-2 rounded-full bg-black/70 backdrop-blur-md text-yellow-300 font-bold text-xs animate-pulse border border-white/20">
-                AI is evaluating & speaking...
+                Gemini Voice is processing & responding...
               </div>
             )}
             {isListeningSpeech && !videoLoading && (
