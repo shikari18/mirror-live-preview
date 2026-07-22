@@ -57,7 +57,7 @@ export function AssistantPage() {
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<any>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -120,17 +120,51 @@ export function AssistantPage() {
   };
 
   const stopAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
     }
     setPlayingMsgId(null);
   };
 
-  // REAL GOOGLE GEMINI API NEURAL VOICE AUDIO PLAYBACK ("Kore" Female Gemini Voice)
+  // Decode & Play 24kHz Raw PCM Audio directly from Google Gemini API
+  const playPCM24kAudio = (base64Data: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      try {
+        const binaryString = window.atob(base64Data);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const int16Array = new Int16Array(bytes.buffer);
+        const numSamples = int16Array.length;
+        const float32Array = new Float32Array(numSamples);
+        for (let i = 0; i < numSamples; i++) {
+          float32Array[i] = int16Array[i] / 32768.0;
+        }
+
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        const audioCtx = new AudioCtx({ sampleRate: 24000 });
+        audioCtxRef.current = audioCtx;
+
+        const audioBuffer = audioCtx.createBuffer(1, numSamples, 24000);
+        audioBuffer.getChannelData(0).set(float32Array);
+
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+        source.onended = () => resolve();
+        source.start(0);
+      } catch (err) {
+        console.warn("PCM audio playback error:", err);
+        reject(err);
+      }
+    });
+  };
+
+  // PURE GOOGLE GEMINI NEURAL VOICE ("Kore" Female Gemini Voice)
   const playGeminiVoice = async (text: string, msgId?: string) => {
     if (msgId && playingMsgId === msgId) {
       stopAudio();
@@ -149,57 +183,20 @@ export function AssistantPage() {
       } catch (e) {}
     }
 
-    // 1. Try Direct Gemini API Neural Voice Audio Generation
-    const geminiAudioDataUrl = await getGeminiLiveVoiceAudio(speechText, "Kore");
+    // Call Google Gemini 2.5 Flash TTS API
+    const base64PCM = await getGeminiLiveVoiceAudio(speechText, "Kore");
 
-    if (geminiAudioDataUrl) {
+    if (base64PCM) {
       try {
-        const audio = new Audio(geminiAudioDataUrl);
-        audioRef.current = audio;
-        audio.onended = () => setPlayingMsgId(null);
-        audio.onerror = () => fallbackSpeechSynthesis(speechText, isTwi);
-        await audio.play();
+        await playPCM24kAudio(base64PCM);
+        setPlayingMsgId(null);
         return;
       } catch (e) {
-        console.warn("Gemini audio play failed, using fallback", e);
+        console.warn("Gemini PCM playback failed", e);
       }
     }
 
-    // 2. Fallback Speech Synthesis if Gemini Audio API endpoint is unreachable
-    fallbackSpeechSynthesis(speechText, isTwi);
-  };
-
-  const fallbackSpeechSynthesis = (text: string, isTwi: boolean) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      setPlayingMsgId(null);
-      return;
-    }
-
-    const cleanText = text.replace(/[#*`_]/g, "");
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    const voices = window.speechSynthesis.getVoices();
-
-    if (isTwi) {
-      const ghanaVoice = voices.find((v) => v.lang.includes("GH") || v.name.includes("Ghana") || v.lang.includes("ak"));
-      if (ghanaVoice) utterance.voice = ghanaVoice;
-      utterance.rate = 0.88;
-      utterance.pitch = 1.0;
-    } else {
-      const femaleVoice = voices.find(
-        (v) =>
-          !v.name.toLowerCase().includes("david") &&
-          !v.name.toLowerCase().includes("mark") &&
-          !v.name.toLowerCase().includes("male") &&
-          (v.name.includes("Female") || v.name.includes("Zira") || v.name.includes("Google") || v.name.includes("Natural") || v.lang.startsWith("en"))
-      );
-      if (femaleVoice) utterance.voice = femaleVoice;
-      utterance.rate = 0.95;
-      utterance.pitch = 1.25;
-    }
-
-    utterance.onend = () => setPlayingMsgId(null);
-    utterance.onerror = () => setPlayingMsgId(null);
-    window.speechSynthesis.speak(utterance);
+    setPlayingMsgId(null);
   };
 
   // Pure Speech-to-Speech Loop for Live Video Call
@@ -249,7 +246,7 @@ export function AssistantPage() {
 
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
-      playGeminiVoice(response); // Play real Gemini Neural Voice back to user!
+      playGeminiVoice(response); // Play real Gemini Neural Voice ("Kore") back to user!
     } catch (err) {
       console.error(err);
     } finally {
@@ -362,7 +359,7 @@ export function AssistantPage() {
               AI Advisor
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
-            <p className="text-[11px] text-gray-500 font-medium">Gemini Voice Active</p>
+            <p className="text-[11px] text-gray-500 font-medium">Gemini 2.5 Neural Voice</p>
           </div>
         </div>
 

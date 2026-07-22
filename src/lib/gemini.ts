@@ -84,19 +84,19 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// REAL GEMINI API VOICE AUDIO GENERATION (Gemini Neural Voice "Kore" / "Aoede")
+// DIRECT GEMINI NEURAL VOICE API (gemini-2.5-flash-preview-tts model with "Kore" / "Aoede" voices)
 export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | "Aoede" | "Puck" = "Kore"): Promise<string | null> {
   const apiKey = getGeminiKey();
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
 
-  const cleanText = text.replace(/[#*`_]/g, "").slice(0, 300);
+  const cleanText = text.replace(/[#*`_]/g, "").slice(0, 350);
 
   try {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: `Speak this advice out loud clearly: "${cleanText}"` }] }],
+        contents: [{ role: "user", parts: [{ text: `Read the following text out loud word for word: ${cleanText}` }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: {
@@ -111,15 +111,14 @@ export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | 
     });
 
     if (!response.ok) {
-      console.warn("Gemini Audio API status:", response.status);
+      console.warn("Gemini Neural Audio API status:", response.status);
       return null;
     }
 
     const data = await response.json();
     const inlinePart = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
     if (inlinePart && inlinePart.inlineData?.data) {
-      const mime = inlinePart.inlineData.mimeType || "audio/mp3";
-      return `data:${mime};base64,${inlinePart.inlineData.data}`;
+      return inlinePart.inlineData.data; // Base64 PCM data at 24,000 Hz
     }
   } catch (err) {
     console.warn("Gemini Live Audio API error", err);
