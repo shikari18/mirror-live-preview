@@ -47,7 +47,6 @@ export async function callGemini(
 
   let lastError: Error | null = null;
 
-  // Try available models in sequence to prevent 429 quota exhaustion
   for (const model of AVAILABLE_MODELS) {
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -59,7 +58,7 @@ export async function callGemini(
         body: JSON.stringify({
           contents: [{ role: "user", parts }],
           generationConfig: {
-            temperature: 0.7,
+            temperature: 0.5,
             maxOutputTokens: 1000,
           },
         }),
@@ -68,7 +67,7 @@ export async function callGemini(
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         console.warn(`Model ${model} returned status ${response.status}:`, errData);
-        continue; // Try next fallback model
+        continue;
       }
 
       const data = await response.json();
@@ -86,15 +85,31 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// AI Fish Assistant Call with optional Multimodal Media (Images/Videos)
+// AI Fish Assistant Call — Direct & Focused without self-introductions
 export async function getAIAssistantResponse(
   userMessage: string,
   language: string = "English",
   mediaAttachments?: MediaAttachment[]
 ): Promise<string> {
-  const systemPrompt = `You are "Kofi", an expert Fish Farming AI Advisor in Ghana for FishFarm OS Ghana. You provide practical, friendly, and actionable advice on raising Catfish (Clarias gariepinus) and Tilapia (Oreochromis niloticus) in ponds, cages, and tarpaulin tanks in Ghana. Analyze any attached images or videos carefully. Respond in ${language}. Format your response clearly with markdown headings (###), bold text (**important terms**), and bullet points (- advice item).`;
+  const systemPrompt = `You are an expert Fish Farming Advisor in Ghana. You specialize in Catfish and Tilapia farming in Ghana.
+STRICT RULES:
+1. Do NOT say "Akwaaba", do NOT say "I am Kofi", and do NOT introduce yourself in any way.
+2. Answer ONLY what the user asked directly. Do NOT add unsolicited advice or irrelevant topics.
+3. Keep your response concise, practical, and formatted cleanly using markdown headings (###) and bullet points (- ).
+4. Language context: Write text in English for clear readability.`;
   
   return await callGemini(userMessage, systemPrompt, mediaAttachments);
+}
+
+// Translate English advice into Akan/Twi spoken text for Twi Voice Output
+export async function translateToTwiAudioText(englishText: string): Promise<string> {
+  const prompt = `Translate the following fish farming advice into spoken Akan/Twi (Ghanaian language) so it can be spoken out loud to a Ghanaian farmer. Return ONLY the raw Twi text translation without any introduction, commentary, or markdown:\n"${englishText}"`;
+  try {
+    return await callGemini(prompt);
+  } catch (e) {
+    console.warn("Twi translation fallback", e);
+    return englishText;
+  }
 }
 
 // AI Fish Disease Diagnosis
@@ -151,8 +166,8 @@ Respond STRICTLY with a valid JSON object formatted as:
 
 // AI Video Call Expert Consultation
 export async function getAIVideoCallResponse(transcript: string, language: string = "English"): Promise<string> {
-  const systemPrompt = `You are Dr. Kwame, a Senior Aquaculture Specialist in Accra, Ghana on a live video consultation with a fish farmer. 
-Answer concisely, professionally, and naturally as if speaking aloud in a video call. Keep responses under 3-4 sentences. Preferred language: ${language}.`;
+  const systemPrompt = `You are a Senior Aquaculture Specialist in Accra, Ghana on a live video consultation with a fish farmer. 
+Answer concisely, directly, and naturally in 2-3 sentences. Do NOT introduce yourself. Preferred language: ${language}.`;
   
   return await callGemini(transcript, systemPrompt);
 }

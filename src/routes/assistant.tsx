@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2, CheckCircle2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
-import { getAIAssistantResponse, getAIVideoCallResponse, MediaAttachment } from "@/lib/gemini";
+import { getAIAssistantResponse, getAIVideoCallResponse, translateToTwiAudioText, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/assistant")({
@@ -35,7 +35,7 @@ export function AssistantPage() {
     {
       id: "1",
       sender: "ai",
-      text: `### Akwaaba! 👋\nI am **Kofi**, your virtual Fish Farming AI Advisor in Ghana.\n\nHow can I help you today? You can ask me or upload a photo/video of your pond:\n- 🐟 **Feeding schedules** & feed quality\n- 💧 **Water pH** & oxygen levels\n- 🩺 **Fish disease** treatment & medicine\n- 📈 **Market prices** in Ghana`,
+      text: `### Fish Farming Advice\nHow can I help you today? You can ask a question or upload a photo/video:\n- 🐟 **Feeding schedules** & feed quality\n- 💧 **Water pH** & oxygen levels\n- 🩺 **Fish disease** treatment & medicine\n- 📈 **Market prices** in Ghana`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -50,7 +50,7 @@ export function AssistantPage() {
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("environment");
   const [videoCallText, setVideoCallText] = useState("");
   const [videoCallHistory, setVideoCallHistory] = useState<string[]>([
-    "Dr. Kwame: 'Hello! I am Dr. Kwame. Point your camera at your pond or fish and ask me anything!'"
+    "Dr. Kwame: 'Point your camera at your pond or fish and ask me your question.'"
   ]);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -112,8 +112,8 @@ export function AssistantPage() {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
   };
 
-  // Speak AI reply ONLY when user explicitly clicks the speaker button!
-  const speakText = (text: string, msgId?: string) => {
+  // Google Realistic Voice & Twi Speech Synthesis
+  const speakText = async (text: string, msgId?: string) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       if (speakingMsgId === msgId && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -122,12 +122,38 @@ export function AssistantPage() {
       }
 
       window.speechSynthesis.cancel();
-      const cleanText = text.replace(/[#*`_]/g, "");
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 0.95;
-      utterance.pitch = 1.0;
-
       if (msgId) setSpeakingMsgId(msgId);
+
+      let textToSpeak = text;
+      // If language in settings is Twi, translate to Twi for spoken audio!
+      if (language === "Twi" || language.toLowerCase().includes("twi")) {
+        try {
+          textToSpeak = await translateToTwiAudioText(text);
+        } catch (e) {
+          console.warn("Twi translation error", e);
+        }
+      }
+
+      const cleanText = textToSpeak.replace(/[#*`_]/g, "");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+
+      // Select Google Realistic Voice or Natural Voice
+      const voices = window.speechSynthesis.getVoices();
+      const googleVoice = voices.find(
+        (v) =>
+          v.name.includes("Google") ||
+          v.name.includes("Natural") ||
+          v.name.includes("Premium") ||
+          v.lang.includes("en-GH") ||
+          v.lang.includes("ak-GH")
+      );
+
+      if (googleVoice) {
+        utterance.voice = googleVoice;
+      }
+
+      utterance.rate = 0.92;
+      utterance.pitch = 1.0;
 
       utterance.onend = () => setSpeakingMsgId(null);
       utterance.onerror = () => setSpeakingMsgId(null);
@@ -185,7 +211,7 @@ export function AssistantPage() {
 
     try {
       const aiReply = await getAIAssistantResponse(
-        query || "Please analyze this attached media and give me step-by-step guidance for my fish farm.",
+        query || "Analyze this attached media and give me step-by-step guidance for my fish farm.",
         language,
         mediaList
       );
@@ -231,7 +257,6 @@ export function AssistantPage() {
     }
   };
 
-  // Helper to parse **bold** text inline into clean dark bold text without green background
   const parseInlineBold = (str: string) => {
     const parts = str.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) => {
@@ -259,10 +284,10 @@ export function AssistantPage() {
           </div>
           <div>
             <h1 className="text-sm font-extrabold text-gray-900 flex items-center gap-1.5 leading-tight">
-              AI Advisor (Kofi)
+              AI Advisor
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
-            <p className="text-[11px] text-gray-500 font-medium">Online • {language}</p>
+            <p className="text-[11px] text-gray-500 font-medium">Online • Mode: {language}</p>
           </div>
         </div>
 
@@ -291,7 +316,7 @@ export function AssistantPage() {
             >
               {msg.sender === "ai" && (
                 <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#0F6236] uppercase tracking-wide border-b border-emerald-100 pb-2 mb-2">
-                  <Sparkles className="w-3.5 h-3.5 text-[#0F6236]" /> Kofi AI Advice
+                  <Sparkles className="w-3.5 h-3.5 text-[#0F6236]" /> AI Advice
                 </div>
               )}
 
@@ -310,7 +335,7 @@ export function AssistantPage() {
                 </div>
               )}
 
-              {/* Rich Styled AI Reply Content with Clean Dark Bold Parsing */}
+              {/* Rich Styled AI Reply Content */}
               <div className="space-y-1.5">
                 {msg.text.split("\n").map((line, idx) => {
                   if (line.startsWith("### ")) {
@@ -333,7 +358,7 @@ export function AssistantPage() {
                 })}
               </div>
 
-              {/* Speaker Button at the END of AI Reply */}
+              {/* Speaker Button at the END of AI Reply (Supports Twi Spoken Audio & Google Realistic Voice) */}
               {msg.sender === "ai" && (
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
                   <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
@@ -344,10 +369,10 @@ export function AssistantPage() {
                         ? "bg-emerald-600 text-white animate-pulse"
                         : "bg-emerald-50 text-[#0F6236] hover:bg-emerald-100 border border-emerald-200"
                     }`}
-                    title="Click to Listen to AI Voice"
+                    title={language === "Twi" ? "Click to Listen in Twi" : "Click to Listen Voice"}
                   >
                     <Volume2 className="w-3.5 h-3.5" />
-                    {speakingMsgId === msg.id ? "Speaking..." : "Listen Voice"}
+                    {speakingMsgId === msg.id ? "Speaking..." : language === "Twi" ? "🔊 Listen in Twi" : "🔊 Listen Voice"}
                   </button>
                 </div>
               )}
@@ -361,7 +386,7 @@ export function AssistantPage() {
 
         {loading && (
           <div className="flex items-center gap-2 text-xs text-[#0F6236] font-bold bg-white p-3.5 rounded-2xl border border-gray-200 w-fit shadow-xs">
-            <Loader2 className="w-4 h-4 animate-spin text-[#0F6236]" /> Kofi AI is analyzing media & message...
+            <Loader2 className="w-4 h-4 animate-spin text-[#0F6236]" /> AI is analyzing media & question...
           </div>
         )}
         <div ref={messagesEndRef} />
