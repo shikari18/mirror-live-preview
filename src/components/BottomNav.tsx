@@ -13,16 +13,16 @@ const items: NavItem[] = [
 export function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
-    <nav className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-2 pt-2 pb-3.5 flex items-end justify-around z-30 shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-gray-200 px-2 pt-2 pb-3.5 flex items-end justify-around z-40 shadow-2xl">
       {items.map(({ to, label, Icon, center }) => {
         const active = pathname === to;
         if (center) {
           return (
             <Link key={to} to={to as any} className="flex flex-col items-center -mt-6 cursor-pointer">
-              <div className="w-14 h-14 rounded-full bg-[#0F6236] flex items-center justify-center shadow-lg shadow-[#0F6236]/30">
+              <div className="w-14 h-14 rounded-full bg-[#0F6236] flex items-center justify-center shadow-lg shadow-[#0F6236]/30 border-4 border-white">
                 <Icon className="w-7 h-7 text-white" />
               </div>
-              <span className="text-[11px] mt-1 text-gray-800 font-bold">{label}</span>
+              <span className="text-[11px] mt-0.5 text-gray-800 font-bold">{label}</span>
             </Link>
           );
         }
@@ -44,7 +44,7 @@ export function BottomNav() {
 export function PhoneFrame({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-[#EAEFEA] flex justify-center items-start sm:py-4">
-      <div className="w-full max-w-[430px] flex flex-col bg-[#FAFCFA] min-h-screen sm:min-h-[820px] sm:rounded-[36px] sm:border sm:border-gray-200 overflow-hidden shadow-2xl relative pt-16 sm:pt-12">
+      <div className="w-full max-w-[430px] flex flex-col bg-[#FAFCFA] min-h-screen sm:min-h-[820px] sm:rounded-[36px] sm:border sm:border-gray-200 overflow-hidden shadow-2xl relative pt-6 pb-24">
         {children}
       </div>
     </main>
