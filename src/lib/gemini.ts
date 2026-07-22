@@ -137,18 +137,18 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// DIRECT GOOGLE GEMINI NEURAL VOICE GENERATOR WITH CACHING & INSTANT CONVERSION
-export async function getGeminiLiveVoiceAudio(text: string, isTwi: boolean = false): Promise<string | null> {
+// DIRECT GOOGLE GEMINI NEURAL VOICE GENERATOR SUPPORTING ENGLISH, TWI, HAUSA, AND GA
+export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
 
-  const cacheKey = `${isTwi ? "twi" : "en"}:${cleanText.slice(0, 150)}`;
+  const cacheKey = `${targetLanguage}:${cleanText.slice(0, 150)}`;
   if (audioCache.has(cacheKey)) {
     return audioCache.get(cacheKey)!;
   }
 
   const apiKey = getGeminiKey();
-  const voiceName = isTwi ? "Aoede" : "Kore";
+  const voiceName = targetLanguage === "English" ? "Kore" : targetLanguage === "Ga" ? "Puck" : "Aoede";
 
   for (const model of TTS_MODELS) {
     try {
@@ -185,7 +185,13 @@ export async function getGeminiLiveVoiceAudio(text: string, isTwi: boolean = fal
     }
   }
 
-  return null;
+  // Backup Google High-Fidelity Audio URL
+  const langCode = targetLanguage === "Twi" ? "en-GH" : targetLanguage === "Hausa" ? "ha" : "en";
+  const encodedText = encodeURIComponent(cleanText.slice(0, 200));
+  const googleAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${langCode}&client=tw-ob`;
+  
+  audioCache.set(cacheKey, googleAudioUrl);
+  return googleAudioUrl;
 }
 
 // AI Fish Assistant Call — Real-Time Context: Time, Weather, User GPS Location
@@ -196,8 +202,8 @@ export async function getAIAssistantResponse(
   userLocationInfo?: { coords?: string; city?: string; weather?: string; time?: string }
 ): Promise<string> {
   const currentTime = userLocationInfo?.time || new Date().toLocaleString("en-US", { timeZone: "Africa/Accra", dateStyle: "full", timeStyle: "medium" });
-  const locationText = userLocationInfo?.city || userLocationInfo?.coords || "Accra / Ghana Region";
-  const weatherText = userLocationInfo?.weather || "29°C, Partly Cloudy, 78% Humidity (Tropical Ghana Climate)";
+  const locationText = userLocationInfo?.city || userLocationInfo?.coords || "Ghana Region";
+  const weatherText = userLocationInfo?.weather || "29°C, Tropical Ghana Climate";
 
   const systemPrompt = `You are an expert Fish Farming Advisor in Ghana specializing in Catfish and Tilapia.
 REAL-TIME SYSTEM CONTEXT:
@@ -207,23 +213,28 @@ REAL-TIME SYSTEM CONTEXT:
 
 STRICT RULES:
 1. Do NOT say "Akwaaba", do NOT say "I am Kofi", and do NOT introduce yourself in any way.
-2. You DO HAVE ACCESS to the real-time time (${currentTime}), user GPS location (${locationText}), and local weather (${weatherText}). NEVER say you cannot access time, location, or weather.
-3. Answer ONLY what the user asked directly. Do NOT add unsolicited advice or irrelevant topics.
-4. Keep your response concise, practical, and formatted cleanly using markdown headings (###) and bullet points (- ).
-5. Language context: Write text in English for clear readability.`;
+2. Answer ONLY what the user asked directly. Do NOT add unsolicited advice or irrelevant topics.
+3. Keep your response concise, practical, and formatted cleanly using markdown headings (###) and bullet points (- ).
+4. Preferred Language: ${language}.`;
   
   return await callGemini(userMessage, systemPrompt, mediaAttachments);
 }
 
-// Translate English advice into Akan/Twi spoken text for Twi Voice Output
-export async function translateToTwiAudioText(englishText: string): Promise<string> {
-  const prompt = `Translate the following fish farming advice into spoken Akan/Twi (Ghanaian language) so it can be spoken out loud to a Ghanaian farmer. Return ONLY the raw Twi text translation without any introduction, commentary, or markdown:\n"${englishText}"`;
+// Translate English advice into Target Spoken Text for Twi, Hausa, or Ga Audio Output
+export async function translateToTargetAudioText(englishText: string, targetLanguage: string): Promise<string> {
+  if (!targetLanguage || targetLanguage === "English") return englishText;
+
+  const prompt = `Translate the following fish farming advice into spoken ${targetLanguage} so it can be spoken out loud to a Ghanaian farmer. Return ONLY the raw ${targetLanguage} text translation without any introduction, commentary, or markdown:\n"${englishText}"`;
   try {
     return await callGemini(prompt);
   } catch (e) {
-    console.warn("Twi translation fallback", e);
+    console.warn(`${targetLanguage} translation fallback`, e);
     return englishText;
   }
+}
+
+export async function translateToTwiAudioText(englishText: string): Promise<string> {
+  return await translateToTargetAudioText(englishText, "Twi");
 }
 
 // AI Fish Disease Diagnosis

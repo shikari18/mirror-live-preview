@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2, MapPin, Download } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
-import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, translateToTwiAudioText, MediaAttachment } from "@/lib/gemini";
+import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, translateToTargetAudioText, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/assistant")({
@@ -49,8 +49,8 @@ export function AssistantPage() {
 
   // Location & Weather state
   const [userLocationInfo, setUserLocationInfo] = useState<{ coords?: string; city?: string; weather?: string; time?: string }>({
-    city: "Detecting Location...",
-    weather: "29°C, 75% Humidity (Tropical Ghana)",
+    city: "Detecting GPS Location...",
+    weather: "29.5°C, 75% Humidity (Ghana Climate)",
     time: new Date().toLocaleTimeString()
   });
 
@@ -76,9 +76,8 @@ export function AssistantPage() {
 
   // Request browser GPS location on mount
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      return now.toLocaleString("en-US", { timeZone: "Africa/Accra", dateStyle: "full", timeStyle: "medium" });
+    const getAccraTime = () => {
+      return new Date().toLocaleString("en-US", { timeZone: "Africa/Accra", dateStyle: "full", timeStyle: "medium" });
     };
 
     if (typeof window !== "undefined" && "geolocation" in navigator) {
@@ -92,15 +91,15 @@ export function AssistantPage() {
             coords: coordsStr,
             city: `Ghana (${coordsStr})`,
             weather: `29.5°C, Sunny, 72% Humidity, 12km/h Wind`,
-            time: updateTime()
+            time: getAccraTime()
           });
         },
         (err) => {
           console.warn("GPS Permission pending", err);
           setUserLocationInfo({
-            city: "Ghana (Accra / Kumasi Zone)",
+            city: "Ghana (Accra / Kumasi Region)",
             weather: "29.5°C, Tropical Ghana Climate",
-            time: updateTime()
+            time: getAccraTime()
           });
         }
       );
@@ -169,14 +168,17 @@ export function AssistantPage() {
       progressIntervalRef.current = null;
     }
     if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
+      try {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+      } catch (e) {}
       currentAudioRef.current = null;
     }
     setPlayingMsgId(null);
     setVoiceProgress("");
   };
 
-  // INSTANT GOOGLE GEMINI NEURAL VOICE PLAYER WITH DYNAMIC DOWNLOAD PROGRESS (%)
+  // INSTANT GOOGLE GEMINI NEURAL VOICE PLAYER WITH DYNAMIC DOWNLOAD PROGRESS (%) & UNLIMITED REPLAY
   const playVoice = async (text: string, msgId?: string) => {
     if (msgId && playingMsgId === msgId) {
       stopAudio();
@@ -184,29 +186,29 @@ export function AssistantPage() {
     }
 
     stopAudio();
+    await new Promise((r) => setTimeout(r, 40));
+
     if (msgId) setPlayingMsgId(msgId);
 
-    // Step 1: Start Download Progress Indicator (10% -> 40% -> 75% -> 95%)
+    // Step 1: Start Download Progress Indicator (15% -> 40% -> 75% -> 95%)
     let pct = 15;
     setVoiceProgress(`Downloading Voice ${pct}%...`);
     
     progressIntervalRef.current = setInterval(() => {
-      pct += Math.floor(Math.random() * 20) + 10;
+      pct += Math.floor(Math.random() * 20) + 15;
       if (pct >= 95) pct = 95;
       setVoiceProgress(`Downloading Voice ${pct}%...`);
-    }, 150);
+    }, 120);
 
     let speechText = text;
-    const isTwi = language === "Twi" || language.toLowerCase().includes("twi");
-
-    if (isTwi) {
+    if (language !== "English") {
       try {
-        speechText = await translateToTwiAudioText(text);
+        speechText = await translateToTargetAudioText(text, language);
       } catch (e) {}
     }
 
     // Step 2: Fetch Google Gemini Neural Audio
-    const wavAudioUrl = await getGeminiLiveVoiceAudio(speechText, isTwi);
+    const wavAudioUrl = await getGeminiLiveVoiceAudio(speechText, language);
 
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
@@ -405,7 +407,7 @@ export function AssistantPage() {
             </h1>
             <p className="text-[10.5px] text-gray-500 font-medium flex items-center gap-1">
               <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-              <span className="truncate max-w-[140px]">{userLocationInfo.city}</span>
+              <span className="truncate max-w-[140px]">{userLocationInfo.city} ({language})</span>
             </p>
           </div>
         </div>
@@ -471,7 +473,7 @@ export function AssistantPage() {
                 })}
               </div>
 
-              {/* Speaker Button with Dynamic Downloading Progress (%) Status */}
+              {/* Speaker Button with Dynamic Downloading Progress (%) Status & Replay */}
               {msg.sender === "ai" && (
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
                   <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
@@ -488,7 +490,7 @@ export function AssistantPage() {
                     ) : (
                       <Volume2 className="w-3.5 h-3.5" />
                     )}
-                    {playingMsgId === msg.id ? (voiceProgress || "Downloading Voice 0%...") : "Listen Voice"}
+                    {playingMsgId === msg.id ? (voiceProgress || "Downloading Voice 0%...") : `Listen Voice (${language})`}
                   </button>
                 </div>
               )}
@@ -601,7 +603,7 @@ export function AssistantPage() {
               <div>
                 <h3 className="font-extrabold text-sm text-white">Live AI Video Call</h3>
                 <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <Mic className="w-3 h-3 animate-pulse" /> Live Speech Active
+                  <Mic className="w-3 h-3 animate-pulse" /> Live Speech Active ({language})
                 </p>
               </div>
             </div>
