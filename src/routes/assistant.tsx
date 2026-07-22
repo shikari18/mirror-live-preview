@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2, MapPin, Download } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
-import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, translateToTargetAudioText, MediaAttachment } from "@/lib/gemini";
+import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/assistant")({
@@ -200,15 +200,8 @@ export function AssistantPage() {
       setVoiceProgress(`Downloading Voice ${pct}%...`);
     }, 120);
 
-    let speechText = text;
-    if (language !== "English") {
-      try {
-        speechText = await translateToTargetAudioText(text, language);
-      } catch (e) {}
-    }
-
     // Step 2: Fetch Same-Origin Audio URL (/api/tts)
-    const audioUrl = await getGeminiLiveVoiceAudio(speechText, language);
+    const audioUrl = await getGeminiLiveVoiceAudio(text, language);
 
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
