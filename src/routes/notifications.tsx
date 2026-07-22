@@ -1,17 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowLeft, Bell, CheckCircle, Droplet, ShoppingCart, Sparkles, Trash2, Play, Volume2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { ArrowLeft, Bell, CheckCircle, Droplet, ShoppingCart, Sparkles, Trash2, Play, Volume2, CloudRain } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { useLanguage } from "@/lib/languageContext";
-import { translateToTwiAudioText } from "@/lib/gemini";
+import { getGeminiLiveVoiceAudio } from "@/lib/gemini";
 
 export const Route = createFileRoute("/notifications")({
   component: NotificationsPage,
   head: () => ({
     meta: [
       { title: "Notifications — FishFarm OS Ghana" },
-      { name: "description", content: "Farm alerts, market updates, and daily recommendations." },
+      { name: "description", content: "Farm alerts, weather warnings, market updates, and daily recommendations." },
     ],
   }),
 });
@@ -21,16 +21,26 @@ interface NotificationItem {
   title: string;
   message: string;
   time: string;
-  type: "water" | "feed" | "market" | "ai";
+  type: "weather" | "water" | "feed" | "market" | "ai";
   read: boolean;
 }
 
 export function NotificationsPage() {
   const { language } = useLanguage();
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: "1",
+      title: "⛈️ Heavy Rain & Oxygen Alert",
+      message: "Moderate to Heavy rainfall expected at 2:30 PM in your region. Action required: Reduce catfish feed by 50% and verify pond overflow gates are clear to prevent water quality crash.",
+      time: "Today, 11:45 AM",
+      type: "weather",
+      read: false,
+    },
+    {
+      id: "2",
       title: "Water Parameter Check",
       message: "Dissolved Oxygen in Pond 1 is 5.8 mg/L (Optimal). Next test recommended tomorrow morning.",
       time: "Today, 8:30 AM",
@@ -38,7 +48,7 @@ export function NotificationsPage() {
       read: false,
     },
     {
-      id: "2",
+      id: "3",
       title: "Ghana Market Price Rise",
       message: "Catfish prices increased to GH₵ 48/kg in Kumasi and Malata markets.",
       time: "Today, 7:15 AM",
@@ -46,15 +56,15 @@ export function NotificationsPage() {
       read: false,
     },
     {
-      id: "3",
+      id: "4",
       title: "Community Group Buy Alert",
-      message: "15% discount unlocked on 32% Raanan Feed. Join 340+ farmers in Ashanti Region.",
+      message: "15% discount unlocked on 32% Raanan Feed. Join 340+ farmers in Ashanti & Accra Region.",
       time: "Yesterday, 4:20 PM",
       type: "feed",
       read: true,
     },
     {
-      id: "4",
+      id: "5",
       title: "Daily AI Health Report",
       message: "All registered ponds are showing normal growth rate (↑ 14% this week).",
       time: "May 10, 6:00 PM",
@@ -64,36 +74,40 @@ export function NotificationsPage() {
   ]);
 
   const playNotificationAudio = async (id: string, text: string) => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      if (playingId === id && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-        setPlayingId(null);
-        return;
+    if (playingId === id) {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
-
-      window.speechSynthesis.cancel();
-      setPlayingId(id);
-
-      let speechText = text;
-      if (language === "Twi" || language.toLowerCase().includes("twi")) {
-        try {
-          speechText = await translateToTwiAudioText(text);
-        } catch (e) {}
-      }
-
-      const utterance = new SpeechSynthesisUtterance(speechText);
-      const voices = window.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(
-        (v) => v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Premium")
-      );
-      if (preferredVoice) utterance.voice = preferredVoice;
-
-      utterance.rate = 0.95;
-      utterance.onend = () => setPlayingId(null);
-      utterance.onerror = () => setPlayingId(null);
-
-      window.speechSynthesis.speak(utterance);
+      setPlayingId(null);
+      return;
     }
+
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+
+    setPlayingId(id);
+
+    const audioUrl = await getGeminiLiveVoiceAudio(text, language);
+
+    if (audioUrl) {
+      try {
+        const audio = new Audio(audioUrl);
+        currentAudioRef.current = audio;
+
+        audio.onended = () => setPlayingId(null);
+        audio.onerror = () => setPlayingId(null);
+
+        await audio.play();
+        return;
+      } catch (e) {
+        console.warn("Audio error", e);
+      }
+    }
+
+    setPlayingId(null);
   };
 
   const markAllRead = () => {
@@ -107,14 +121,14 @@ export function NotificationsPage() {
   return (
     <PhoneFrame>
       {/* Header */}
-      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20">
+      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20 shadow-2xs">
         <div className="flex items-center gap-3">
-          <Link to="/home" className="p-1">
-            <ArrowLeft className="w-5 h-5 text-gray-800" />
+          <Link to="/home" className="p-1 cursor-pointer">
+            <ArrowLeft className="w-5.5 h-5.5 text-gray-800" />
           </Link>
           <div>
             <h1 className="text-base font-extrabold text-gray-900">Notifications</h1>
-            <p className="text-[11px] text-gray-500 font-medium">Alerts & Market Updates</p>
+            <p className="text-[11px] text-gray-500 font-medium">Weather & Farm Alerts ({language})</p>
           </div>
         </div>
 
@@ -155,7 +169,9 @@ export function NotificationsPage() {
               <div className="flex items-start gap-3">
                 <div
                   className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                    item.type === "water"
+                    item.type === "weather"
+                      ? "bg-amber-100 text-amber-900 border border-amber-300"
+                      : item.type === "water"
                       ? "bg-blue-100 text-blue-700"
                       : item.type === "market"
                       ? "bg-emerald-100 text-emerald-800"
@@ -164,6 +180,7 @@ export function NotificationsPage() {
                       : "bg-[#0F6236] text-white"
                   }`}
                 >
+                  {item.type === "weather" && <CloudRain className="w-4 h-4 text-amber-700" />}
                   {item.type === "water" && <Droplet className="w-4 h-4" />}
                   {item.type === "market" && <ShoppingCart className="w-4 h-4" />}
                   {item.type === "feed" && <CheckCircle className="w-4 h-4" />}
@@ -190,7 +207,7 @@ export function NotificationsPage() {
                   }`}
                 >
                   {playingId === item.id ? <Volume2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-[#0F6236]" />}
-                  {playingId === item.id ? "Playing Audio..." : "Play Alert Audio"}
+                  {playingId === item.id ? "Playing Audio..." : `Listen Alert (${language})`}
                 </button>
               </div>
             </div>
