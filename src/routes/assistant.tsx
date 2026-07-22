@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2 } from "lucide-react";
+import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import { getAIAssistantResponse, getAIVideoCallResponse, translateToTwiAudioText, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
@@ -42,7 +42,7 @@ export function AssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: "image" | "video" | "file"; mimeType: string; url: string } | null>(null);
-  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
 
   // Fullscreen Camera Video Call & Speech-to-Speech State
   const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
@@ -57,6 +57,7 @@ export function AssistantPage() {
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<any>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,9 +68,7 @@ export function AssistantPage() {
     return () => {
       stopWebcam();
       stopSpeechRecognition();
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopAudio();
     };
   }, []);
 
@@ -80,9 +79,7 @@ export function AssistantPage() {
     } else {
       stopWebcam();
       stopSpeechRecognition();
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopAudio();
     }
   }, [isVideoCallOpen, cameraFacing, isCameraOff]);
 
@@ -120,6 +117,61 @@ export function AssistantPage() {
 
   const toggleCameraFacing = () => {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
+  };
+
+  const stopAudio = () => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    setPlayingMsgId(null);
+  };
+
+  // Real Google Voice Audio Synthesis API (NO robotic OS TTS)
+  const playRealGoogleVoice = async (text: string, msgId?: string) => {
+    stopAudio();
+
+    if (msgId && playingMsgId === msgId) {
+      return;
+    }
+
+    if (msgId) setPlayingMsgId(msgId);
+
+    let speechText = text;
+    if (language === "Twi" || language.toLowerCase().includes("twi")) {
+      try {
+        speechText = await translateToTwiAudioText(text);
+      } catch (e) {}
+    }
+
+    const cleanText = speechText.replace(/[#*`_]/g, "").slice(0, 200);
+    const targetLang = language === "Twi" ? "ak" : "en";
+    const googleAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${targetLang}&client=tw-ob`;
+
+    try {
+      const audio = new Audio(googleAudioUrl);
+      currentAudioRef.current = audio;
+      
+      audio.onended = () => {
+        setPlayingMsgId(null);
+        currentAudioRef.current = null;
+      };
+      audio.onerror = () => {
+        // Fallback to Web Speech if audio URL fails
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          const utterance = new SpeechSynthesisUtterance(cleanText);
+          utterance.onend = () => setPlayingMsgId(null);
+          window.speechSynthesis.speak(utterance);
+        } else {
+          setPlayingMsgId(null);
+        }
+      };
+
+      await audio.play();
+    } catch (e) {
+      console.warn("Google Audio Play error", e);
+      setPlayingMsgId(null);
+    }
   };
 
   // Pure Speech-to-Speech Loop for Live Video Call
@@ -169,61 +221,11 @@ export function AssistantPage() {
 
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
-      speakGeminiVoice(response); // Speak Dr. Kwame AI's response back to user!
+      playRealGoogleVoice(response); // Play real Google audio voice response!
     } catch (err) {
       console.error(err);
     } finally {
       setVideoLoading(false);
-    }
-  };
-
-  // Google Gemini Realistic Voice Audio Output (Speaks Twi audio if Twi language selected)
-  const speakGeminiVoice = async (text: string, msgId?: string) => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      if (speakingMsgId === msgId && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-        setSpeakingMsgId(null);
-        return;
-      }
-
-      window.speechSynthesis.cancel();
-      if (msgId) setSpeakingMsgId(msgId);
-
-      let textToSpeak = text;
-      // If language in settings is Twi, translate to Twi spoken audio ONLY
-      if (language === "Twi" || language.toLowerCase().includes("twi")) {
-        try {
-          textToSpeak = await translateToTwiAudioText(text);
-        } catch (e) {
-          console.warn("Twi translation error", e);
-        }
-      }
-
-      const cleanText = textToSpeak.replace(/[#*`_]/g, "");
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-
-      // Select highest quality Google Realistic Voice
-      const voices = window.speechSynthesis.getVoices();
-      const googleVoice = voices.find(
-        (v) =>
-          v.name.includes("Google") ||
-          v.name.includes("Natural") ||
-          v.name.includes("Premium") ||
-          v.lang.includes("en-US") ||
-          v.lang.includes("en-GH")
-      );
-
-      if (googleVoice) {
-        utterance.voice = googleVoice;
-      }
-
-      utterance.rate = 0.95;
-      utterance.pitch = 1.0;
-
-      utterance.onend = () => setSpeakingMsgId(null);
-      utterance.onerror = () => setSpeakingMsgId(null);
-
-      window.speechSynthesis.speak(utterance);
     }
   };
 
@@ -402,15 +404,15 @@ export function AssistantPage() {
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
                   <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
                   <button
-                    onClick={() => speakGeminiVoice(msg.text, msg.id)}
+                    onClick={() => playRealGoogleVoice(msg.text, msg.id)}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                      speakingMsgId === msg.id
+                      playingMsgId === msg.id
                         ? "bg-[#0F6236] text-white animate-pulse"
                         : "bg-gray-100 text-[#0F6236] hover:bg-gray-200"
                     }`}
                   >
                     <Volume2 className="w-3.5 h-3.5" />
-                    {speakingMsgId === msg.id ? "Speaking..." : "Listen Voice"}
+                    {playingMsgId === msg.id ? "Playing Voice..." : "Listen Voice"}
                   </button>
                 </div>
               )}
@@ -493,7 +495,7 @@ export function AssistantPage() {
         </button>
       </div>
 
-      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL (PURE SPEECH-TO-SPEECH, ZERO TEXT SUBTITLES) */}
+      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL (CLEAN VIDEO CALL SCREEN) */}
       {isVideoCallOpen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
           
@@ -521,9 +523,9 @@ export function AssistantPage() {
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
               <div>
-                <h3 className="font-extrabold text-sm text-white">Dr. Kwame (Senior Specialist)</h3>
+                <h3 className="font-extrabold text-sm text-white">Live AI Video Call</h3>
                 <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <Mic className="w-3 h-3 animate-pulse" /> Live Speech-to-Speech Active
+                  <Mic className="w-3 h-3 animate-pulse" /> Speech-to-Speech Active
                 </p>
               </div>
             </div>
@@ -538,22 +540,16 @@ export function AssistantPage() {
             </button>
           </div>
 
-          {/* Dr. Kwame Avatar Badge (Center Screen) */}
+          {/* Status Indicator (Center Screen) */}
           <div className="z-20 my-auto text-center">
-            <div className="w-24 h-24 rounded-full bg-[#0F6236]/90 border-4 border-white/40 shadow-2xl flex items-center justify-center text-white text-3xl font-extrabold mx-auto animate-pulse">
-              Dr. K
-            </div>
-            <span className="inline-block mt-3 px-4 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold border border-white/20">
-              Dr. Kwame • Speak Naturally
-            </span>
             {videoLoading && (
-              <div className="mt-2 text-yellow-300 font-bold text-xs animate-pulse">
-                Dr. Kwame is responding to your voice...
+              <div className="px-4 py-2 rounded-full bg-black/70 backdrop-blur-md text-yellow-300 font-bold text-xs animate-pulse border border-white/20">
+                AI is processing & speaking...
               </div>
             )}
             {isListeningSpeech && !videoLoading && (
-              <div className="mt-2 text-emerald-400 font-bold text-xs animate-pulse">
-                🎙️ Listening to your voice...
+              <div className="px-4 py-2 rounded-full bg-black/70 backdrop-blur-md text-emerald-400 font-bold text-xs animate-pulse border border-white/20 flex items-center gap-1.5">
+                <Mic className="w-3.5 h-3.5" /> Listening to your voice...
               </div>
             )}
           </div>
