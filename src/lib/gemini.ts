@@ -18,11 +18,16 @@ const AVAILABLE_MODELS = [
   "gemini-2.5-flash"
 ];
 
+// DEDICATED GEMINI NEURAL AUDIO MODELS
 const TTS_MODELS = [
   "gemini-3.1-flash-tts-preview",
   "gemini-2.5-flash-preview-tts",
-  "gemini-2.5-pro-preview-tts"
+  "gemini-2.5-flash",
+  "gemini-3.6-flash"
 ];
+
+// IN-MEMORY AUDIO CACHE FOR INSTANT < 1ms REPEAT PLAYBACK
+const audioCache = new Map<string, string>();
 
 export async function callGemini(
   prompt: string,
@@ -64,7 +69,7 @@ export async function callGemini(
           contents: [{ role: "user", parts }],
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 400,
+            maxOutputTokens: 300,
           },
         }),
       });
@@ -90,10 +95,17 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// DIRECT GEMINI NEURAL VOICE API WITH STABLE MULTI-MODEL FALLBACK ("Kore" Female Voice)
+// DIRECT GOOGLE GEMINI NEURAL VOICE GENERATOR WITH IN-MEMORY CACHING & FAST PIPELINE
 export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | "Aoede" | "Puck" = "Kore"): Promise<string | null> {
+  const cleanText = text.replace(/[#*`_]/g, "").trim();
+  if (!cleanText) return null;
+
+  const cacheKey = `${voiceName}:${cleanText.slice(0, 150)}`;
+  if (audioCache.has(cacheKey)) {
+    return audioCache.get(cacheKey)!;
+  }
+
   const apiKey = getGeminiKey();
-  const cleanText = text.replace(/[#*`_]/g, "");
 
   for (const model of TTS_MODELS) {
     try {
@@ -102,7 +114,7 @@ export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: `Read out loud word for word: ${cleanText}` }] }],
+          contents: [{ role: "user", parts: [{ text: cleanText }] }],
           generationConfig: {
             responseModalities: ["AUDIO"],
             speechConfig: {
@@ -117,17 +129,18 @@ export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | 
       });
 
       if (!response.ok) {
-        console.warn(`TTS Model ${model} failed with status ${response.status}`);
         continue;
       }
 
       const data = await response.json();
       const inlinePart = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
       if (inlinePart && inlinePart.inlineData?.data) {
-        return inlinePart.inlineData.data; // Base64 PCM data at 24,000 Hz
+        const base64PCM = inlinePart.inlineData.data;
+        audioCache.set(cacheKey, base64PCM);
+        return base64PCM; // Raw 24kHz Base64 PCM data generated directly by Google Gemini
       }
     } catch (err) {
-      console.warn(`Gemini TTS model ${model} error:`, err);
+      console.warn(`Gemini Audio Model ${model} error:`, err);
     }
   }
 
@@ -216,7 +229,7 @@ Respond STRICTLY with a valid JSON object formatted as:
 // AI Video Call Expert Consultation — INSTANT SHORT RESPONSE FOR REAL-TIME SPEECH
 export async function getAIVideoCallResponse(transcript: string, language: string = "English"): Promise<string> {
   const systemPrompt = `You are a Senior Aquaculture Specialist in Ghana on a live video call.
-CRITICAL: Answer in ONLY 1 SHORT SENTENCE (under 12 words) so speech audio responds instantly. Do NOT introduce yourself. Preferred language: ${language}.`;
+CRITICAL: Answer in ONLY 1 SHORT SENTENCE (under 10 words) so speech audio responds instantly. Do NOT introduce yourself. Preferred language: ${language}.`;
   
   return await callGemini(transcript, systemPrompt);
 }
