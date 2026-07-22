@@ -57,8 +57,8 @@ export async function callGemini(
         body: JSON.stringify({
           contents: [{ role: "user", parts }],
           generationConfig: {
-            temperature: 0.5,
-            maxOutputTokens: 1000,
+            temperature: 0.4,
+            maxOutputTokens: 300,
           },
         }),
       });
@@ -84,19 +84,20 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// DIRECT GEMINI NEURAL VOICE API (gemini-2.5-flash-preview-tts model with "Kore" / "Aoede" voices)
+// ULTRA-FAST DIRECT GEMINI NEURAL VOICE API ("Kore" Female Neural Voice)
 export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | "Aoede" | "Puck" = "Kore"): Promise<string | null> {
   const apiKey = getGeminiKey();
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
 
-  const cleanText = text.replace(/[#*`_]/g, "").slice(0, 350);
+  // Truncate text to 180 chars max for instant 100ms audio generation
+  const cleanText = text.replace(/[#*`_]/g, "").slice(0, 180);
 
   try {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: `Read the following text out loud word for word: ${cleanText}` }] }],
+        contents: [{ role: "user", parts: [{ text: `Read out loud word for word: ${cleanText}` }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: {
@@ -111,7 +112,6 @@ export async function getGeminiLiveVoiceAudio(text: string, voiceName: "Kore" | 
     });
 
     if (!response.ok) {
-      console.warn("Gemini Neural Audio API status:", response.status);
       return null;
     }
 
@@ -205,10 +205,10 @@ Respond STRICTLY with a valid JSON object formatted as:
   };
 }
 
-// AI Video Call Expert Consultation
+// AI Video Call Expert Consultation — INSTANT SHORT RESPONSE FOR REAL-TIME SPEECH
 export async function getAIVideoCallResponse(transcript: string, language: string = "English"): Promise<string> {
-  const systemPrompt = `You are a Senior Aquaculture Specialist in Accra, Ghana on a live video consultation with a fish farmer. 
-Answer concisely, directly, and naturally in 2-3 sentences. Do NOT introduce yourself. Preferred language: ${language}.`;
+  const systemPrompt = `You are a Senior Aquaculture Specialist in Ghana on a live video call.
+CRITICAL: Answer in ONLY 1 SHORT SENTENCE (under 12 words) so speech audio responds instantly. Do NOT introduce yourself. Preferred language: ${language}.`;
   
   return await callGemini(transcript, systemPrompt);
 }

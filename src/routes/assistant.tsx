@@ -127,9 +127,9 @@ export function AssistantPage() {
     setPlayingMsgId(null);
   };
 
-  // Decode & Play 24kHz Raw PCM Audio directly from Google Gemini API
+  // Decode & Play 24kHz Raw PCM Audio with Resume Protection
   const playPCM24kAudio = (base64Data: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
         const binaryString = window.atob(base64Data);
         const len = binaryString.length;
@@ -149,6 +149,10 @@ export function AssistantPage() {
         const audioCtx = new AudioCtx({ sampleRate: 24000 });
         audioCtxRef.current = audioCtx;
 
+        if (audioCtx.state === "suspended") {
+          await audioCtx.resume();
+        }
+
         const audioBuffer = audioCtx.createBuffer(1, numSamples, 24000);
         audioBuffer.getChannelData(0).set(float32Array);
 
@@ -164,8 +168,8 @@ export function AssistantPage() {
     });
   };
 
-  // PURE GOOGLE GEMINI NEURAL VOICE ("Kore" Female Gemini Voice)
-  const playGeminiVoice = async (text: string, msgId?: string) => {
+  // PURE NEURAL AUDIO VOICE ("Kore" Female Voice)
+  const playVoice = async (text: string, msgId?: string) => {
     if (msgId && playingMsgId === msgId) {
       stopAudio();
       return;
@@ -183,7 +187,6 @@ export function AssistantPage() {
       } catch (e) {}
     }
 
-    // Call Google Gemini 2.5 Flash TTS API
     const base64PCM = await getGeminiLiveVoiceAudio(speechText, "Kore");
 
     if (base64PCM) {
@@ -192,7 +195,7 @@ export function AssistantPage() {
         setPlayingMsgId(null);
         return;
       } catch (e) {
-        console.warn("Gemini PCM playback failed", e);
+        console.warn("PCM playback failed", e);
       }
     }
 
@@ -246,7 +249,7 @@ export function AssistantPage() {
 
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
-      playGeminiVoice(response); // Play real Gemini Neural Voice ("Kore") back to user!
+      playVoice(response); // Instant Neural Voice reply!
     } catch (err) {
       console.error(err);
     } finally {
@@ -359,7 +362,7 @@ export function AssistantPage() {
               AI Advisor
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
-            <p className="text-[11px] text-gray-500 font-medium">Gemini 2.5 Neural Voice</p>
+            <p className="text-[11px] text-gray-500 font-medium">Smart Voice Active</p>
           </div>
         </div>
 
@@ -429,7 +432,7 @@ export function AssistantPage() {
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
                   <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
                   <button
-                    onClick={() => playGeminiVoice(msg.text, msg.id)}
+                    onClick={() => playVoice(msg.text, msg.id)}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                       playingMsgId === msg.id
                         ? "bg-[#0F6236] text-white animate-pulse"
@@ -437,7 +440,7 @@ export function AssistantPage() {
                     }`}
                   >
                     <Volume2 className="w-3.5 h-3.5" />
-                    {playingMsgId === msg.id ? "Playing Gemini Voice..." : "Listen Gemini Voice"}
+                    {playingMsgId === msg.id ? "Playing Voice..." : "Listen Voice"}
                   </button>
                 </div>
               )}
@@ -550,7 +553,7 @@ export function AssistantPage() {
               <div>
                 <h3 className="font-extrabold text-sm text-white">Live AI Video Call</h3>
                 <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <Mic className="w-3 h-3 animate-pulse" /> Gemini Voice Speech-to-Speech
+                  <Mic className="w-3 h-3 animate-pulse" /> Live Speech Active
                 </p>
               </div>
             </div>
@@ -569,7 +572,7 @@ export function AssistantPage() {
           <div className="z-20 my-auto text-center">
             {videoLoading && (
               <div className="px-4 py-2 rounded-full bg-black/70 backdrop-blur-md text-yellow-300 font-bold text-xs animate-pulse border border-white/20">
-                Gemini Voice is processing & responding...
+                AI is responding...
               </div>
             )}
             {isListeningSpeech && !videoLoading && (
