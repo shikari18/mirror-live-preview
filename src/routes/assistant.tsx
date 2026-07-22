@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, Volume2 } from "lucide-react";
+import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { getAIAssistantResponse, getAIVideoCallResponse, MediaAttachment } from "@/lib/gemini";
@@ -44,11 +44,12 @@ export function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: "image" | "video" | "file"; mimeType: string; url: string } | null>(null);
 
-  // Video Call State & Real WebCam Stream
+  // Fullscreen Camera Video Call State
   const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("environment"); // Default to Back Camera for ponds
   const [videoCallText, setVideoCallText] = useState("");
   const [videoCallHistory, setVideoCallHistory] = useState<string[]>([
-    "Dr. Kwame: 'Hello! I am Dr. Kwame, your senior aquaculture consultant. Show me your pond through your camera!'"
+    "Dr. Kwame: 'Hello! I am Dr. Kwame. Point your camera at your pond or fish and ask me anything!'"
   ]);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -63,27 +64,40 @@ export function AssistantPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Turn on real camera when Video Call starts
+  // Handle Real Camera Activation & Camera Switching
   useEffect(() => {
-    if (isVideoCallOpen) {
-      startWebcam();
+    if (isVideoCallOpen && !isCameraOff) {
+      startWebcam(cameraFacing);
     } else {
       stopWebcam();
     }
     return () => {
       stopWebcam();
     };
-  }, [isVideoCallOpen]);
+  }, [isVideoCallOpen, cameraFacing, isCameraOff]);
 
-  const startWebcam = async () => {
+  const startWebcam = async (facing: "user" | "environment") => {
+    stopWebcam();
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facing } },
+        audio: true,
+      });
       mediaStreamRef.current = stream;
       if (webcamVideoRef.current) {
         webcamVideoRef.current.srcObject = stream;
       }
     } catch (err) {
-      console.warn("Webcam access declined or unavailable, fallback to simulated stream", err);
+      console.warn("Fallback to basic camera constraints", err);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        mediaStreamRef.current = stream;
+        if (webcamVideoRef.current) {
+          webcamVideoRef.current.srcObject = stream;
+        }
+      } catch (e) {
+        console.error("Camera access not granted", e);
+      }
     }
   };
 
@@ -92,6 +106,10 @@ export function AssistantPage() {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
+  };
+
+  const toggleCameraFacing = () => {
+    setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,7 +161,7 @@ export function AssistantPage() {
 
     try {
       const aiReply = await getAIAssistantResponse(
-        query || "Please analyze this video/image attachment carefully and advise me on my fish farm.",
+        query || "Please analyze this video/image attachment carefully and give detailed advice on my fish farm.",
         language,
         mediaList
       );
@@ -156,13 +174,13 @@ export function AssistantPage() {
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
-      console.error(err);
+      console.error("AI Error:", err);
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           sender: "ai",
-          text: "I received your message and video. Here is my advice: Keep pond aeration high (above 5mg/L DO) and ensure regular 20% water changes.",
+          text: `### Video/Media Received! 📹\nI have received your media submission. To maintain optimal pond health:\n- 💧 Keep Dissolved Oxygen above 5.0 mg/L\n- 🌾 Feed 32% protein pellets twice daily\n- 🩺 Perform 25% water change if fish show sluggish swimming`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -192,7 +210,7 @@ export function AssistantPage() {
 
   return (
     <PhoneFrame>
-      {/* Header - Aligned */}
+      {/* Header */}
       <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <Link to="/home" className="p-1">
@@ -213,13 +231,13 @@ export function AssistantPage() {
         {/* Video Call Button */}
         <button
           onClick={() => setIsVideoCallOpen(true)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#0F6236] text-white text-[11.5px] font-bold shadow-md shadow-[#0F6236]/20 hover:bg-[#0B502B] transition-all cursor-pointer"
+          className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-[#0F6236] text-white text-[11.5px] font-bold shadow-md shadow-[#0F6236]/20 hover:bg-[#0B502B] transition-all cursor-pointer"
         >
-          <Video className="w-3.5 h-3.5" /> Video Call
+          <Video className="w-4 h-4" /> Live Video Call
         </button>
       </header>
 
-      {/* Chat Messages */}
+      {/* Chat Messages List */}
       <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#F8FAF8] min-h-[460px]">
         {messages.map((msg) => (
           <div
@@ -243,9 +261,9 @@ export function AssistantPage() {
               {msg.attachment && (
                 <div className="mb-2 p-2 bg-black/10 rounded-xl overflow-hidden">
                   {msg.attachment.type === "image" ? (
-                    <img src={msg.attachment.url} alt="Uploaded" className="w-full h-40 object-cover rounded-lg" />
+                    <img src={msg.attachment.url} alt="Uploaded" className="w-full h-44 object-cover rounded-lg" />
                   ) : msg.attachment.type === "video" ? (
-                    <video src={msg.attachment.url} controls className="w-full h-40 object-cover rounded-lg" />
+                    <video src={msg.attachment.url} controls className="w-full h-44 object-cover rounded-lg" />
                   ) : (
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
                       <FileText className="w-5 h-5 text-[#0F6236]" /> {msg.attachment.name}
@@ -342,104 +360,118 @@ export function AssistantPage() {
         </button>
       </div>
 
-      {/* Live Interactive Video Call Modal with Real Camera Stream */}
+      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL */}
       {isVideoCallOpen && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
           
-          {/* Top Call Bar */}
-          <div className="w-full flex items-center justify-between text-white z-10 pt-4 px-2">
+          {/* Real Camera Stream Background */}
+          <div className="absolute inset-0 w-full h-full bg-gray-900 overflow-hidden">
+            {isCameraOff ? (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-900">
+                <VideoOff className="w-12 h-12 mb-2 text-gray-600" />
+                <span className="text-xs font-bold">Camera Turned Off</span>
+              </div>
+            ) : (
+              <video
+                ref={webcamVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/90 pointer-events-none" />
+          </div>
+
+          {/* Top Bar with Camera Switcher */}
+          <div className="w-full flex items-center justify-between text-white z-20 pt-6 px-5">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
               <div>
-                <h3 className="font-bold text-sm">Dr. Kwame (Senior Aquatic Specialist)</h3>
-                <p className="text-[10px] text-emerald-400 font-semibold">Live Camera Video Consultation</p>
+                <h3 className="font-extrabold text-sm text-white">Dr. Kwame (Senior Specialist)</h3>
+                <p className="text-[11px] text-emerald-400 font-semibold">Live Camera Stream Active</p>
               </div>
             </div>
+
+            {/* Switch Camera Button (Front / Back Camera) */}
             <button
-              onClick={() => setIsVideoCallOpen(false)}
-              className="p-2 bg-red-600/80 hover:bg-red-600 text-white rounded-full cursor-pointer"
+              onClick={toggleCameraFacing}
+              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold rounded-full flex items-center gap-1.5 cursor-pointer shadow-md"
+              title="Switch Front / Back Camera"
             >
-              <PhoneOff className="w-5 h-5" />
+              <RefreshCw className="w-3.5 h-3.5" /> {cameraFacing === "environment" ? "Back Cam" : "Front Cam"}
             </button>
           </div>
 
-          {/* Video Stream Container */}
-          <div className="w-full max-w-sm flex-1 my-4 relative rounded-3xl overflow-hidden bg-gray-900 border border-gray-800 flex flex-col justify-between p-4 shadow-2xl">
-            
-            {/* Dr. Kwame Avatar / AI Response View */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 via-[#0F6236]/30 to-gray-950">
-              <div className="w-28 h-28 rounded-full bg-[#0F6236] border-4 border-white/20 flex items-center justify-center text-white text-3xl font-extrabold shadow-2xl animate-pulse">
-                Dr. K
-              </div>
-              <p className="text-white text-sm font-bold mt-3">Dr. Kwame • Senior Specialist</p>
-              <p className="text-emerald-400 text-xs mt-0.5 font-medium">Watching Live Camera Feed</p>
+          {/* Dr. Kwame Avatar Badge (Top Center) */}
+          <div className="z-20 my-auto text-center">
+            <div className="w-20 h-20 rounded-full bg-[#0F6236]/90 border-4 border-white/30 shadow-2xl flex items-center justify-center text-white text-2xl font-extrabold mx-auto animate-pulse">
+              Dr. K
             </div>
+            <span className="inline-block mt-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold border border-white/20">
+              Dr. Kwame • Inspecting Pond
+            </span>
+          </div>
 
-            {/* REAL USER CAMERA PREVIEW (Top Right) */}
-            <div className="absolute top-4 right-4 w-28 h-36 rounded-2xl bg-black border-2 border-white/30 overflow-hidden shadow-2xl z-20">
-              {isCameraOff ? (
-                <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-400">
-                  <VideoOff className="w-6 h-6" />
-                </div>
-              ) : (
-                <video
-                  ref={webcamVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-
-            {/* Video Call Subtitles */}
-            <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 text-white text-xs space-y-1.5 max-h-40 overflow-y-auto z-10">
+          {/* Subtitles & Controls (Bottom) */}
+          <div className="w-full max-w-md px-5 pb-6 space-y-3 z-20">
+            {/* Live Subtitles Log */}
+            <div className="bg-black/80 backdrop-blur-md p-4 rounded-2xl border border-white/15 text-white text-xs space-y-1.5 max-h-36 overflow-y-auto">
               {videoCallHistory.map((line, idx) => (
-                <p key={idx} className={line.startsWith("Dr. Kwame") ? "text-emerald-300 font-bold" : "text-gray-200"}>
+                <p key={idx} className={line.startsWith("Dr. Kwame") ? "text-emerald-300 font-bold" : "text-gray-200 font-medium"}>
                   {line}
                 </p>
               ))}
               {videoLoading && <p className="text-yellow-400 animate-pulse font-bold">Dr. Kwame is responding...</p>}
             </div>
-          </div>
 
-          {/* Video Call Speech Controls */}
-          <div className="w-full max-w-sm space-y-3 z-10 pb-4">
+            {/* Speech Input */}
             <form onSubmit={handleVideoSpeak} className="flex gap-2">
               <input
                 type="text"
                 value={videoCallText}
                 onChange={(e) => setVideoCallText(e.target.value)}
                 placeholder="Speak to Dr. Kwame about what your camera shows..."
-                className="flex-1 h-12 bg-gray-900 border border-gray-700 text-white px-4 rounded-full text-xs outline-none focus:ring-2 focus:ring-[#0F6236]"
+                className="flex-1 h-12 bg-black/70 backdrop-blur-md border border-white/30 text-white px-4 rounded-full text-xs outline-none focus:ring-2 focus:ring-[#0F6236]"
               />
               <button
                 type="submit"
                 disabled={videoLoading}
-                className="w-12 h-12 rounded-full bg-[#0F6236] text-white flex items-center justify-center font-bold cursor-pointer"
+                className="w-12 h-12 rounded-full bg-[#0F6236] text-white flex items-center justify-center font-bold cursor-pointer shrink-0 shadow-lg"
               >
                 <Send className="w-4 h-4" />
               </button>
             </form>
 
-            <div className="flex justify-center gap-4">
+            {/* Action Buttons Bar */}
+            <div className="flex justify-center items-center gap-5 pt-1">
               <button
                 onClick={() => setIsCallMuted(!isCallMuted)}
-                className={`p-3.5 rounded-full cursor-pointer ${isCallMuted ? "bg-red-600 text-white" : "bg-gray-800 text-white"}`}
+                className={`p-3.5 rounded-full cursor-pointer transition-all ${isCallMuted ? "bg-red-600 text-white" : "bg-white/20 text-white hover:bg-white/30"}`}
               >
                 {isCallMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
+              
               <button
                 onClick={() => setIsCameraOff(!isCameraOff)}
-                className={`p-3.5 rounded-full cursor-pointer ${isCameraOff ? "bg-red-600 text-white" : "bg-gray-800 text-white"}`}
+                className={`p-3.5 rounded-full cursor-pointer transition-all ${isCameraOff ? "bg-red-600 text-white" : "bg-white/20 text-white hover:bg-white/30"}`}
               >
                 {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
               </button>
+
+              <button
+                onClick={toggleCameraFacing}
+                className="p-3.5 rounded-full bg-white/20 text-white hover:bg-white/30 cursor-pointer"
+                title="Switch Camera"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
+
               <button
                 onClick={() => setIsVideoCallOpen(false)}
-                className="p-3.5 rounded-full bg-red-600 text-white shadow-lg cursor-pointer"
+                className="p-4 rounded-full bg-red-600 text-white shadow-xl hover:bg-red-700 cursor-pointer"
               >
-                <PhoneOff className="w-5 h-5" />
+                <PhoneOff className="w-6 h-6" />
               </button>
             </div>
           </div>
