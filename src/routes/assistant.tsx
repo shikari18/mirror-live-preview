@@ -231,13 +231,13 @@ export function AssistantPage() {
     }
   };
 
-  // Helper to parse **bold** text inline into styled green tags
+  // Helper to parse **bold** text inline into clean dark bold text without green background
   const parseInlineBold = (str: string) => {
     const parts = str.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         return (
-          <strong key={i} className="font-extrabold text-[#0F6236] bg-[#0F6236]/10 px-1.5 py-0.5 rounded border border-[#0F6236]/20">
+          <strong key={i} className="font-extrabold text-gray-900">
             {part.slice(2, -2)}
           </strong>
         );
@@ -310,7 +310,7 @@ export function AssistantPage() {
                 </div>
               )}
 
-              {/* Rich Styled AI Reply Content with Inline Bold Parsing */}
+              {/* Rich Styled AI Reply Content with Clean Dark Bold Parsing */}
               <div className="space-y-1.5">
                 {msg.text.split("\n").map((line, idx) => {
                   if (line.startsWith("### ")) {
