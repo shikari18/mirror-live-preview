@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2, CheckCircle2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
-import { getAIAssistantResponse, getAIVideoCallResponse, translateToTwiAudioText, MediaAttachment } from "@/lib/gemini";
+import { getAIAssistantResponse, getAIVideoCallResponse, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/assistant")({
@@ -43,7 +43,6 @@ export function AssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: "image" | "video" | "file"; mimeType: string; url: string } | null>(null);
-  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
 
   // Fullscreen Camera Video Call State
   const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
@@ -110,56 +109,6 @@ export function AssistantPage() {
 
   const toggleCameraFacing = () => {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
-  };
-
-  // Google Realistic Voice & Twi Speech Synthesis
-  const speakText = async (text: string, msgId?: string) => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      if (speakingMsgId === msgId && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-        setSpeakingMsgId(null);
-        return;
-      }
-
-      window.speechSynthesis.cancel();
-      if (msgId) setSpeakingMsgId(msgId);
-
-      let textToSpeak = text;
-      // If language in settings is Twi, translate to Twi for spoken audio!
-      if (language === "Twi" || language.toLowerCase().includes("twi")) {
-        try {
-          textToSpeak = await translateToTwiAudioText(text);
-        } catch (e) {
-          console.warn("Twi translation error", e);
-        }
-      }
-
-      const cleanText = textToSpeak.replace(/[#*`_]/g, "");
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-
-      // Select Google Realistic Voice or Natural Voice
-      const voices = window.speechSynthesis.getVoices();
-      const googleVoice = voices.find(
-        (v) =>
-          v.name.includes("Google") ||
-          v.name.includes("Natural") ||
-          v.name.includes("Premium") ||
-          v.lang.includes("en-GH") ||
-          v.lang.includes("ak-GH")
-      );
-
-      if (googleVoice) {
-        utterance.voice = googleVoice;
-      }
-
-      utterance.rate = 0.92;
-      utterance.pitch = 1.0;
-
-      utterance.onend = () => setSpeakingMsgId(null);
-      utterance.onerror = () => setSpeakingMsgId(null);
-
-      window.speechSynthesis.speak(utterance);
-    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,7 +211,7 @@ export function AssistantPage() {
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         return (
-          <strong key={i} className="font-extrabold text-gray-900">
+          <strong key={i} className="font-black text-gray-900">
             {part.slice(2, -2)}
           </strong>
         );
@@ -273,10 +222,10 @@ export function AssistantPage() {
 
   return (
     <PhoneFrame>
-      {/* Header */}
-      <header className="px-5 pt-3 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20">
+      {/* Clean Modern Header */}
+      <header className="px-5 pt-3 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20 shadow-2xs">
         <div className="flex items-center gap-3">
-          <Link to="/home" className="p-1 cursor-pointer">
+          <Link to="/home" className="p-1 cursor-pointer hover:bg-gray-100 rounded-full">
             <ArrowLeft className="w-5 h-5 text-gray-800" />
           </Link>
           <div className="w-9 h-9 rounded-full bg-[#0F6236] text-white flex items-center justify-center font-extrabold text-base shadow-xs">
@@ -287,7 +236,7 @@ export function AssistantPage() {
               AI Advisor
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
-            <p className="text-[11px] text-gray-500 font-medium">Online • Mode: {language}</p>
+            <p className="text-[11px] text-gray-500 font-medium">Smart Farm Assistant</p>
           </div>
         </div>
 
@@ -300,23 +249,23 @@ export function AssistantPage() {
         </button>
       </header>
 
-      {/* Chat Messages List */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#F8FAF8] min-h-[460px]">
+      {/* Redesigned AI Chat UI */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#F4F7F4] min-h-[460px]">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
           >
             <div
-              className={`max-w-[88%] p-4 rounded-2xl text-xs leading-relaxed ${
+              className={`max-w-[90%] p-4 rounded-2xl text-xs leading-relaxed ${
                 msg.sender === "user"
-                  ? "bg-[#0F6236] text-white font-medium rounded-br-none shadow-xs"
-                  : "bg-white text-gray-900 border border-emerald-100/80 rounded-bl-none shadow-sm space-y-2"
+                  ? "bg-[#0F6236] text-white font-medium rounded-br-none shadow-md"
+                  : "bg-white text-gray-900 border-l-4 border-l-[#0F6236] border-y border-r border-gray-200/80 rounded-bl-none shadow-xs space-y-2"
               }`}
             >
               {msg.sender === "ai" && (
-                <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#0F6236] uppercase tracking-wide border-b border-emerald-100 pb-2 mb-2">
-                  <Sparkles className="w-3.5 h-3.5 text-[#0F6236]" /> AI Advice
+                <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#0F6236] uppercase tracking-wider border-b border-gray-100 pb-2 mb-2">
+                  <Sparkles className="w-4 h-4 text-[#0F6236]" /> AI Farm Recommendation
                 </div>
               )}
 
@@ -335,58 +284,39 @@ export function AssistantPage() {
                 </div>
               )}
 
-              {/* Rich Styled AI Reply Content */}
-              <div className="space-y-1.5">
+              {/* Redesigned AI Reply Content */}
+              <div className="space-y-2">
                 {msg.text.split("\n").map((line, idx) => {
                   if (line.startsWith("### ")) {
                     return (
-                      <div key={idx} className="font-extrabold text-sm text-[#0F6236] pt-1 pb-0.5 border-b border-[#0F6236]/10 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#0F6236]" /> {parseInlineBold(line.replace("### ", ""))}
-                      </div>
+                      <h4 key={idx} className="font-black text-sm text-[#0F6236] pt-1.5 pb-0.5 border-b border-gray-100">
+                        {parseInlineBold(line.replace("### ", ""))}
+                      </h4>
                     );
                   }
                   if (line.startsWith("- ") || line.startsWith("* ")) {
                     const content = line.substring(2);
                     return (
-                      <div key={idx} className="flex items-start gap-1.5 text-xs text-gray-800 pl-1 font-medium my-1">
+                      <div key={idx} className="flex items-start gap-2 text-xs text-gray-800 pl-0.5 font-medium my-1">
                         <CheckCircle2 className="w-3.5 h-3.5 text-[#0F6236] shrink-0 mt-0.5" />
                         <span>{parseInlineBold(content)}</span>
                       </div>
                     );
                   }
-                  return <p key={idx} className="text-xs text-gray-800 font-medium my-0.5">{parseInlineBold(line)}</p>;
+                  return <p key={idx} className="text-xs text-gray-800 font-medium my-0.5 leading-relaxed">{parseInlineBold(line)}</p>;
                 })}
               </div>
 
-              {/* Speaker Button at the END of AI Reply (Supports Twi Spoken Audio & Google Realistic Voice) */}
-              {msg.sender === "ai" && (
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
-                  <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
-                  <button
-                    onClick={() => speakText(msg.text, msg.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                      speakingMsgId === msg.id
-                        ? "bg-emerald-600 text-white animate-pulse"
-                        : "bg-emerald-50 text-[#0F6236] hover:bg-emerald-100 border border-emerald-200"
-                    }`}
-                    title={language === "Twi" ? "Click to Listen in Twi" : "Click to Listen Voice"}
-                  >
-                    <Volume2 className="w-3.5 h-3.5" />
-                    {speakingMsgId === msg.id ? "Speaking..." : language === "Twi" ? "🔊 Listen in Twi" : "🔊 Listen Voice"}
-                  </button>
-                </div>
-              )}
+              <div className="pt-2 border-t border-gray-100 text-right">
+                <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
+              </div>
             </div>
-
-            {msg.sender === "user" && (
-              <span className="text-[10px] text-gray-400 mt-1 px-1">{msg.time}</span>
-            )}
           </div>
         ))}
 
         {loading && (
           <div className="flex items-center gap-2 text-xs text-[#0F6236] font-bold bg-white p-3.5 rounded-2xl border border-gray-200 w-fit shadow-xs">
-            <Loader2 className="w-4 h-4 animate-spin text-[#0F6236]" /> AI is analyzing media & question...
+            <Loader2 className="w-4 h-4 animate-spin text-[#0F6236]" /> AI is evaluating your request...
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -442,7 +372,7 @@ export function AssistantPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder={`Ask AI Advisor in ${language}...`}
+          placeholder={`Ask AI Advisor...`}
           className="flex-1 h-11 bg-gray-50 border border-gray-200 rounded-full px-4 text-xs font-medium outline-none focus:ring-2 focus:ring-[#0F6236]/20"
         />
 

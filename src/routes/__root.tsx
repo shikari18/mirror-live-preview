@@ -8,7 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { ArrowLeft, MapPin, RefreshCw, Download, BookOpen, ClipboardCheck, ShoppingCart, Lightbulb, ChevronRight, CloudUpload } from "lucide-react";
+import { ArrowLeft, MapPin, RefreshCw, BookOpen, ClipboardCheck, ShoppingCart, Lightbulb } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -161,6 +161,23 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          console.log("Service Worker registered successfully:", reg);
+        })
+        .catch((err) => {
+          console.warn("Service Worker registration failed:", err);
+        });
+
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

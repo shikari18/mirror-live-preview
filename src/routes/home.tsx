@@ -66,7 +66,47 @@ export function HomePage() {
     if (onboardingDone || hasPonds) {
       setIsSetupComplete(true);
     }
+
+    // Schedule Background PWA Push Notifications for Rain & Feeding
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        scheduleBackgroundAlerts();
+      } else if (Notification.permission === "default") {
+        Notification.requestPermission().then((permission) => {
+          if (permission === "granted") {
+            scheduleBackgroundAlerts();
+          }
+        });
+      }
+    }
   }, []);
+
+  const scheduleBackgroundAlerts = () => {
+    const scheduled = localStorage.getItem("pwa_alerts_active");
+    if (!scheduled) {
+      // Rain Alert Notification
+      setTimeout(() => {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("🌧️ Rain & Oxygen Alert — Ghana Weather", {
+            body: "Heavy rainfall expected in Ashanti & Greater Accra. Hold off feeding for 2 hours to avoid dissolved oxygen drops.",
+            icon: "/pwa-192.png",
+          });
+        }
+      }, 10000);
+
+      // Evening Feed Notification
+      setTimeout(() => {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("🐟 Pond Feeding Reminder", {
+            body: "It's 4:30 PM! Time for evening catfish feeding (32% protein pellets).",
+            icon: "/pwa-192.png",
+          });
+        }
+      }, 25000);
+
+      localStorage.setItem("pwa_alerts_active", "true");
+    }
+  };
 
   return (
     <PhoneFrame>
@@ -96,7 +136,7 @@ export function HomePage() {
         </div>
       </header>
 
-      {/* Dynamic Banner: Shows Setup Alert IF User has not completed onboarding or added ponds */}
+      {/* Dynamic Banner */}
       {!isSetupComplete ? (
         <section className="mx-5 mt-4 rounded-2xl bg-amber-500 text-white p-4 relative overflow-hidden shadow-lg shadow-amber-500/20">
           <div className="relative z-10">
