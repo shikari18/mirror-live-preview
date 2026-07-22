@@ -57,7 +57,6 @@ export function AssistantPage() {
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<any>(null);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,7 +67,9 @@ export function AssistantPage() {
     return () => {
       stopWebcam();
       stopSpeechRecognition();
-      stopAudio();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
@@ -79,7 +80,9 @@ export function AssistantPage() {
     } else {
       stopWebcam();
       stopSpeechRecognition();
-      stopAudio();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     }
   }, [isVideoCallOpen, cameraFacing, isCameraOff]);
 
@@ -119,58 +122,70 @@ export function AssistantPage() {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
   };
 
-  const stopAudio = () => {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-    }
-    setPlayingMsgId(null);
-  };
+  // Realistic Female English Voice & Ghanaian Accent Twi Voice Output
+  const speakVoice = async (text: string, msgId?: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
-  // Real Google Voice Audio Synthesis API (NO robotic OS TTS)
-  const playRealGoogleVoice = async (text: string, msgId?: string) => {
-    stopAudio();
-
-    if (msgId && playingMsgId === msgId) {
+    if (msgId && playingMsgId === msgId && window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setPlayingMsgId(null);
       return;
     }
 
+    window.speechSynthesis.cancel();
     if (msgId) setPlayingMsgId(msgId);
 
     let speechText = text;
-    if (language === "Twi" || language.toLowerCase().includes("twi")) {
+    const isTwi = language === "Twi" || language.toLowerCase().includes("twi");
+
+    if (isTwi) {
       try {
         speechText = await translateToTwiAudioText(text);
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Twi speech translation fallback", e);
+      }
     }
 
-    const cleanText = speechText.replace(/[#*`_]/g, "").slice(0, 200);
-    const targetLang = language === "Twi" ? "ak" : "en";
-    const googleAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${targetLang}&client=tw-ob`;
+    const cleanText = speechText.replace(/[#*`_]/g, "");
+    const utterance = new SpeechSynthesisUtterance(cleanText);
 
-    try {
-      const audio = new Audio(googleAudioUrl);
-      currentAudioRef.current = audio;
-      
-      audio.onended = () => {
-        setPlayingMsgId(null);
-        currentAudioRef.current = null;
+    // Get installed system & Google voices
+    let voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        voices = window.speechSynthesis.getVoices();
+        applyVoiceSettings(utterance, voices, isTwi);
       };
-      audio.onerror = () => {
-        // Fallback to Web Speech if audio URL fails
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-          const utterance = new SpeechSynthesisUtterance(cleanText);
-          utterance.onend = () => setPlayingMsgId(null);
-          window.speechSynthesis.speak(utterance);
-        } else {
-          setPlayingMsgId(null);
-        }
-      };
+    } else {
+      applyVoiceSettings(utterance, voices, isTwi);
+    }
 
-      await audio.play();
-    } catch (e) {
-      console.warn("Google Audio Play error", e);
-      setPlayingMsgId(null);
+    utterance.onend = () => setPlayingMsgId(null);
+    utterance.onerror = () => setPlayingMsgId(null);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const applyVoiceSettings = (utterance: SpeechSynthesisUtterance, voices: SpeechSynthesisVoice[], isTwi: boolean) => {
+    if (isTwi) {
+      // Ghanaian accent configuration
+      const ghanaVoice = voices.find(
+        (v) => v.lang.includes("GH") || v.name.includes("Ghana") || v.name.includes("African") || v.lang.includes("ak")
+      );
+      if (ghanaVoice) utterance.voice = ghanaVoice;
+      utterance.rate = 0.88; // Authentic Ghanaian speech rhythm
+      utterance.pitch = 0.95;
+    } else {
+      // Realistic Natural Female English voice configuration
+      const femaleVoice = voices.find(
+        (v) =>
+          (v.name.includes("Female") || v.name.includes("Zira") || v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Samantha") || v.name.includes("Victoria") || v.name.includes("Karen") || v.name.includes("Moira")) &&
+          (v.lang.startsWith("en"))
+      ) || voices.find((v) => v.lang.startsWith("en"));
+
+      if (femaleVoice) utterance.voice = femaleVoice;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.05; // Slightly raised pitch for realistic female voice tone
     }
   };
 
@@ -221,7 +236,7 @@ export function AssistantPage() {
 
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
-      playRealGoogleVoice(response); // Play real Google audio voice response!
+      speakVoice(response); // Speak AI response back to user!
     } catch (err) {
       console.error(err);
     } finally {
@@ -404,7 +419,7 @@ export function AssistantPage() {
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
                   <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
                   <button
-                    onClick={() => playRealGoogleVoice(msg.text, msg.id)}
+                    onClick={() => speakVoice(msg.text, msg.id)}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                       playingMsgId === msg.id
                         ? "bg-[#0F6236] text-white animate-pulse"
@@ -412,7 +427,7 @@ export function AssistantPage() {
                     }`}
                   >
                     <Volume2 className="w-3.5 h-3.5" />
-                    {playingMsgId === msg.id ? "Playing Voice..." : "Listen Voice"}
+                    {playingMsgId === msg.id ? "Speaking..." : "Listen Voice"}
                   </button>
                 </div>
               )}
@@ -461,7 +476,7 @@ export function AssistantPage() {
       </div>
 
       {/* Input Bar with Plus (+) Upload Button */}
-      <div className="p-3 bg-white border-t border-gray-100 flex items-center gap-2">
+      <div className="p-3 bg-[#FFFFFF] border-t border-gray-100 flex items-center gap-2">
         <input
           type="file"
           ref={fileInputRef}
@@ -544,7 +559,7 @@ export function AssistantPage() {
           <div className="z-20 my-auto text-center">
             {videoLoading && (
               <div className="px-4 py-2 rounded-full bg-black/70 backdrop-blur-md text-yellow-300 font-bold text-xs animate-pulse border border-white/20">
-                AI is processing & speaking...
+                AI is evaluating & speaking...
               </div>
             )}
             {isListeningSpeech && !videoLoading && (
