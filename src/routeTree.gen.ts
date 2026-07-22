@@ -18,8 +18,10 @@ import { Route as HomeRouteImport } from './routes/home'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarketRouteImport } from './routes/market'
 import { Route as MyFarmRouteImport } from './routes/my-farm'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SellFishRouteImport } from './routes/sell-fish'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as WaterQualityRouteImport } from './routes/water-quality'
 import { Route as PondPondIdRouteImport } from './routes/pond.$pondId'
@@ -69,6 +71,11 @@ const MyFarmRoute = MyFarmRouteImport.update({
   path: '/my-farm',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -77,6 +84,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const SellFishRoute = SellFishRouteImport.update({
   id: '/sell-fish',
   path: '/sell-fish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -105,8 +117,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/market': typeof MarketRoute
   '/my-farm': typeof MyFarmRoute
+  '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/sell-fish': typeof SellFishRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/water-quality': typeof WaterQualityRoute
   '/pond/$pondId': typeof PondPondIdRoute
@@ -121,8 +135,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/market': typeof MarketRoute
   '/my-farm': typeof MyFarmRoute
+  '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/sell-fish': typeof SellFishRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/water-quality': typeof WaterQualityRoute
   '/pond/$pondId': typeof PondPondIdRoute
@@ -138,8 +154,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/market': typeof MarketRoute
   '/my-farm': typeof MyFarmRoute
+  '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/sell-fish': typeof SellFishRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/water-quality': typeof WaterQualityRoute
   '/pond/$pondId': typeof PondPondIdRoute
@@ -156,8 +174,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/market'
     | '/my-farm'
+    | '/onboarding'
     | '/profile'
     | '/sell-fish'
+    | '/settings'
     | '/signup'
     | '/water-quality'
     | '/pond/$pondId'
@@ -172,8 +192,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/market'
     | '/my-farm'
+    | '/onboarding'
     | '/profile'
     | '/sell-fish'
+    | '/settings'
     | '/signup'
     | '/water-quality'
     | '/pond/$pondId'
@@ -188,8 +210,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/market'
     | '/my-farm'
+    | '/onboarding'
     | '/profile'
     | '/sell-fish'
+    | '/settings'
     | '/signup'
     | '/water-quality'
     | '/pond/$pondId'
@@ -205,8 +229,10 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MarketRoute: typeof MarketRoute
   MyFarmRoute: typeof MyFarmRoute
+  OnboardingRoute: typeof OnboardingRoute
   ProfileRoute: typeof ProfileRoute
   SellFishRoute: typeof SellFishRoute
+  SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   WaterQualityRoute: typeof WaterQualityRoute
   PondPondIdRoute: typeof PondPondIdRoute
@@ -277,6 +303,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MyFarmRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -289,6 +322,13 @@ declare module '@tanstack/react-router' {
       path: '/sell-fish'
       fullPath: '/sell-fish'
       preLoaderRoute: typeof SellFishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -325,8 +365,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MarketRoute: MarketRoute,
   MyFarmRoute: MyFarmRoute,
+  OnboardingRoute: OnboardingRoute,
   ProfileRoute: ProfileRoute,
   SellFishRoute: SellFishRoute,
+  SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   WaterQualityRoute: WaterQualityRoute,
   PondPondIdRoute: PondPondIdRoute,

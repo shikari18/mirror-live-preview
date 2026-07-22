@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Menu, Bell, MapPin, Check, ChevronRight, Volume2, Play } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings, Bell, MapPin, Check, ChevronRight, Volume2, Play, Sparkles } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import feedSacks from "@/assets/feed-sacks.jpg";
@@ -16,6 +17,7 @@ import iconSellFish from "@/assets/icons/sell-fish.png";
 import iconMarketPrices from "@/assets/icons/market-prices.png";
 import iconLoans from "@/assets/icons/loans.png";
 import iconSupport from "@/assets/icons/support.png";
+import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/home")({
   component: HomePage,
@@ -23,8 +25,6 @@ export const Route = createFileRoute("/home")({
     meta: [
       { title: "Home — FishFarm OS Ghana" },
       { name: "description", content: "Your fish farm dashboard: today's status, quick actions and community group buys." },
-      { property: "og:title", content: "Home — FishFarm OS Ghana" },
-      { property: "og:description", content: "Your fish farm dashboard for Ghana." },
     ],
   }),
 });
@@ -35,82 +35,104 @@ const quickActions: { img: string; label: string; tint: string; to?: string }[] 
   { img: iconBuyFeed, label: "Buy Feed", tint: "bg-secondary/60", to: "/market" },
   { img: iconSellFish, label: "Sell Fish", tint: "bg-secondary/60", to: "/sell-fish" },
   { img: iconWaterDrop, label: "Water Monitor", tint: "bg-blue-50", to: "/water-quality" },
-  { img: iconMarketPrices, label: "Market Prices", tint: "bg-yellow-50", to: "/harvest" },
-  { img: iconLoans, label: "Loans & Credit", tint: "bg-secondary/60" },
-  { img: iconSupport, label: "Extension Support", tint: "bg-yellow-50" },
+  { img: iconMarketPrices, label: "Market Prices", tint: "bg-yellow-50", to: "/market" },
+  { img: iconLoans, label: "AI Assistant", tint: "bg-secondary/60", to: "/assistant" },
+  { img: iconSupport, label: "Extension Support", tint: "bg-yellow-50", to: "/assistant" },
 ];
 
-function HomePage() {
+export function HomePage() {
+  const { language, t } = useLanguage();
+  const [userName, setUserName] = useState("Kofi");
+
+  useEffect(() => {
+    const savedName = localStorage.getItem("user_name");
+    if (savedName) setUserName(savedName);
+  }, []);
+
   return (
     <PhoneFrame>
+      {/* Header */}
       <header className="px-5 pt-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Menu className="w-6 h-6 text-foreground" />
+          <Link to="/settings" className="p-1.5 text-gray-700 hover:text-[#0F6236] rounded-full hover:bg-gray-100 transition-all">
+            <Settings className="w-6 h-6" />
+          </Link>
           <div>
-            <div className="text-[20px] font-extrabold text-foreground">Akwaaba, Kofi 👋</div>
-            <div className="flex items-center gap-1 text-primary text-[13px] font-medium">
-              <MapPin className="w-4 h-4" /> Ashanti Region ▾
+            <div className="text-[20px] font-extrabold text-foreground">Akwaaba, {userName} 👋</div>
+            <div className="flex items-center gap-1 text-[#0F6236] text-[12.5px] font-medium">
+              <MapPin className="w-3.5 h-3.5" /> Ashanti Region, Ghana • {language}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="relative">
+          <Link to="/settings" className="relative p-1">
             <Bell className="w-6 h-6 text-foreground" />
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-background" />
-          </div>
-          <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-primary" />
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-background" />
+          </Link>
+          <Link to="/profile">
+            <img src={farmerImg} alt={userName} className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
+          </Link>
         </div>
       </header>
 
-      <section className="mx-5 mt-5 rounded-2xl bg-primary text-primary-foreground p-5 relative overflow-hidden">
-        <img src={fishDecor} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-25" />
+      {/* Today's Farm Status Banner */}
+      <section className="mx-5 mt-5 rounded-2xl bg-[#0F6236] text-white p-5 relative overflow-hidden shadow-lg shadow-[#0F6236]/20">
+        <img src={fishDecor} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-20" />
         <div className="relative">
-          <div className="text-[13px] opacity-90">Today's Farm Status</div>
-          <div className="mt-1 text-[22px] font-extrabold leading-tight">All systems normal</div>
-          <div className="mt-1 text-[13px] opacity-90">Great job! Keep it up.</div>
+          <div className="flex items-center gap-1.5 text-[12px] opacity-90 font-semibold">
+            <Sparkles className="w-3.5 h-3.5" /> Today's Gemini AI Status
+          </div>
+          <div className="mt-1 text-[22px] font-extrabold leading-tight">All Ponds Healthy</div>
+          <div className="mt-1 text-[13px] opacity-95">Water DO: 5.8 mg/L • Temp: 28°C • Optimal Growth</div>
         </div>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/25 flex items-center justify-center">
-          <Check className="w-8 h-8 text-white" strokeWidth={3} />
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-13 h-13 rounded-full bg-white/20 flex items-center justify-center">
+          <Check className="w-7 h-7 text-white" strokeWidth={3} />
         </div>
       </section>
 
+      {/* Farm Stats Cards */}
       <section className="px-5 mt-4 grid grid-cols-2 gap-3">
-        <StatCard tint="bg-secondary/60" img={iconFeedSack} label="Feed Today" value="4 Bags" sub="Recommended" />
-        <StatCard tint="bg-blue-50" img={iconWaterDrop} label="Water Quality" value="Good" sub="No issues" />
-        <StatCard tint="bg-yellow-50" img={iconGrowth} label="Fish Growth" value="On Track" sub="↑ 12%" />
-        <StatCard tint="bg-purple-50" img={iconCalendar} label="Days to Harvest" value="21 Days" sub="Estimated" />
+        <StatCard tint="bg-secondary/60" img={iconFeedSack} label="Feed Today" value="6.25 kg" sub="Recommended" />
+        <StatCard tint="bg-blue-50" img={iconWaterDrop} label="Water Quality" value="94 / 100" sub="Optimal DO & pH" />
+        <StatCard tint="bg-yellow-50" img={iconGrowth} label="Fish Growth" value="On Track" sub="↑ 14% this week" />
+        <StatCard tint="bg-purple-50" img={iconCalendar} label="Harvest Date" value="21 Days" sub="Target: 1.4kg" />
       </section>
 
-      <section className="mx-5 mt-4 rounded-2xl border border-border bg-card p-3 flex items-center gap-3">
-        <button className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shrink-0">
-          <Volume2 className="w-5 h-5 text-primary-foreground" />
-        </button>
+      {/* Daily Voice Assistant Teaser */}
+      <section className="mx-5 mt-4 rounded-2xl border border-gray-200 bg-white p-3.5 flex items-center gap-3 shadow-xs">
+        <Link to="/assistant" className="w-11 h-11 rounded-full bg-[#0F6236] flex items-center justify-center shrink-0 text-white shadow-xs">
+          <Volume2 className="w-5 h-5" />
+        </Link>
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-extrabold text-primary">Daily Voice Assistant</div>
-          <div className="mt-1 flex items-end gap-[2px] h-5">
-            {Array.from({ length: 32 }).map((_, i) => {
-              const h = 4 + Math.abs(Math.sin(i * 0.6)) * 14;
-              return <span key={i} className="w-[3px] bg-primary/70 rounded-full" style={{ height: `${h}px` }} />;
+          <div className="text-[13px] font-extrabold text-gray-900">Daily Voice Advice ({language})</div>
+          <div className="mt-1 flex items-end gap-[2px] h-4">
+            {Array.from({ length: 30 }).map((_, i) => {
+              const h = 4 + Math.abs(Math.sin(i * 0.6)) * 12;
+              return <span key={i} className="w-[3px] bg-[#0F6236]/70 rounded-full" style={{ height: `${h}px` }} />;
             })}
           </div>
-          <div className="mt-1 text-[11px] text-primary font-semibold inline-flex items-center gap-1"><Play className="w-3 h-3 fill-primary" /> Tap to listen in Twi</div>
+          <Link to="/assistant" className="mt-1 text-[11px] text-[#0F6236] font-bold inline-flex items-center gap-1">
+            <Play className="w-3 h-3 fill-[#0F6236]" /> Listen to Kofi's Daily Tip
+          </Link>
         </div>
-        <div className="text-[11px] font-bold text-muted-foreground">00:45</div>
       </section>
 
-      <section className="px-5 mt-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[18px] font-extrabold text-foreground">Quick Actions</h2>
-          <a href="#" className="text-primary font-semibold text-[14px] flex items-center gap-0.5">View All <ChevronRight className="w-4 h-4" /></a>
+      {/* Quick Actions Grid */}
+      <section className="px-5 mt-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[17px] font-extrabold text-gray-900">Farm Features</h2>
+          <Link to="/settings" className="text-[#0F6236] font-bold text-xs">
+            Settings & Lang
+          </Link>
         </div>
-        <div className="mt-3 grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           {quickActions.map(({ img, label, tint, to }) => {
             const inner = (
               <>
-                <div className={`w-full aspect-square rounded-xl border border-border flex items-center justify-center ${tint}`}>
-                  <img src={img} alt="" loading="lazy" width={512} height={512} className="w-9 h-9 object-contain" />
+                <div className={`w-full aspect-square rounded-2xl border border-gray-200/80 flex items-center justify-center ${tint} shadow-xs`}>
+                  <img src={img} alt="" loading="lazy" className="w-9 h-9 object-contain" />
                 </div>
-                <div className="text-[11px] font-semibold text-center mt-1.5 text-foreground leading-tight">{label}</div>
+                <div className="text-[11px] font-bold text-center mt-1.5 text-gray-800 leading-tight">{label}</div>
               </>
             );
             return to ? (
@@ -122,17 +144,19 @@ function HomePage() {
         </div>
       </section>
 
-      <section className="mx-5 mt-6 rounded-2xl bg-secondary/50 p-5 relative overflow-hidden">
-        <div className="max-w-[55%]">
-          <div className="text-[18px] font-extrabold text-foreground">Community Feed Buy</div>
-          <div className="text-primary font-bold mt-1">Save up to 15%</div>
-          <div className="text-[13px] text-muted-foreground mt-1">300+ farmers in your area buying together</div>
-          <button className="mt-4 bg-primary text-primary-foreground font-bold rounded-full px-5 py-2 text-[14px]">Join Group Buy</button>
+      {/* Community Feed Buy Card */}
+      <section className="mx-5 mt-5 mb-6 rounded-2xl bg-[#0F6236]/10 p-4 relative overflow-hidden border border-[#0F6236]/20">
+        <div className="max-w-[60%]">
+          <div className="text-[16px] font-extrabold text-gray-900">Ghana Community Feed Buy</div>
+          <div className="text-[#0F6236] font-extrabold text-xs mt-0.5">Save up to 15% on Raanan & Aller Aqua</div>
+          <div className="text-[11px] text-gray-600 mt-1">340+ farmers in Ashanti & Accra buying together</div>
+          <Link to="/market" className="mt-3 inline-block bg-[#0F6236] text-white font-bold rounded-xl px-4 py-2 text-[12px] shadow-sm">
+            Join Group Buy
+          </Link>
         </div>
-        <img src={feedSacks} alt="Feed sacks" loading="lazy" className="absolute right-0 bottom-0 w-40 h-40 object-cover" />
+        <img src={feedSacks} alt="Feed sacks" loading="lazy" className="absolute right-0 bottom-0 w-36 h-36 object-cover rounded-tl-3xl opacity-90" />
       </section>
 
-      <div className="flex-1" />
       <BottomNav />
     </PhoneFrame>
   );
@@ -140,14 +164,14 @@ function HomePage() {
 
 function StatCard({ tint, img, label, value, sub }: { tint: string; img: string; label: string; value: string; sub: string }) {
   return (
-    <div className={`${tint} rounded-2xl p-3 flex items-center gap-3`}>
-      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shrink-0 overflow-hidden">
-        <img src={img} alt="" loading="lazy" width={512} height={512} className="w-9 h-9 object-contain" />
+    <div className={`${tint} rounded-2xl p-3 flex items-center gap-3 border border-gray-200/60 shadow-xs`}>
+      <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+        <img src={img} alt="" loading="lazy" className="w-8 h-8 object-contain" />
       </div>
       <div className="min-w-0">
-        <div className="text-[12px] text-muted-foreground">{label}</div>
-        <div className="text-[16px] font-extrabold text-foreground leading-tight">{value}</div>
-        <div className="text-[11px] text-muted-foreground">{sub}</div>
+        <div className="text-[11px] text-gray-500 font-medium">{label}</div>
+        <div className="text-[15px] font-extrabold text-gray-900 leading-tight">{value}</div>
+        <div className="text-[10px] text-[#0F6236] font-bold">{sub}</div>
       </div>
     </div>
   );

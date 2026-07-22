@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Menu, Bell, MapPin, Search, SlidersHorizontal, ShoppingCart, Tag, Package, Fish, FlaskConical, Wrench, MoreHorizontal, Star, ChevronRight, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MapPin, Search, ShoppingCart, Tag, Package, Fish, FlaskConical, Wrench, ChevronRight, ShieldCheck, Sparkles, TrendingUp, Loader2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import basket from "@/assets/market-basket.jpg";
 import feedSacks from "@/assets/feed-sacks.jpg";
 import pondImg from "@/assets/pond.jpg";
 import sickFish from "@/assets/sick-fish.jpg";
+import { getAIMarketInsights } from "@/lib/gemini";
+import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/market")({
   component: MarketPage,
@@ -13,120 +16,128 @@ export const Route = createFileRoute("/market")({
     meta: [
       { title: "Market — FishFarm OS Ghana" },
       { name: "description", content: "Buy and sell fish farming products with trusted farmers in Ghana." },
-      { property: "og:title", content: "Market — FishFarm OS Ghana" },
-      { property: "og:description", content: "Quality products. Fair prices. Trusted community." },
     ],
   }),
 });
 
-const categories = [
-  { Icon: Package, label: "Fish Feed", tint: "bg-secondary text-primary" },
-  { Icon: Fish, label: "Fingerlings", tint: "bg-blue-100 text-blue-700" },
-  { Icon: FlaskConical, label: "Chemicals", tint: "bg-purple-100 text-purple-700" },
-  { Icon: Wrench, label: "Equipment", tint: "bg-yellow-100 text-yellow-800" },
-  { Icon: MoreHorizontal, label: "Other", tint: "bg-secondary text-primary" },
-];
-
 const products = [
-  { name: "Premium Fish Feed (32% Protein)", price: "GHS 280.00", seller: "Aqua Feed Ghana", rating: "4.8 (56)", loc: "Kumasi", img: feedSacks },
-  { name: "Tilapia Fingerlings (1-2 inches)", price: "GHS 150.00", seller: "FreshFish Farms", rating: "4.7 (34)", loc: "Ejisu", img: pondImg },
-  { name: "Aquaculture Salt (25kg)", price: "GHS 120.00", seller: "WaterCare Ltd.", rating: "4.6 (28)", loc: "Accra", img: sickFish },
-  { name: "Paddle Wheel Aerator (2HP)", price: "GHS 1,850.00", seller: "FarmTech Solutions", rating: "4.9 (18)", loc: "Takoradi", img: basket },
+  { name: "Premium Fish Feed (32% Protein)", price: "GH₵ 280.00", seller: "Aqua Feed Ghana", rating: "4.8 (56)", loc: "Kumasi", img: feedSacks },
+  { name: "Tilapia Fingerlings (1-2 inches)", price: "GH₵ 150.00 / 100 pcs", seller: "FreshFish Farms", rating: "4.7 (34)", loc: "Ejisu", img: pondImg },
+  { name: "Aquaculture Salt (25kg Bag)", price: "GH₵ 120.00", seller: "WaterCare Ltd.", rating: "4.6 (28)", loc: "Accra", img: sickFish },
+  { name: "Paddle Wheel Aerator (2HP)", price: "GH₵ 1,850.00", seller: "FarmTech Solutions", rating: "4.9 (18)", loc: "Takoradi", img: basket },
 ];
 
-function MarketPage() {
+export function MarketPage() {
+  const { t } = useLanguage();
+  const [selectedFish, setSelectedFish] = useState<string>("Catfish");
+  const [marketInsight, setMarketInsight] = useState<any | null>(null);
+  const [loadingAI, setLoadingAI] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetchInsights(selectedFish);
+  }, [selectedFish]);
+
+  const fetchInsights = async (fishType: string) => {
+    setLoadingAI(true);
+    try {
+      const res = await getAIMarketInsights(fishType);
+      setMarketInsight(res);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingAI(false);
+    }
+  };
+
   return (
     <PhoneFrame>
+      {/* Header */}
       <header className="px-5 pt-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Menu className="w-6 h-6 text-foreground" />
-          <div>
-            <div className="text-[20px] font-extrabold text-foreground">Market</div>
-            <div className="flex items-center gap-1 text-primary text-[13px] font-medium">
-              <MapPin className="w-4 h-4" /> Ashanti Region ▾
-            </div>
+        <div>
+          <h1 className="text-[22px] font-extrabold text-foreground">{t("market")}</h1>
+          <div className="flex items-center gap-1 text-[#0F6236] text-[13px] font-medium mt-0.5">
+            <MapPin className="w-4 h-4" /> Greater Accra & Ashanti, Ghana
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Bell className="w-6 h-6 text-foreground" />
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">3</span>
-          </div>
-          <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-primary" />
-        </div>
+        <img src={farmerImg} alt="Kofi" className="w-10 h-10 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
-      <section className="px-5 mt-4 flex items-center gap-2">
-        <div className="flex-1 relative">
-          <Search className="w-5 h-5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-          <input placeholder="Search for products, feed, equipment..." className="w-full h-12 rounded-xl bg-muted pl-10 pr-4 text-[14px] outline-none" />
-        </div>
-        <button className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center">
-          <SlidersHorizontal className="w-5 h-5 text-foreground" />
-        </button>
-      </section>
-
-      <section className="mx-5 mt-4 rounded-2xl bg-primary text-primary-foreground p-5 relative overflow-hidden">
-        <div className="max-w-[60%]">
-          <div className="text-[18px] font-extrabold leading-tight">Buy and Sell with Fellow Farmers</div>
-          <div className="text-[13px] opacity-90 mt-2">Quality products. Fair prices. Trusted community.</div>
-        </div>
-        <img src={basket} alt="" loading="lazy" className="absolute right-0 bottom-0 w-36 h-36 object-cover" />
-      </section>
-
-      <section className="px-5 mt-4 grid grid-cols-2 gap-2">
-        <Link to="/harvest" className="h-12 rounded-xl bg-secondary text-primary font-bold flex items-center justify-center gap-2">
-          <ShoppingCart className="w-5 h-5" /> Buy
+      {/* Buy & Sell Quick Action Bar */}
+      <section className="px-5 mt-4 grid grid-cols-2 gap-2.5">
+        <Link to="/harvest" className="h-12 rounded-2xl bg-[#0F6236] text-white font-bold flex items-center justify-center gap-2 shadow-md shadow-[#0F6236]/20">
+          <ShoppingCart className="w-5 h-5" /> Buy Inputs & Feed
         </Link>
-        <Link to="/sell-fish" className="h-12 rounded-xl bg-card border border-border text-foreground font-bold flex items-center justify-center gap-2">
-          <Tag className="w-5 h-5" /> Sell
+        <Link to="/sell-fish" className="h-12 rounded-2xl bg-white border border-gray-200 text-gray-900 font-bold flex items-center justify-center gap-2 shadow-xs hover:bg-gray-50">
+          <Tag className="w-5 h-5 text-[#0F6236]" /> Sell My Fish
         </Link>
       </section>
 
-      <section className="px-5 mt-5 flex justify-between">
-        {categories.map(({ Icon, label, tint }) => (
-          <button key={label} className="flex flex-col items-center">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${tint}`}>
-              <Icon className="w-6 h-6" />
-            </div>
-            <div className="text-[11px] font-semibold text-foreground mt-1">{label}</div>
-          </button>
-        ))}
-      </section>
-
-      <section className="px-5 mt-6">
+      {/* Gemini AI Live Market Price Forecast */}
+      <section className="mx-5 mt-4 rounded-2xl bg-[#0F6236]/10 p-4 border border-[#0F6236]/30">
         <div className="flex items-center justify-between">
-          <h2 className="text-[18px] font-extrabold text-foreground">Recommended for You</h2>
-          <a href="#" className="text-primary font-semibold text-[14px] flex items-center gap-0.5">View All <ChevronRight className="w-4 h-4" /></a>
+          <div className="flex items-center gap-1.5 font-extrabold text-xs text-[#0F6236]">
+            <Sparkles className="w-4 h-4" /> AI Market Price & Demand (Ghana)
+          </div>
+          <div className="flex gap-1">
+            {["Catfish", "Tilapia"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setSelectedFish(f)}
+                className={`text-[10px] font-bold px-2.5 py-1 rounded-full cursor-pointer transition-all ${
+                  selectedFish === f ? "bg-[#0F6236] text-white" : "bg-white text-gray-700 border border-gray-200"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="mt-3 flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+
+        {loadingAI ? (
+          <div className="flex items-center justify-center p-4 text-xs font-bold text-[#0F6236]">
+            <Loader2 className="w-4 h-4 animate-spin mr-2" /> Fetching Gemini Market Analysis...
+          </div>
+        ) : marketInsight ? (
+          <div className="mt-3 space-y-2 text-xs">
+            <div className="flex items-baseline justify-between">
+              <span className="text-gray-600 font-medium">Estimated Live Price:</span>
+              <span className="text-lg font-extrabold text-[#0F6236]">{marketInsight.currentPricePerKg}</span>
+            </div>
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-gray-500">Market Trend:</span>
+              <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" /> {marketInsight.trend}
+              </span>
+            </div>
+            <p className="text-gray-700 font-medium pt-2 border-t border-[#0F6236]/20">
+              💡 <span className="font-bold">Advice: </span>{marketInsight.advice}
+            </p>
+          </div>
+        ) : null}
+      </section>
+
+      {/* Recommended Products Feed */}
+      <section className="px-5 mt-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[16px] font-extrabold text-foreground">Verified Inputs & Equipment</h2>
+          <span className="text-[#0F6236] font-semibold text-xs">Ghana Farmers Market</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-6">
           {products.map((p) => (
-            <div key={p.name} className="w-40 shrink-0 rounded-2xl border border-border bg-card p-2">
-              <img src={p.img} alt={p.name} loading="lazy" className="w-full h-28 object-cover rounded-xl" />
-              <div className="mt-2 text-[13px] font-bold text-foreground leading-tight line-clamp-2 min-h-[36px]">{p.name}</div>
-              <div className="text-[14px] font-extrabold text-primary mt-1">{p.price}</div>
-              <div className="text-[11px] text-muted-foreground">{p.seller}</div>
-              <div className="text-[11px] flex items-center gap-1 mt-0.5">
-                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> {p.rating}
+            <div key={p.name} className="rounded-2xl border border-gray-200 bg-white p-3 shadow-xs flex flex-col justify-between">
+              <div>
+                <img src={p.img} alt={p.name} className="w-full h-24 object-cover rounded-xl mb-2" />
+                <div className="text-xs font-bold text-gray-900 line-clamp-2">{p.name}</div>
+                <div className="text-sm font-extrabold text-[#0F6236] mt-1">{p.price}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">{p.seller} • {p.loc}</div>
               </div>
-              <div className="text-[11px] text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{p.loc}</div>
-              <button className="mt-2 w-full h-8 rounded-lg bg-secondary text-primary text-[12px] font-bold flex items-center justify-center gap-1">
-                <ShoppingCart className="w-4 h-4" /> Add to Cart
+              <button className="mt-3 w-full h-8 rounded-xl bg-[#0F6236]/10 hover:bg-[#0F6236] hover:text-white text-[#0F6236] text-xs font-bold transition-all cursor-pointer">
+                Contact Seller
               </button>
             </div>
           ))}
         </div>
-      </section>
-
-      <section className="mx-5 mt-4 mb-6 rounded-2xl bg-secondary/40 p-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-          <ShieldCheck className="w-5 h-5 text-primary-foreground" />
-        </div>
-        <div className="flex-1">
-          <div className="text-[14px] font-extrabold text-foreground">Buy with Confidence</div>
-          <div className="text-[12px] text-muted-foreground">Trusted sellers. Quality guaranteed. Secure payments.</div>
-        </div>
-        <ChevronRight className="w-5 h-5 text-muted-foreground" />
       </section>
 
       <BottomNav />
