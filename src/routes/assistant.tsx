@@ -43,10 +43,11 @@ export function AssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: "image" | "video" | "file"; mimeType: string; url: string } | null>(null);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
 
   // Fullscreen Camera Video Call State
   const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
-  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("environment"); // Default to Back Camera for ponds
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("environment");
   const [videoCallText, setVideoCallText] = useState("");
   const [videoCallHistory, setVideoCallHistory] = useState<string[]>([
     "Dr. Kwame: 'Hello! I am Dr. Kwame. Point your camera at your pond or fish and ask me anything!'"
@@ -64,7 +65,6 @@ export function AssistantPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Turn on real camera when Video Call starts
   useEffect(() => {
     if (isVideoCallOpen && !isCameraOff) {
       startWebcam(cameraFacing);
@@ -96,7 +96,7 @@ export function AssistantPage() {
           webcamVideoRef.current.srcObject = stream;
         }
       } catch (e) {
-        console.error("Camera access not granted", e);
+        console.error("Camera access denied", e);
       }
     }
   };
@@ -112,15 +112,30 @@ export function AssistantPage() {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
   };
 
-  // Web Speech synthesis to speak AI responses out loud!
-  const speakText = (text: string) => {
+  // Speak AI reply ONLY when user explicitly clicks the speaker button!
+  const speakText = (text: string, msgId?: string) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      if (speakingMsgId === msgId && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        setSpeakingMsgId(null);
+        return;
+      }
+
       window.speechSynthesis.cancel();
-      // Strip markdown symbols for natural speech
       const cleanText = text.replace(/[#*`_]/g, "");
       const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.rate = 0.95;
       utterance.pitch = 1.0;
+
+      if (msgId) setSpeakingMsgId(msgId);
+
+      utterance.onend = () => {
+        setSpeakingMsgId(null);
+      };
+      utterance.onerror = () => {
+        setSpeakingMsgId(null);
+      };
+
       window.speechSynthesis.speak(utterance);
     }
   };
@@ -173,8 +188,9 @@ export function AssistantPage() {
     setLoading(true);
 
     try {
+      // Direct call to Gemini API using key — NO hardcoded data
       const aiReply = await getAIAssistantResponse(
-        query || "Please analyze this video/image attachment carefully and give detailed advice on my fish farm.",
+        query || "Please analyze this attached media and give me step-by-step guidance for my fish farm.",
         language,
         mediaList
       );
@@ -186,20 +202,15 @@ export function AssistantPage() {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
-      speakText(aiReply);
-    } catch (err) {
-      console.error("AI Error:", err);
-      const fallbackReply = `### Video & Media Received! 📹\nI have analyzed your submission.\n\n- 💧 **Water Target**: Maintain Dissolved Oxygen above 5.0 mg/L\n- 🌾 **Feeding**: Feed 32% protein pellets twice daily\n- 🩺 **Health**: Perform 25% water exchange if fish swim sluggishly`;
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          sender: "ai",
-          text: fallbackReply,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-      speakText(fallbackReply);
+    } catch (err: any) {
+      console.error("Gemini API Call Error:", err);
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: "ai",
+        text: `⚠️ **API Connection Error**: Unable to get response from AI server. Please verify your internet connection and try sending again.`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
@@ -217,9 +228,9 @@ export function AssistantPage() {
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
       setVideoCallHistory((prev) => [...prev, `Dr. Kwame: "${response}"`]);
-      speakText(response); // Speak Dr. Kwame's answer aloud in video call!
     } catch (err) {
       console.error(err);
+      setVideoCallHistory((prev) => [...prev, `Dr. Kwame: "Connection issue. Please repeat your question."`]);
     } finally {
       setVideoLoading(false);
     }
@@ -227,8 +238,8 @@ export function AssistantPage() {
 
   return (
     <PhoneFrame>
-      {/* Header - Aligned with Top Margin */}
-      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20">
+      {/* Header */}
+      <header className="px-5 pt-3 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <Link to="/home" className="p-1 cursor-pointer">
             <ArrowLeft className="w-5 h-5 text-gray-800" />
@@ -241,7 +252,7 @@ export function AssistantPage() {
               AI Advisor (Kofi)
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
-            <p className="text-[11px] text-gray-500 font-medium">Online • Voice Enabled</p>
+            <p className="text-[11px] text-gray-500 font-medium">Online • {language}</p>
           </div>
         </div>
 
@@ -269,17 +280,8 @@ export function AssistantPage() {
               }`}
             >
               {msg.sender === "ai" && (
-                <div className="flex items-center justify-between border-b border-emerald-100 pb-2 mb-2">
-                  <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#0F6236] uppercase tracking-wide">
-                    <Sparkles className="w-3.5 h-3.5 text-[#0F6236]" /> Kofi AI Advice
-                  </div>
-                  <button
-                    onClick={() => speakText(msg.text)}
-                    className="p-1 text-[#0F6236] hover:bg-[#0F6236]/10 rounded-full cursor-pointer transition-all"
-                    title="Listen to AI Voice"
-                  >
-                    <Volume2 className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#0F6236] uppercase tracking-wide border-b border-emerald-100 pb-2 mb-2">
+                  <Sparkles className="w-3.5 h-3.5 text-[#0F6236]" /> Kofi AI Advice
                 </div>
               )}
 
@@ -319,8 +321,30 @@ export function AssistantPage() {
                   return <p key={idx} className="text-xs text-gray-800 font-medium my-0.5">{line}</p>;
                 })}
               </div>
+
+              {/* Speaker Button at the END of AI Reply */}
+              {msg.sender === "ai" && (
+                <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
+                  <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
+                  <button
+                    onClick={() => speakText(msg.text, msg.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                      speakingMsgId === msg.id
+                        ? "bg-emerald-600 text-white animate-pulse"
+                        : "bg-emerald-50 text-[#0F6236] hover:bg-emerald-100 border border-emerald-200"
+                    }`}
+                    title="Click to Listen to AI Voice"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    {speakingMsgId === msg.id ? "Speaking..." : "Listen Voice"}
+                  </button>
+                </div>
+              )}
             </div>
-            <span className="text-[10px] text-gray-400 mt-1 px-1">{msg.time}</span>
+
+            {msg.sender === "user" && (
+              <span className="text-[10px] text-gray-400 mt-1 px-1">{msg.time}</span>
+            )}
           </div>
         ))}
 
@@ -395,7 +419,7 @@ export function AssistantPage() {
         </button>
       </div>
 
-      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL WITH VOICE AUDIO */}
+      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL */}
       {isVideoCallOpen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
           
@@ -424,7 +448,7 @@ export function AssistantPage() {
               <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
               <div>
                 <h3 className="font-extrabold text-sm text-white">Dr. Kwame (Senior Specialist)</h3>
-                <p className="text-[11px] text-emerald-400 font-semibold">Live Voice & Camera Active</p>
+                <p className="text-[11px] text-emerald-400 font-semibold">Live Camera Stream Active</p>
               </div>
             </div>
 
@@ -444,7 +468,7 @@ export function AssistantPage() {
               Dr. K
             </div>
             <span className="inline-block mt-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold border border-white/20">
-              Dr. Kwame • Speaking Live Voice
+              Dr. Kwame • Senior Consultant
             </span>
           </div>
 
