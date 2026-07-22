@@ -28,8 +28,8 @@ const TTS_MODELS = [
 // IN-MEMORY AUDIO CACHE FOR INSTANT REPEAT PLAYBACK
 const audioCache = new Map<string, string>();
 
-// Convert 16-bit Mono PCM Base64 to standard WAV Data URL for instant browser playback
-export function pcmToWavDataUrl(base64PCM: string, sampleRate = 24000): string {
+// Convert 16-bit Mono PCM Base64 to Blob URL for 100% uncorrupted, continuous audio playback
+export function pcmToWavBlobUrl(base64PCM: string, sampleRate = 24000): string {
   try {
     const binaryString = atob(base64PCM);
     const len = binaryString.length;
@@ -59,16 +59,14 @@ export function pcmToWavDataUrl(base64PCM: string, sampleRate = 24000): string {
     wavBytes.set(new Uint8Array(wavHeader), 0);
     wavBytes.set(pcmBytes, 44);
 
-    let wavBinary = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < wavBytes.length; i += chunkSize) {
-      wavBinary += String.fromCharCode.apply(null, wavBytes.subarray(i, i + chunkSize) as any);
+    if (typeof window !== "undefined" && "Blob" in window && "URL" in window) {
+      const blob = new Blob([wavBytes], { type: "audio/wav" });
+      return URL.createObjectURL(blob);
     }
-    return `data:audio/wav;base64,${btoa(wavBinary)}`;
   } catch (e) {
-    console.warn("PCM to WAV conversion error", e);
-    return `data:audio/pcm;base64,${base64PCM}`;
+    console.warn("PCM to WAV Blob conversion error", e);
   }
+  return `data:audio/pcm;base64,${base64PCM}`;
 }
 
 export async function callGemini(
@@ -175,9 +173,9 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
         const data = await response.json();
         const inlinePart = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
         if (inlinePart && inlinePart.inlineData?.data) {
-          const wavDataUrl = pcmToWavDataUrl(inlinePart.inlineData.data, 24000);
-          audioCache.set(cacheKey, wavDataUrl);
-          return wavDataUrl; // WAV Data URL ready for instant new Audio().play()
+          const wavBlobUrl = pcmToWavBlobUrl(inlinePart.inlineData.data, 24000);
+          audioCache.set(cacheKey, wavBlobUrl);
+          return wavBlobUrl; // Native Audio Blob URL ready for instant new Audio().play()
         }
       }
     } catch (err) {
