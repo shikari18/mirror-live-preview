@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { MapPin, ShoppingCart, Tag, Sparkles, TrendingUp, Loader2, MessageSquare, Phone, Package, ArrowLeft } from "lucide-react";
+import { MapPin, ShoppingCart, Tag, Sparkles, Loader2, MessageSquare, Phone, Package, ArrowLeft } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { getAIMarketInsights } from "@/lib/gemini";
@@ -64,10 +64,10 @@ export function MarketPage() {
 
   return (
     <PhoneFrame>
-      {/* Header - Aligned & Compact */}
-      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white">
+      {/* Header - Aligned & Pushed Down */}
+      <header className="px-5 pt-6 pb-3 flex items-center justify-between border-b border-gray-100 bg-white">
         <div className="flex items-center gap-3">
-          <Link to="/home" className="p-1">
+          <Link to="/home" className="p-1 cursor-pointer">
             <ArrowLeft className="w-5 h-5 text-gray-800" />
           </Link>
           <div>

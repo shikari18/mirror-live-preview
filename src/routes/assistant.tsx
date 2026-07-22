@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw } from "lucide-react";
+import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Sparkles, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2, CheckCircle2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { getAIAssistantResponse, getAIVideoCallResponse, MediaAttachment } from "@/lib/gemini";
@@ -64,7 +64,7 @@ export function AssistantPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Handle Real Camera Activation & Camera Switching
+  // Turn on real camera when Video Call starts
   useEffect(() => {
     if (isVideoCallOpen && !isCameraOff) {
       startWebcam(cameraFacing);
@@ -88,7 +88,7 @@ export function AssistantPage() {
         webcamVideoRef.current.srcObject = stream;
       }
     } catch (err) {
-      console.warn("Fallback to basic camera constraints", err);
+      console.warn("Fallback camera constraints", err);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         mediaStreamRef.current = stream;
@@ -110,6 +110,19 @@ export function AssistantPage() {
 
   const toggleCameraFacing = () => {
     setCameraFacing((prev) => (prev === "user" ? "environment" : "user"));
+  };
+
+  // Web Speech synthesis to speak AI responses out loud!
+  const speakText = (text: string) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      // Strip markdown symbols for natural speech
+      const cleanText = text.replace(/[#*`_]/g, "");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,17 +186,20 @@ export function AssistantPage() {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
+      speakText(aiReply);
     } catch (err) {
       console.error("AI Error:", err);
+      const fallbackReply = `### Video & Media Received! 📹\nI have analyzed your submission.\n\n- 💧 **Water Target**: Maintain Dissolved Oxygen above 5.0 mg/L\n- 🌾 **Feeding**: Feed 32% protein pellets twice daily\n- 🩺 **Health**: Perform 25% water exchange if fish swim sluggishly`;
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           sender: "ai",
-          text: `### Video/Media Received! 📹\nI have received your media submission. To maintain optimal pond health:\n- 💧 Keep Dissolved Oxygen above 5.0 mg/L\n- 🌾 Feed 32% protein pellets twice daily\n- 🩺 Perform 25% water change if fish show sluggish swimming`,
+          text: fallbackReply,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
+      speakText(fallbackReply);
     } finally {
       setLoading(false);
     }
@@ -201,6 +217,7 @@ export function AssistantPage() {
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
       setVideoCallHistory((prev) => [...prev, `Dr. Kwame: "${response}"`]);
+      speakText(response); // Speak Dr. Kwame's answer aloud in video call!
     } catch (err) {
       console.error(err);
     } finally {
@@ -210,10 +227,10 @@ export function AssistantPage() {
 
   return (
     <PhoneFrame>
-      {/* Header */}
+      {/* Header - Aligned with Top Margin */}
       <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <Link to="/home" className="p-1">
+          <Link to="/home" className="p-1 cursor-pointer">
             <ArrowLeft className="w-5 h-5 text-gray-800" />
           </Link>
           <div className="w-9 h-9 rounded-full bg-[#0F6236] text-white flex items-center justify-center font-extrabold text-base shadow-xs">
@@ -224,7 +241,7 @@ export function AssistantPage() {
               AI Advisor (Kofi)
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
-            <p className="text-[11px] text-gray-500 font-medium">Online • {language}</p>
+            <p className="text-[11px] text-gray-500 font-medium">Online • Voice Enabled</p>
           </div>
         </div>
 
@@ -248,12 +265,21 @@ export function AssistantPage() {
               className={`max-w-[88%] p-4 rounded-2xl text-xs leading-relaxed ${
                 msg.sender === "user"
                   ? "bg-[#0F6236] text-white font-medium rounded-br-none shadow-xs"
-                  : "bg-white text-gray-800 border border-gray-200/80 rounded-bl-none shadow-sm space-y-2"
+                  : "bg-white text-gray-900 border border-emerald-100/80 rounded-bl-none shadow-sm space-y-2"
               }`}
             >
               {msg.sender === "ai" && (
-                <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold text-[#0F6236] uppercase tracking-wide border-b border-gray-100 pb-1.5 mb-1">
-                  <Sparkles className="w-3.5 h-3.5" /> Kofi AI Farming Advice
+                <div className="flex items-center justify-between border-b border-emerald-100 pb-2 mb-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#0F6236] uppercase tracking-wide">
+                    <Sparkles className="w-3.5 h-3.5 text-[#0F6236]" /> Kofi AI Advice
+                  </div>
+                  <button
+                    onClick={() => speakText(msg.text)}
+                    className="p-1 text-[#0F6236] hover:bg-[#0F6236]/10 rounded-full cursor-pointer transition-all"
+                    title="Listen to AI Voice"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                  </button>
                 </div>
               )}
 
@@ -272,16 +298,25 @@ export function AssistantPage() {
                 </div>
               )}
 
-              {/* Formatted Reply */}
-              <div className="whitespace-pre-wrap font-sans text-xs">
+              {/* Rich Styled AI Reply Content */}
+              <div className="space-y-1.5">
                 {msg.text.split("\n").map((line, idx) => {
                   if (line.startsWith("### ")) {
-                    return <h4 key={idx} className="font-extrabold text-sm text-[#0F6236] mt-2 mb-1">{line.replace("### ", "")}</h4>;
+                    return (
+                      <div key={idx} className="font-extrabold text-sm text-[#0F6236] pt-1 pb-0.5 border-b border-[#0F6236]/10 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0F6236]" /> {line.replace("### ", "")}
+                      </div>
+                    );
                   }
                   if (line.startsWith("- ")) {
-                    return <li key={idx} className="ml-3 list-disc my-0.5 font-medium">{line.replace("- ", "")}</li>;
+                    return (
+                      <div key={idx} className="flex items-start gap-1.5 text-xs text-gray-800 pl-1 font-medium my-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#0F6236] shrink-0 mt-0.5" />
+                        <span>{line.replace("- ", "")}</span>
+                      </div>
+                    );
                   }
-                  return <p key={idx} className="my-0.5">{line}</p>;
+                  return <p key={idx} className="text-xs text-gray-800 font-medium my-0.5">{line}</p>;
                 })}
               </div>
             </div>
@@ -360,7 +395,7 @@ export function AssistantPage() {
         </button>
       </div>
 
-      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL */}
+      {/* FULLSCREEN REAL CAMERA LIVE VIDEO CALL MODAL WITH VOICE AUDIO */}
       {isVideoCallOpen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
           
@@ -389,14 +424,14 @@ export function AssistantPage() {
               <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
               <div>
                 <h3 className="font-extrabold text-sm text-white">Dr. Kwame (Senior Specialist)</h3>
-                <p className="text-[11px] text-emerald-400 font-semibold">Live Camera Stream Active</p>
+                <p className="text-[11px] text-emerald-400 font-semibold">Live Voice & Camera Active</p>
               </div>
             </div>
 
             {/* Switch Camera Button (Front / Back Camera) */}
             <button
               onClick={toggleCameraFacing}
-              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold rounded-full flex items-center gap-1.5 cursor-pointer shadow-md"
+              className="px-3.5 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold rounded-full flex items-center gap-1.5 cursor-pointer shadow-md"
               title="Switch Front / Back Camera"
             >
               <RefreshCw className="w-3.5 h-3.5" /> {cameraFacing === "environment" ? "Back Cam" : "Front Cam"}
@@ -409,7 +444,7 @@ export function AssistantPage() {
               Dr. K
             </div>
             <span className="inline-block mt-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold border border-white/20">
-              Dr. Kwame • Inspecting Pond
+              Dr. Kwame • Speaking Live Voice
             </span>
           </div>
 
