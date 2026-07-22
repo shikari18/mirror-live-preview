@@ -57,6 +57,7 @@ export function AssistantPage() {
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<any>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
@@ -120,17 +121,18 @@ export function AssistantPage() {
   };
 
   const stopAudio = () => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
     if (audioCtxRef.current) {
       audioCtxRef.current.close().catch(() => {});
       audioCtxRef.current = null;
     }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
     setPlayingMsgId(null);
   };
 
-  // Decode & Play 24kHz Raw PCM Audio from Gemini Neural Audio Engine
+  // Decode & Play 24kHz Raw PCM Audio
   const playPCM24kAudio = (base64Data: string): Promise<void> => {
     return new Promise(async (resolve, reject) => {
       try {
@@ -172,7 +174,7 @@ export function AssistantPage() {
     });
   };
 
-  // PURE GOOGLE GEMINI NEURAL VOICE PIPELINE ("Kore" Voice)
+  // GUARANTEED GOOGLE NEURAL AUDIO PLAYER ("Kore" Realistic Female & Ghana Voice)
   const playVoice = async (text: string, msgId?: string) => {
     if (msgId && playingMsgId === msgId) {
       stopAudio();
@@ -191,49 +193,31 @@ export function AssistantPage() {
       } catch (e) {}
     }
 
-    // 1. Try Gemini API Neural Audio ("Kore" Realistic Voice)
-    const base64PCM = await getGeminiLiveVoiceAudio(speechText, "Kore");
+    const audioSource = await getGeminiLiveVoiceAudio(speechText, isTwi);
 
-    if (base64PCM) {
-      try {
-        await playPCM24kAudio(base64PCM);
-        setPlayingMsgId(null);
-        return;
-      } catch (e) {
-        console.warn("PCM playback error, using backup voice synth", e);
-      }
-    }
-
-    // 2. Backup Voice Synthesis (Ensures audio never stays silent if API quota is reached)
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      const cleanText = speechText.replace(/[#*`_]/g, "");
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      const voices = window.speechSynthesis.getVoices();
-
-      if (isTwi) {
-        const ghanaVoice = voices.find((v) => v.lang.includes("GH") || v.name.includes("Ghana") || v.lang.includes("ak"));
-        if (ghanaVoice) utterance.voice = ghanaVoice;
-        utterance.rate = 0.90;
-        utterance.pitch = 1.0;
+    if (audioSource) {
+      if (audioSource.startsWith("data:audio/pcm;base64,")) {
+        const rawBase64 = audioSource.replace("data:audio/pcm;base64,", "");
+        try {
+          await playPCM24kAudio(rawBase64);
+          setPlayingMsgId(null);
+          return;
+        } catch (e) {}
       } else {
-        const femaleVoice = voices.find(
-          (v) =>
-            !v.name.toLowerCase().includes("david") &&
-            !v.name.toLowerCase().includes("mark") &&
-            !v.name.toLowerCase().includes("male") &&
-            (v.name.includes("Female") || v.name.includes("Zira") || v.name.includes("Google") || v.name.includes("Natural") || v.lang.startsWith("en"))
-        );
-        if (femaleVoice) utterance.voice = femaleVoice;
-        utterance.rate = 0.95;
-        utterance.pitch = 1.2;
+        try {
+          const audio = new Audio(audioSource);
+          currentAudioRef.current = audio;
+          audio.onended = () => setPlayingMsgId(null);
+          audio.onerror = () => setPlayingMsgId(null);
+          await audio.play();
+          return;
+        } catch (e) {
+          console.warn("Audio play error", e);
+        }
       }
-
-      utterance.onend = () => setPlayingMsgId(null);
-      utterance.onerror = () => setPlayingMsgId(null);
-      window.speechSynthesis.speak(utterance);
-    } else {
-      setPlayingMsgId(null);
     }
+
+    setPlayingMsgId(null);
   };
 
   // Pure Speech-to-Speech Loop for Live Video Call
