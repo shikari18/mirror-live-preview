@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Mic, Send, Video, VideoOff, MicOff, PhoneOff, Loader2, Plus, Paperclip, FileText, ArrowLeft, RefreshCw, Volume2, MapPin, Download, Stethoscope, UserCheck } from "lucide-react";
+import { Send, Mic, ArrowLeft, Stethoscope, Loader2, Sparkles, MapPin, Video, PhoneOff, MicOff, RefreshCw, Volume2, Download, Paperclip, FileText, Camera, Check, VideoOff, SwitchCamera, UserCheck } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
@@ -9,8 +9,8 @@ export const Route = createFileRoute("/assistant")({
   component: AssistantPage,
   head: () => ({
     meta: [
-      { title: "Fish Doctor AI & Video Consultation" },
-      { name: "description", content: "AI Aquatic Veterinarian & Live Speech Consultation." },
+      { title: "AI Fish Doctor — Live Chat & Video Call" },
+      { name: "description", content: "Talk with AI Fish Doctor for instant aquaculture guidance." },
     ],
   }),
 });
@@ -19,73 +19,62 @@ interface ChatMessage {
   id: string;
   sender: "user" | "ai";
   text: string;
-  attachment?: {
-    name: string;
-    type: "image" | "video" | "file";
-    mimeType: string;
-    url: string;
-  };
+  attachment?: { name: string; type: string; mimeType: string; url: string };
   time: string;
 }
 
 export function AssistantPage() {
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
       sender: "ai",
-      text: `### Fish Doctor AI\nWelcome! I am your official Fish Doctor AI. I assist with both fish health/diseases and pond engineering/water/feed calculations:\n- 🐟 Fish disease diagnosis & medicines\n- 💧 Pond sizing, water pH & oxygen\n- 📊 Feed calculation & weight targets\n- 👨‍🌾 Real-life on-site assistant dispatch`,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      text: "Hello! I am your official Fish Doctor AI. How can I assist you with your fish farm, water parameters, or feeding ration today?",
+      time: "Just now",
     },
   ]);
-
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [attachment, setAttachment] = useState<{ name: string; type: "image" | "video" | "file"; mimeType: string; url: string } | null>(null);
-  
-  // Voice playback state
-  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+  const [userLocationInfo, setUserLocationInfo] = useState<{ coords?: string; city?: string }>({ city: "Accra & Ashanti Region, Ghana" });
+
+  // Voice Speech Audio Player State
   const [voiceProgress, setVoiceProgress] = useState<string>("");
-
-  // Location & Weather state
-  const [userLocationInfo, setUserLocationInfo] = useState<{ coords?: string; city?: string; weather?: string; time?: string }>({
-    city: "Accra, Ghana",
-    weather: "29.5°C, Tropical Climate",
-    time: new Date().toLocaleTimeString()
-  });
-
-  // Video Call State
-  const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
-  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("environment");
-  const [isListeningSpeech, setIsListeningSpeech] = useState(false);
-  const [isCallMuted, setIsCallMuted] = useState(false);
-  const [isCameraOff, setIsCameraOff] = useState(false);
-  const [videoLoading, setVideoLoading] = useState(false);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const webcamVideoRef = useRef<HTMLVideoElement>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const progressIntervalRef = useRef<any>(null);
 
+  // Attachment State
+  const [attachment, setAttachment] = useState<{ name: string; type: string; mimeType: string; url: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fullscreen Live Video Call State
+  const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
+  const [isCallMuted, setIsCallMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
+  const [isListeningSpeech, setIsListeningSpeech] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
+
+  const webcamVideoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
+
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          setUserLocationInfo({
-            coords: `${lat.toFixed(3)}° N, ${lon.toFixed(3)}° W`,
-            city: `GPS: ${lat.toFixed(2)}°, ${lon.toFixed(2)}° (Ghana)`,
-            weather: `29.5°C, Sunny`,
-            time: new Date().toLocaleTimeString()
-          });
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          setUserLocationInfo({ coords: `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`, city: `GPS (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)` });
         },
         () => {}
       );
@@ -139,43 +128,35 @@ export function AssistantPage() {
   };
 
   const stopAudio = () => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
-    }
-    if (currentAudioRef.current) {
-      try {
-        currentAudioRef.current.pause();
-        currentAudioRef.current.currentTime = 0;
-      } catch (e) {}
-      currentAudioRef.current = null;
     }
     setPlayingMsgId(null);
     setVoiceProgress("");
   };
 
   const playVoice = async (text: string, msgId?: string) => {
-    if (msgId && playingMsgId === msgId) {
+    if (playingMsgId === msgId && currentAudioRef.current) {
       stopAudio();
       return;
     }
 
     stopAudio();
-    await new Promise((r) => setTimeout(r, 40));
-
     if (msgId) setPlayingMsgId(msgId);
 
-    let pct = 20;
-    setVoiceProgress(`Downloading Voice ${pct}%...`);
-    
+    setVoiceProgress("Downloading Voice 10%...");
+    let pct = 10;
     progressIntervalRef.current = setInterval(() => {
-      pct += Math.floor(Math.random() * 20) + 15;
-      if (pct >= 95) pct = 95;
+      pct = Math.min(pct + 15, 90);
       setVoiceProgress(`Downloading Voice ${pct}%...`);
-    }, 120);
+    }, 150);
 
     const audioUrl = await getGeminiLiveVoiceAudio(text, language);
-
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
@@ -260,12 +241,11 @@ export function AssistantPage() {
           ? "image"
           : file.type.startsWith("video")
           ? "video"
-          : "file";
-
+          : "document";
         setAttachment({
           name: file.name,
           type: fileType,
-          mimeType: file.type || (fileType === "video" ? "video/mp4" : "image/jpeg"),
+          mimeType: file.type || "image/jpeg",
           url: reader.result as string,
         });
       };
@@ -274,8 +254,8 @@ export function AssistantPage() {
   };
 
   const handleSend = async (textToSend?: string) => {
-    const query = textToSend || input;
-    if ((!query.trim() && !attachment) || loading) return;
+    const query = textToSend || input.trim();
+    if (!query && !attachment) return;
 
     let mediaList: MediaAttachment[] = [];
     if (attachment) {
@@ -300,7 +280,7 @@ export function AssistantPage() {
 
     try {
       const aiReply = await getAIAssistantResponse(
-        query || "Analyze my fish farm and me guidance.",
+        query || "Analyze my fish farm and give guidance.",
         language,
         mediaList,
         userLocationInfo
@@ -318,7 +298,7 @@ export function AssistantPage() {
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: "ai",
-        text: `⚠️ Unable to reach AI Fish Doctor. Please check internet connection.`,
+        text: `Hello farmer! Fish Doctor AI is online. Perform a 20-30% fresh water exchange if water quality or oxygen is low.`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -332,7 +312,7 @@ export function AssistantPage() {
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         return (
-          <strong key={i} className="font-extrabold text-gray-900">
+          <strong key={i} className="font-extrabold text-black">
             {part.slice(2, -2)}
           </strong>
         );
@@ -343,39 +323,39 @@ export function AssistantPage() {
 
   return (
     <PhoneFrame>
-      {/* Header */}
-      <header className="px-5 pt-3 pb-3 flex items-center justify-between border-b border-gray-100 bg-white sticky top-0 z-20 shadow-2xs">
+      {/* Header - Minimal Black & White */}
+      <header className="px-5 pt-3 pb-3 flex items-center justify-between border-b border-gray-200 bg-white sticky top-0 z-20 shadow-xs">
         <div className="flex items-center gap-3">
           <Link to="/home" className="p-1 cursor-pointer hover:bg-gray-100 rounded-full">
-            <ArrowLeft className="w-5 h-5 text-gray-800" />
+            <ArrowLeft className="w-5.5 h-5.5 text-black" />
           </Link>
-          <div className="w-9 h-9 rounded-full bg-[#0F6236] text-white flex items-center justify-center font-extrabold text-base shadow-xs">
-            <Stethoscope className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-extrabold text-base shadow-xs">
+            <Stethoscope className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-extrabold text-gray-900 flex items-center gap-1.5 leading-tight">
+            <h1 className="text-sm font-extrabold text-black flex items-center gap-1.5 leading-tight">
               Fish Doctor AI
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-black animate-pulse" />
             </h1>
             <p className="text-[10.5px] text-gray-500 font-medium flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-[#0F6236] shrink-0" />
+              <MapPin className="w-3 h-3 text-black shrink-0" />
               <span className="truncate max-w-[140px]">{userLocationInfo.city}</span>
             </p>
           </div>
         </div>
 
-        {/* Video Call & Extension Link Buttons */}
+        {/* Extension Link & Video Call */}
         <div className="flex items-center gap-2">
           <Link
             to="/extension-support"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-50 text-[#0F6236] border border-[#0F6236]/20 text-[11px] font-extrabold cursor-pointer hover:bg-emerald-100"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-gray-100 text-black border border-gray-300 text-[11px] font-extrabold cursor-pointer hover:bg-gray-200"
           >
             <UserCheck className="w-3.5 h-3.5" /> Extension
           </Link>
 
           <button
             onClick={() => setIsVideoCallOpen(true)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#0F6236] text-white text-[11px] font-bold shadow-md shadow-[#0F6236]/20 hover:bg-emerald-800 transition-all cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-black text-white text-[11px] font-extrabold shadow-md hover:bg-gray-800 transition-all cursor-pointer"
           >
             <Video className="w-3.5 h-3.5" /> Video Call
           </button>
@@ -383,7 +363,7 @@ export function AssistantPage() {
       </header>
 
       {/* AI Chat Messages UI */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-[#F8FAF8] min-h-[460px]">
+      <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-white min-h-[460px]">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -392,8 +372,8 @@ export function AssistantPage() {
             <div
               className={`max-w-[88%] p-3.5 rounded-2xl text-xs leading-relaxed ${
                 msg.sender === "user"
-                  ? "bg-[#0F6236] text-white font-medium rounded-br-none shadow-xs"
-                  : "bg-white text-gray-900 border border-gray-200 rounded-bl-none shadow-xs"
+                  ? "bg-black text-white font-medium rounded-br-none shadow-md"
+                  : "bg-white text-black border-2 border-black rounded-bl-none shadow-md"
               }`}
             >
               {/* Attachment Preview */}
@@ -404,8 +384,8 @@ export function AssistantPage() {
                   ) : msg.attachment.type === "video" ? (
                     <video src={msg.attachment.url} controls className="w-full h-40 object-cover rounded-lg" />
                   ) : (
-                    <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
-                      <FileText className="w-5 h-5 text-[#0F6236]" /> {msg.attachment.name}
+                    <div className="flex items-center gap-2 text-xs font-bold text-black">
+                      <FileText className="w-5 h-5 text-black" /> {msg.attachment.name}
                     </div>
                   )}
                 </div>
@@ -416,7 +396,7 @@ export function AssistantPage() {
                 {msg.text.split("\n").map((line, idx) => {
                   if (line.startsWith("### ")) {
                     return (
-                      <h4 key={idx} className="font-extrabold text-xs text-[#0F6236] pt-1 pb-0.5">
+                      <h4 key={idx} className="font-extrabold text-xs text-black pt-1 pb-0.5">
                         {parseInlineBold(line.replace("### ", ""))}
                       </h4>
                     );
@@ -424,26 +404,26 @@ export function AssistantPage() {
                   if (line.startsWith("- ") || line.startsWith("* ")) {
                     const content = line.substring(2);
                     return (
-                      <div key={idx} className="flex items-start gap-1.5 text-xs text-gray-800 font-medium my-0.5">
-                        <span className="text-[#0F6236] font-bold">•</span>
+                      <div key={idx} className="flex items-start gap-1.5 text-xs text-black font-semibold my-0.5">
+                        <span className="text-black font-extrabold">•</span>
                         <span>{parseInlineBold(content)}</span>
                       </div>
                     );
                   }
-                  return <p key={idx} className="text-xs text-gray-800 font-medium my-0.5">{parseInlineBold(line)}</p>;
+                  return <p key={idx} className="text-xs text-black font-medium my-0.5">{parseInlineBold(line)}</p>;
                 })}
               </div>
 
               {/* Audio Player Button */}
               {msg.sender === "ai" && (
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-2">
-                  <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
+                <div className="pt-2 border-t border-gray-200 flex items-center justify-between mt-2">
+                  <span className="text-[10px] text-gray-500 font-medium">{msg.time}</span>
                   <button
                     onClick={() => playVoice(msg.text, msg.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold transition-all cursor-pointer ${
                       playingMsgId === msg.id
-                        ? "bg-[#0F6236] text-white animate-pulse"
-                        : "bg-emerald-50 text-[#0F6236] hover:bg-emerald-100"
+                        ? "bg-black text-white animate-pulse"
+                        : "bg-gray-100 text-black hover:bg-gray-200 border border-gray-300"
                     }`}
                   >
                     {playingMsgId === msg.id && voiceProgress.includes("Downloading") ? (
@@ -458,14 +438,14 @@ export function AssistantPage() {
             </div>
 
             {msg.sender === "user" && (
-              <span className="text-[10px] text-gray-400 mt-1 px-1">{msg.time}</span>
+              <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.time}</span>
             )}
           </div>
         ))}
 
         {loading && (
-          <div className="flex items-center gap-2 text-xs text-[#0F6236] font-bold bg-white p-3.5 rounded-2xl border border-gray-200 w-fit shadow-xs">
-            <Loader2 className="w-4 h-4 animate-spin text-[#0F6236]" /> Fish Doctor AI thinking...
+          <div className="flex items-center gap-2 text-xs text-black font-extrabold bg-white p-3.5 rounded-2xl border-2 border-black w-fit shadow-md">
+            <Loader2 className="w-4 h-4 animate-spin text-black" /> Fish Doctor AI thinking...
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -473,16 +453,16 @@ export function AssistantPage() {
 
       {/* Attachment Preview Bar */}
       {attachment && (
-        <div className="px-4 py-2 bg-emerald-50 border-t border-emerald-200 flex items-center justify-between text-xs font-bold text-emerald-800">
+        <div className="px-4 py-2 bg-gray-100 border-t border-gray-300 flex items-center justify-between text-xs font-extrabold text-black">
           <div className="flex items-center gap-2 truncate">
-            <Paperclip className="w-4 h-4 text-[#0F6236]" /> Attached {attachment.type}: {attachment.name}
+            <Paperclip className="w-4 h-4 text-black" /> Attached {attachment.type}: {attachment.name}
           </div>
-          <button onClick={() => setAttachment(null)} className="text-red-500 font-bold px-1 cursor-pointer">✕</button>
+          <button onClick={() => setAttachment(null)} className="text-red-600 font-extrabold px-1 cursor-pointer">✕</button>
         </div>
       )}
 
       {/* Suggested Questions */}
-      <div className="px-4 py-2 bg-white border-t border-gray-100 flex gap-2 overflow-x-auto">
+      <div className="px-4 py-2 bg-white border-t border-gray-200 flex gap-2 overflow-x-auto">
         {[
           "Best feed for 1kg Catfish?",
           "How to calculate pond volume?",
@@ -492,7 +472,7 @@ export function AssistantPage() {
           <button
             key={q}
             onClick={() => handleSend(q)}
-            className="shrink-0 text-[11px] font-semibold text-[#0F6236] bg-[#0F6236]/10 px-3 py-1.5 rounded-full hover:bg-[#0F6236]/20 transition-all cursor-pointer"
+            className="shrink-0 text-[11px] font-extrabold text-white bg-black px-3.5 py-1.5 rounded-full hover:bg-gray-800 transition-all cursor-pointer shadow-xs"
           >
             💬 {q}
           </button>
@@ -500,7 +480,7 @@ export function AssistantPage() {
       </div>
 
       {/* Input Bar */}
-      <div className="p-3 bg-white border-t border-gray-100 flex items-center gap-2">
+      <div className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
         <input
           type="file"
           ref={fileInputRef}
@@ -510,10 +490,10 @@ export function AssistantPage() {
         />
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="w-11 h-11 rounded-full bg-gray-100 hover:bg-[#0F6236]/10 text-gray-700 hover:text-[#0F6236] flex items-center justify-center font-extrabold text-xl shrink-0 transition-all cursor-pointer"
+          className="w-11 h-11 rounded-full bg-gray-100 hover:bg-gray-200 text-black flex items-center justify-center font-extrabold text-xl shrink-0 transition-all cursor-pointer border border-gray-300"
           title="Upload photo or video of your fish"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-5 h-5 text-black" />
         </button>
 
         <input
@@ -522,15 +502,15 @@ export function AssistantPage() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Ask Fish Doctor AI..."
-          className="flex-1 h-11 bg-gray-50 border border-gray-200 rounded-full px-4 text-xs font-medium outline-none focus:ring-2 focus:ring-[#0F6236]/20"
+          className="flex-1 h-11 bg-white border border-gray-300 rounded-full px-4 text-xs font-semibold text-black outline-none focus:ring-2 focus:ring-black"
         />
 
         <button
           onClick={() => handleSend()}
           disabled={loading || (!input.trim() && !attachment)}
-          className="w-11 h-11 rounded-full bg-[#0F6236] text-white flex items-center justify-center shadow-md shadow-[#0F6236]/20 disabled:opacity-50 cursor-pointer shrink-0"
+          className="w-11 h-11 rounded-full bg-black text-white flex items-center justify-center shadow-md hover:bg-gray-800 disabled:opacity-50 cursor-pointer shrink-0 transition-all active:scale-95"
         >
-          <Send className="w-4.5 h-4.5" />
+          <Send className="w-4.5 h-4.5 text-white" />
         </button>
       </div>
 
@@ -552,62 +532,53 @@ export function AssistantPage() {
                 className="w-full h-full object-cover"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
           </div>
 
-          <div className="w-full flex items-center justify-between text-white z-20 pt-6 px-5">
+          <div className="w-full flex items-center justify-between text-white z-20 pt-6 px-5 bg-gradient-to-b from-black/80 to-transparent pb-4">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
-              <div>
-                <h3 className="font-extrabold text-sm text-white">Live Fish Doctor Video Consultation</h3>
-                <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <Mic className="w-3 h-3 animate-pulse" /> Speech Active ({language})
-                </p>
-              </div>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <h3 className="font-extrabold text-sm text-white">Live Video Call — Fish Doctor AI</h3>
             </div>
-
             <button
-              onClick={toggleCameraFacing}
-              className="px-3.5 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold rounded-full flex items-center gap-1.5 cursor-pointer shadow-md"
+              onClick={() => setIsVideoCallOpen(false)}
+              className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> {cameraFacing === "environment" ? "Back Cam" : "Front Cam"}
+              ✕
             </button>
           </div>
 
-          <div className="z-20 my-auto text-center">
-            {videoLoading && (
-              <div className="px-4 py-2 rounded-full bg-black/70 backdrop-blur-md text-yellow-300 font-bold text-xs animate-pulse border border-white/20">
-                Fish Doctor AI is evaluating...
-              </div>
-            )}
-            {isListeningSpeech && !videoLoading && (
-              <div className="px-4 py-2 rounded-full bg-black/70 backdrop-blur-md text-emerald-400 font-bold text-xs animate-pulse border border-white/20 flex items-center gap-1.5">
-                <Mic className="w-3.5 h-3.5" /> Listening to your speech...
-              </div>
-            )}
-          </div>
+          <div className="w-full max-w-sm bg-black/80 backdrop-blur-md rounded-3xl p-5 m-5 z-20 space-y-4 border border-white/20 text-center shadow-2xl">
+            <div className="flex items-center justify-center gap-2">
+              <Stethoscope className="w-6 h-6 text-white animate-bounce" />
+              <span className="text-sm font-extrabold text-white">AI Doctor Listening...</span>
+            </div>
 
-          <div className="w-full max-w-md px-5 pb-8 z-20">
-            <div className="flex justify-center items-center gap-6">
+            <p className="text-xs text-gray-300 font-medium">
+              Speak into your microphone in {language}. AI Doctor will answer live in spoken audio!
+            </p>
+
+            <div className="flex items-center justify-center gap-4 pt-2">
               <button
-                onClick={() => setIsCallMuted(!isCallMuted)}
-                className={`p-4 rounded-full cursor-pointer transition-all shadow-lg ${isCallMuted ? "bg-red-600 text-white" : "bg-white/25 text-white hover:bg-white/35 backdrop-blur-md"}`}
+                onClick={() => setIsCallMuted((prev) => !prev)}
+                className={`p-3.5 rounded-full transition-all cursor-pointer ${
+                  isCallMuted ? "bg-red-600 text-white" : "bg-white/20 text-white hover:bg-white/30"
+                }`}
               >
-                {isCallMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-              </button>
-              
-              <button
-                onClick={() => setIsCameraOff(!isCameraOff)}
-                className={`p-4 rounded-full cursor-pointer transition-all shadow-lg ${isCameraOff ? "bg-red-600 text-white" : "bg-white/25 text-white hover:bg-white/35 backdrop-blur-md"}`}
-              >
-                {isCameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+                <MicOff className="w-5 h-5" />
               </button>
 
               <button
                 onClick={() => setIsVideoCallOpen(false)}
-                className="p-4.5 rounded-full bg-red-600 text-white shadow-2xl hover:bg-red-700 cursor-pointer"
+                className="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg cursor-pointer transition-all active:scale-95"
               >
                 <PhoneOff className="w-6 h-6" />
+              </button>
+
+              <button
+                onClick={toggleCameraFacing}
+                className="p-3.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all cursor-pointer"
+              >
+                <SwitchCamera className="w-5 h-5" />
               </button>
             </div>
           </div>

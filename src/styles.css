@@ -23,26 +23,26 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
   --color-ring: var(--ring);
-  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
   --radius: 1rem;
-  --background: oklch(0.985 0.005 100);
-  --foreground: oklch(0.2 0.02 150);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.02 150);
-  --primary: oklch(0.36 0.09 150);
-  --primary-foreground: oklch(0.99 0.005 100);
-  --secondary: oklch(0.93 0.04 145);
-  --secondary-foreground: oklch(0.36 0.09 150);
-  --muted: oklch(0.96 0.01 100);
-  --muted-foreground: oklch(0.5 0.02 150);
-  --accent: oklch(0.55 0.13 150);
-  --accent-foreground: oklch(0.99 0.005 100);
-  --border: oklch(0.92 0.01 150);
-  --ring: oklch(0.36 0.09 150);
+  --background: #FFFFFF;
+  --foreground: #000000;
+  --card: #FFFFFF;
+  --card-foreground: #000000;
+  --primary: #000000;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F4F4F5;
+  --secondary-foreground: #000000;
+  --muted: #F4F4F5;
+  --muted-foreground: #71717A;
+  --accent: #18181B;
+  --accent-foreground: #FFFFFF;
+  --border: #E4E4E7;
+  --ring: #000000;
 }
 
 @layer base {
@@ -51,10 +51,12 @@
   }
   html, body {
     font-family: var(--font-sans);
+    background-color: #FFFFFF;
+    color: #000000;
   }
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: #FFFFFF;
+    color: #000000;
     -webkit-font-smoothing: antialiased;
   }
 }

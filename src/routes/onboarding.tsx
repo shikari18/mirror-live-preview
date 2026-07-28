@@ -88,7 +88,7 @@ export function OnboardingPage() {
     localStorage.setItem("user_onboarding_completed", "true");
     localStorage.setItem("user_logged_in", "true");
     setLanguage(selectedLang);
-    navigate({ to: "/ai-welcome" });
+    navigate({ to: "/home" });
   };
 
   const handleNext = () => {
@@ -400,7 +400,7 @@ export function OnboardingPage() {
             className="w-full h-13 mt-6 bg-[#0F6236] hover:bg-[#0B502B] text-white font-extrabold text-[15.5px] rounded-2xl shadow-lg shadow-[#0F6236]/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
           >
             {step === totalSteps ? (
-              <>Finish & Discover AI App</>
+              <>Finish & Go to Dashboard</>
             ) : (
               <>
                 Next <ChevronRight className="w-5 h-5" />
