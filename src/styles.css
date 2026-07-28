@@ -23,26 +23,26 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
   --color-ring: var(--ring);
-  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
-  --radius: 1rem;
-  --background: #FFFFFF;
-  --foreground: #000000;
-  --card: #FFFFFF;
-  --card-foreground: #000000;
-  --primary: #000000;
-  --primary-foreground: #FFFFFF;
-  --secondary: #F4F4F5;
-  --secondary-foreground: #000000;
-  --muted: #F4F4F5;
-  --muted-foreground: #71717A;
-  --accent: #18181B;
-  --accent-foreground: #FFFFFF;
-  --border: #E4E4E7;
-  --ring: #000000;
+  --radius: 1.25rem;
+  --background: oklch(0.985 0.005 140);
+  --foreground: oklch(0.12 0.03 150);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.12 0.03 150);
+  --primary: oklch(0.32 0.12 152);
+  --primary-foreground: oklch(0.99 0.005 140);
+  --secondary: oklch(0.95 0.03 150);
+  --secondary-foreground: oklch(0.2 0.05 150);
+  --muted: oklch(0.96 0.01 140);
+  --muted-foreground: oklch(0.48 0.03 150);
+  --accent: oklch(0.22 0.08 152);
+  --accent-foreground: oklch(0.99 0.005 140);
+  --border: oklch(0.92 0.015 150);
+  --ring: oklch(0.32 0.12 152);
 }
 
 @layer base {
@@ -51,12 +51,31 @@
   }
   html, body {
     font-family: var(--font-sans);
-    background-color: #FFFFFF;
-    color: #000000;
-  }
-  body {
-    background-color: #FFFFFF;
-    color: #000000;
+    background-color: #F4F7F4;
+    color: #0F172A;
     -webkit-font-smoothing: antialiased;
   }
+  body {
+    background-color: #F4F7F4;
+    color: #0F172A;
+  }
+}
+
+/* Custom Glossy Glassmorphism Effects */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(228, 235, 229, 0.8);
+}
+
+.glass-dark {
+  background: rgba(11, 43, 27, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.glow-emerald {
+  box-shadow: 0 10px 30px -10px rgba(15, 98, 54, 0.35);
 }
