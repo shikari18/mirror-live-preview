@@ -78,7 +78,7 @@ function Index() {
 
         {/* Bottom CTA Buttons */}
         <div className="px-5 mt-5 flex flex-col gap-2.5">
-          <Link to="/login" className="w-full h-13 rounded-full bg-[#0F6236] text-white text-[16px] font-bold shadow-lg shadow-[#0F6236]/20 transition-transform active:scale-[0.98] flex items-center justify-center">
+          <Link to="/signup" className="w-full h-13 rounded-full bg-[#0F6236] text-white text-[16px] font-extrabold shadow-lg shadow-[#0F6236]/25 transition-transform active:scale-[0.98] flex items-center justify-center">
             Get Started
           </Link>
           <button

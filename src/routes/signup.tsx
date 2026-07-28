@@ -49,18 +49,6 @@ function SignUpPage() {
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Persistent Login Check
-    const isLoggedIn = localStorage.getItem("user_logged_in") === "true";
-    if (isLoggedIn) {
-      const isOnboardingComplete = localStorage.getItem("user_onboarding_completed");
-      if (isOnboardingComplete === "true") {
-        navigate({ to: "/home" });
-      } else {
-        navigate({ to: "/onboarding" });
-      }
-      return;
-    }
-
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;

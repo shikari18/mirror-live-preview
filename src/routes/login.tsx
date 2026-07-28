@@ -47,13 +47,6 @@ function LoginPage() {
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Persistent Login Check
-    const isLoggedIn = localStorage.getItem("user_logged_in") === "true";
-    if (isLoggedIn) {
-      checkRedirect();
-      return;
-    }
-
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
