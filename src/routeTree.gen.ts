@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiDoctorRouteImport } from './routes/ai-doctor'
 import { Route as AssistantRouteImport } from './routes/assistant'
+import { Route as ExtensionSupportRouteImport } from './routes/extension-support'
 import { Route as FeedCalculatorRouteImport } from './routes/feed-calculator'
 import { Route as HarvestRouteImport } from './routes/harvest'
 import { Route as HomeRouteImport } from './routes/home'
@@ -40,6 +41,11 @@ const AiDoctorRoute = AiDoctorRouteImport.update({
 const AssistantRoute = AssistantRouteImport.update({
   id: '/assistant',
   path: '/assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExtensionSupportRoute = ExtensionSupportRouteImport.update({
+  id: '/extension-support',
+  path: '/extension-support',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedCalculatorRoute = FeedCalculatorRouteImport.update({
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-doctor': typeof AiDoctorRoute
   '/assistant': typeof AssistantRoute
+  '/extension-support': typeof ExtensionSupportRoute
   '/feed-calculator': typeof FeedCalculatorRoute
   '/harvest': typeof HarvestRoute
   '/home': typeof HomeRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-doctor': typeof AiDoctorRoute
   '/assistant': typeof AssistantRoute
+  '/extension-support': typeof ExtensionSupportRoute
   '/feed-calculator': typeof FeedCalculatorRoute
   '/harvest': typeof HarvestRoute
   '/home': typeof HomeRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ai-doctor': typeof AiDoctorRoute
   '/assistant': typeof AssistantRoute
+  '/extension-support': typeof ExtensionSupportRoute
   '/feed-calculator': typeof FeedCalculatorRoute
   '/harvest': typeof HarvestRoute
   '/home': typeof HomeRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-doctor'
     | '/assistant'
+    | '/extension-support'
     | '/feed-calculator'
     | '/harvest'
     | '/home'
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-doctor'
     | '/assistant'
+    | '/extension-support'
     | '/feed-calculator'
     | '/harvest'
     | '/home'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-doctor'
     | '/assistant'
+    | '/extension-support'
     | '/feed-calculator'
     | '/harvest'
     | '/home'
@@ -235,6 +247,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiDoctorRoute: typeof AiDoctorRoute
   AssistantRoute: typeof AssistantRoute
+  ExtensionSupportRoute: typeof ExtensionSupportRoute
   FeedCalculatorRoute: typeof FeedCalculatorRoute
   HarvestRoute: typeof HarvestRoute
   HomeRoute: typeof HomeRoute
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/assistant'
       fullPath: '/assistant'
       preLoaderRoute: typeof AssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/extension-support': {
+      id: '/extension-support'
+      path: '/extension-support'
+      fullPath: '/extension-support'
+      preLoaderRoute: typeof ExtensionSupportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feed-calculator': {
@@ -379,6 +399,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiDoctorRoute: AiDoctorRoute,
   AssistantRoute: AssistantRoute,
+  ExtensionSupportRoute: ExtensionSupportRoute,
   FeedCalculatorRoute: FeedCalculatorRoute,
   HarvestRoute: HarvestRoute,
   HomeRoute: HomeRoute,

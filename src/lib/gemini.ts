@@ -94,12 +94,26 @@ export async function callGemini(
 }
 
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
-  const cleanText = text.replace(/[#*`_]/g, "").trim();
+  let cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
 
   const cacheKey = `${targetLanguage}:${cleanText.slice(0, 150)}`;
   if (audioCache.has(cacheKey)) {
     return audioCache.get(cacheKey)!;
+  }
+
+  // If local language (Twi, Ga, Ewe, Hausa), translate text to local language in background for speech audio
+  if (targetLanguage && targetLanguage !== "English") {
+    try {
+      const translatedText = await callGroqAI(
+        `Translate this text into conversational spoken ${targetLanguage} for voice speech: "${cleanText.slice(0, 250)}". Return ONLY the translated ${targetLanguage} text without quotes or explanations.`
+      );
+      if (translatedText && translatedText.trim()) {
+        cleanText = translatedText.trim();
+      }
+    } catch (err) {
+      console.warn(`Background speech translation to ${targetLanguage} failed:`, err);
+    }
   }
 
   const audioApiUrl = `/api/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}&lang=${encodeURIComponent(targetLanguage)}`;
@@ -127,9 +141,8 @@ REAL-TIME SYSTEM CONTEXT:
 - Weather: ${weatherText}
 
 STRICT RULES:
-1. Do NOT introduce yourself as an advisor; you are the FISH DOCTOR AI.
-2. Answer directly and practically with markdown formatting (### headings, - bullet points).
-3. Preferred Language: ${language}.`;
+1. Always write the text output in clean ENGLISH so the user can read it clearly.
+2. Answer directly and practically with markdown formatting (### headings, - bullet points).`;
 
   return await callGroqAI(userMessage, systemPrompt, mediaAttachments, farmMemoryPrompt);
 }
@@ -206,7 +219,7 @@ export async function evaluateWaterQualityAI(
 
 export async function getAIVideoCallResponse(transcript: string, language: string = "English"): Promise<string> {
   const systemPrompt = `You are a Senior Aquatic Veterinarian & Fish Doctor on a live video call.
-Answer in ONLY 1 SHORT SENTENCE (under 12 words) so speech audio responds instantly. Preferred language: ${language}.`;
+Answer in ONLY 1 SHORT SENTENCE (under 12 words) in ENGLISH so speech audio responds instantly.`;
   
   return await callGroqAI(transcript, systemPrompt);
 }

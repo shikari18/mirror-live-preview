@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Bell, MapPin, Check, Volume2, Play, Sparkles, AlertCircle, Plus, CloudRain, Zap, Camera } from "lucide-react";
+import { Settings, Bell, MapPin, Check, Volume2, Play, Sparkles, Plus, CloudRain, Zap, Camera, UserCheck } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import feedSacks from "@/assets/feed-sacks.jpg";
@@ -31,12 +31,12 @@ export const Route = createFileRoute("/home")({
 });
 
 const quickActions: { img: string; label: string; tint: string; to?: string }[] = [
-  { img: iconFeedCalc, label: "Feed Calculator", tint: "bg-sky-50", to: "/feed-calculator" },
-  { img: iconAiDoctor, label: "Fish Doctor AI", tint: "bg-sky-100", to: "/ai-doctor" },
-  { img: iconBuyFeed, label: "Buy Supplies", tint: "bg-sky-50", to: "/market" },
-  { img: iconSellFish, label: "Sell Harvest", tint: "bg-sky-50", to: "/sell-fish" },
-  { img: iconMarketPrices, label: "Live Market", tint: "bg-sky-50", to: "/market" },
-  { img: iconSupport, label: "Extension Assistant", tint: "bg-sky-100", to: "/assistant" },
+  { img: iconFeedCalc, label: "Feed Calculator", tint: "bg-secondary/60", to: "/feed-calculator" },
+  { img: iconAiDoctor, label: "Fish Doctor AI", tint: "bg-emerald-50", to: "/ai-doctor" },
+  { img: iconBuyFeed, label: "Buy Supplies", tint: "bg-secondary/60", to: "/market" },
+  { img: iconSellFish, label: "Sell Harvest", tint: "bg-secondary/60", to: "/sell-fish" },
+  { img: iconMarketPrices, label: "Live Market", tint: "bg-yellow-50", to: "/market" },
+  { img: iconSupport, label: "Extension Support", tint: "bg-[#0F6236]/10", to: "/extension-support" },
 ];
 
 export function HomePage() {
@@ -44,7 +44,7 @@ export function HomePage() {
   const [userName, setUserName] = useState("");
   const [pondsCount, setPondsCount] = useState<number>(0);
   const [totalFish, setTotalFish] = useState<number>(0);
-  const [userLocation, setUserLocation] = useState<string>("Accra, Ghana");
+  const [userLocation, setUserLocation] = useState<string>("Accra & Ashanti Region, Ghana");
 
   // Audio Playback State
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -130,31 +130,31 @@ export function HomePage() {
       {/* Header */}
       <header className="px-5 pt-4 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/settings" className="p-1.5 text-slate-700 hover:text-[#0284C7] rounded-full hover:bg-sky-50 transition-all cursor-pointer">
+          <Link to="/settings" className="p-1.5 text-gray-700 hover:text-[#0F6236] rounded-full hover:bg-gray-100 transition-all cursor-pointer">
             <Settings className="w-5.5 h-5.5" />
           </Link>
           <div>
-            <div className="text-[19px] font-extrabold text-slate-900 leading-tight">
-              {userName ? `Welcome, ${userName} 👋` : "Welcome, Farmer 👋"}
+            <div className="text-[19px] font-extrabold text-foreground leading-tight">
+              {userName ? `Akwaaba, ${userName} 👋` : "Akwaaba, Farmer 👋"}
             </div>
-            <div className="flex items-center gap-1 text-[#0284C7] text-[12px] font-semibold">
+            <div className="flex items-center gap-1 text-[#0F6236] text-[12px] font-medium">
               <MapPin className="w-3.5 h-3.5" /> {userLocation} • {language}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <Link to="/notifications" className="relative p-1 cursor-pointer">
-            <Bell className="w-6 h-6 text-slate-800" />
-            <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-sky-500 border-2 border-white animate-pulse" />
+            <Bell className="w-6 h-6 text-foreground" />
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-background animate-pulse" />
           </Link>
           <Link to="/profile" className="cursor-pointer">
-            <img src={farmerImg} alt="User" className="w-9 h-9 rounded-full object-cover border-2 border-[#0284C7]" />
+            <img src={farmerImg} alt="User" className="w-9 h-9 rounded-full object-cover border-2 border-[#0F6236]" />
           </Link>
         </div>
       </header>
 
       {/* Live Farm Status Banner */}
-      <section className="mx-5 mt-4 rounded-2xl bg-[#0284C7] text-white p-4 relative overflow-hidden shadow-lg shadow-[#0284C7]/20">
+      <section className="mx-5 mt-4 rounded-2xl bg-[#0F6236] text-white p-4 relative overflow-hidden shadow-lg shadow-[#0F6236]/20">
         <img src={fishDecor} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-20" />
         <div className="relative z-10">
           <div className="flex items-center gap-1.5 text-[11.5px] opacity-90 font-semibold">
@@ -167,7 +167,7 @@ export function HomePage() {
             {pondsCount > 0 ? `Total Stock: ${totalFish.toLocaleString()} Fish • AI Doctor Synced` : "Measure your pond with camera to sync stats"}
           </div>
           <div className="mt-3 flex gap-2">
-            <Link to="/my-farm" className="px-3 py-1.5 rounded-xl bg-white text-[#0284C7] font-extrabold text-xs shadow-xs flex items-center gap-1">
+            <Link to="/my-farm" className="px-3 py-1.5 rounded-xl bg-white text-[#0F6236] font-extrabold text-xs shadow-xs flex items-center gap-1">
               <Camera className="w-3.5 h-3.5" /> AR Camera Measure
             </Link>
           </div>
@@ -179,25 +179,25 @@ export function HomePage() {
 
       {/* Dynamic Farm Stats Cards */}
       <section className="px-5 mt-4 grid grid-cols-2 gap-2.5">
-        <StatCard tint="bg-sky-50" img={iconFeedSack} label="Daily Feed Estimate" value={totalFish > 0 ? `${(totalFish * 0.03 * 0.05).toFixed(1)} kg` : "0.0 kg"} sub="Groq Calculated" />
-        <StatCard tint="bg-sky-50" img={iconGrowth} label="Active Ponds" value={`${pondsCount} Ponds`} sub="In Production" />
-        <StatCard tint="bg-sky-50" img={iconCalendar} label="Total Fish Stock" value={`${totalFish.toLocaleString()} Fish`} sub="Live Count" />
-        <StatCard tint="bg-sky-50" img={iconAiDoctor} label="AI Doctor Status" value="Online" sub="Groq Vision Ready" />
+        <StatCard tint="bg-secondary/60" img={iconFeedSack} label="Daily Feed Estimate" value={totalFish > 0 ? `${(totalFish * 0.03 * 0.05).toFixed(1)} kg` : "0.0 kg"} sub="Groq Calculated" />
+        <StatCard tint="bg-yellow-50" img={iconGrowth} label="Active Ponds" value={`${pondsCount} Ponds`} sub="In Production" />
+        <StatCard tint="bg-purple-50" img={iconCalendar} label="Total Fish Stock" value={`${totalFish.toLocaleString()} Fish`} sub="Live Count" />
+        <StatCard tint="bg-blue-50" img={iconAiDoctor} label="AI Doctor Status" value="Online" sub="Groq Vision Ready" />
       </section>
 
       {/* Daily Voice Advice Card */}
-      <section className="mx-5 mt-4 rounded-2xl bg-gradient-to-r from-[#0284C7] via-[#0369A1] to-[#075985] p-4 text-white shadow-xl shadow-[#0284C7]/25 relative overflow-hidden">
+      <section className="mx-5 mt-4 rounded-2xl bg-gradient-to-r from-[#0F6236] via-[#147A44] to-[#0A4827] p-4 text-white shadow-xl shadow-[#0F6236]/25 relative overflow-hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="p-1.5 bg-white/20 rounded-lg backdrop-blur-md">
-              <CloudRain className="w-4 h-4 text-sky-200 animate-bounce" />
+              <CloudRain className="w-4 h-4 text-yellow-300 animate-bounce" />
             </span>
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-sky-100">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-200">
               Live Weather & Farm Advisory
             </span>
           </div>
-          <span className="text-[10px] font-bold bg-white text-[#0284C7] px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
-            <Zap className="w-3 h-3 fill-[#0284C7]" /> Weather Sync
+          <span className="text-[10px] font-bold bg-amber-400 text-gray-900 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+            <Zap className="w-3 h-3 fill-gray-900" /> Weather Sync
           </span>
         </div>
 
@@ -205,8 +205,8 @@ export function HomePage() {
           <h3 className="text-sm font-extrabold leading-tight text-white">
             🌊 {weatherAlert.summary}
           </h3>
-          <p className="text-[11.5px] text-sky-100 mt-1 leading-normal font-medium">
-            Tap below to listen to Fish Doctor AI voice advisory in {language}.
+          <p className="text-[11.5px] text-emerald-100 mt-1 leading-normal font-medium">
+            Tap below to listen to Fish Doctor AI voice advisory in {language}. (Written text remains English).
           </p>
         </div>
 
@@ -214,7 +214,7 @@ export function HomePage() {
         <div className="mt-3 flex items-center justify-between pt-3 border-t border-white/15">
           <div className="flex items-center gap-1.5">
             {audioStatusText && (
-              <span className="text-[10.5px] font-bold text-sky-200 animate-pulse truncate max-w-[150px]">
+              <span className="text-[10.5px] font-bold text-yellow-300 animate-pulse truncate max-w-[150px]">
                 {audioStatusText}
               </span>
             )}
@@ -224,8 +224,8 @@ export function HomePage() {
             onClick={handlePlayDailyVoiceAdvice}
             className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-lg transition-all cursor-pointer ${
               isPlayingAudio
-                ? "bg-white text-[#0284C7]"
-                : "bg-white text-[#0284C7] hover:bg-sky-50"
+                ? "bg-amber-400 text-gray-900"
+                : "bg-white text-[#0F6236] hover:bg-emerald-50"
             }`}
           >
             {isPlayingAudio ? (
@@ -234,7 +234,7 @@ export function HomePage() {
               </>
             ) : (
               <>
-                <Play className="w-4 h-4 fill-[#0284C7]" /> Listen Voice ({language})
+                <Play className="w-4 h-4 fill-[#0F6236]" /> Listen Voice ({language})
               </>
             )}
           </button>
@@ -244,8 +244,8 @@ export function HomePage() {
       {/* Features Grid */}
       <section className="px-5 mt-4">
         <div className="flex items-center justify-between mb-2.5">
-          <h2 className="text-[16px] font-extrabold text-slate-900">Farm Features</h2>
-          <Link to="/settings" className="text-[#0284C7] font-bold text-xs">
+          <h2 className="text-[16px] font-extrabold text-gray-900">Farm Features</h2>
+          <Link to="/settings" className="text-[#0F6236] font-bold text-xs">
             Settings
           </Link>
         </div>
@@ -253,10 +253,10 @@ export function HomePage() {
           {quickActions.map(({ img, label, tint, to }) => {
             const inner = (
               <>
-                <div className={`w-full aspect-square rounded-2xl border border-sky-100 flex items-center justify-center ${tint} shadow-xs`}>
+                <div className={`w-full aspect-square rounded-2xl border border-gray-200/80 flex items-center justify-center ${tint} shadow-xs`}>
                   <img src={img} alt="" loading="lazy" className="w-8.5 h-8.5 object-contain" />
                 </div>
-                <div className="text-[10.5px] font-bold text-center mt-1 text-slate-800 leading-tight">{label}</div>
+                <div className="text-[10.5px] font-bold text-center mt-1 text-gray-800 leading-tight">{label}</div>
               </>
             );
             return to ? (
@@ -269,12 +269,12 @@ export function HomePage() {
       </section>
 
       {/* Community Feed Buy Card */}
-      <section className="mx-5 mt-4 mb-6 rounded-2xl bg-[#0284C7]/10 p-4 relative overflow-hidden border border-[#0284C7]/20">
+      <section className="mx-5 mt-4 mb-6 rounded-2xl bg-[#0F6236]/10 p-4 relative overflow-hidden border border-[#0F6236]/20">
         <div className="max-w-[60%]">
-          <div className="text-[15px] font-extrabold text-slate-900">Community Feed Buy</div>
-          <div className="text-[#0284C7] font-extrabold text-xs mt-0.5">Save up to 15% on Raanan & Aller Aqua</div>
-          <div className="text-[11px] text-slate-600 mt-1">Order high quality feeds at wholesale market rates</div>
-          <Link to="/market" className="mt-3 inline-block bg-[#0284C7] text-white font-bold rounded-xl px-4 py-2 text-[12px] shadow-xs">
+          <div className="text-[15px] font-extrabold text-gray-900">Community Feed Buy</div>
+          <div className="text-[#0F6236] font-extrabold text-xs mt-0.5">Save up to 15% on Raanan & Aller Aqua</div>
+          <div className="text-[11px] text-gray-600 mt-1">Order high quality feeds at wholesale market rates</div>
+          <Link to="/market" className="mt-3 inline-block bg-[#0F6236] text-white font-bold rounded-xl px-4 py-2 text-[12px] shadow-xs">
             Join Group Buy
           </Link>
         </div>
@@ -288,14 +288,14 @@ export function HomePage() {
 
 function StatCard({ tint, img, label, value, sub }: { tint: string; img: string; label: string; value: string; sub: string }) {
   return (
-    <div className={`${tint} rounded-2xl p-2.5 flex items-center gap-2.5 border border-sky-100 shadow-xs`}>
+    <div className={`${tint} rounded-2xl p-2.5 flex items-center gap-2.5 border border-gray-200/60 shadow-xs`}>
       <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
         <img src={img} alt="" loading="lazy" className="w-7.5 h-7.5 object-contain" />
       </div>
       <div className="min-w-0">
-        <div className="text-[10.5px] text-slate-500 font-medium">{label}</div>
-        <div className="text-[13.5px] font-extrabold text-slate-900 leading-tight">{value}</div>
-        <div className="text-[10px] text-[#0284C7] font-bold">{sub}</div>
+        <div className="text-[10.5px] text-gray-500 font-medium">{label}</div>
+        <div className="text-[13.5px] font-extrabold text-gray-900 leading-tight">{value}</div>
+        <div className="text-[10px] text-[#0F6236] font-bold">{sub}</div>
       </div>
     </div>
   );

@@ -112,46 +112,46 @@ export function MarketPage() {
   return (
     <PhoneFrame>
       {/* Header */}
-      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-sky-100 bg-white shadow-xs">
+      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white shadow-xs">
         <div className="flex items-center gap-3">
-          <Link to="/home" className="p-1 cursor-pointer hover:bg-sky-50 rounded-full">
-            <ArrowLeft className="w-5 h-5 text-slate-800" />
+          <Link to="/home" className="p-1 hover:bg-gray-100 rounded-full">
+            <ArrowLeft className="w-5 h-5 text-gray-800" />
           </Link>
           <div>
-            <h1 className="text-[19px] font-extrabold text-slate-900 leading-tight">Live Fish Market</h1>
-            <div className="flex items-center gap-1 text-[#0284C7] text-[12px] font-semibold mt-0.5">
+            <h1 className="text-[19px] font-extrabold text-gray-900 leading-tight">Live Fish Market</h1>
+            <div className="flex items-center gap-1 text-[#0F6236] text-[12px] font-semibold mt-0.5">
               <MapPin className="w-3.5 h-3.5" /> {userLocation}
             </div>
           </div>
         </div>
-        <img src={farmerImg} alt="Kofi" className="w-9 h-9 rounded-full object-cover border-2 border-[#0284C7]" />
+        <img src={farmerImg} alt="Kofi" className="w-9 h-9 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
       {/* AI Real-Time Price Ticker */}
-      <section className="mx-5 mt-4 rounded-2xl bg-[#0284C7]/10 p-3.5 border border-[#0284C7]/20 shadow-xs">
-        <div className="flex items-center justify-between border-b border-[#0284C7]/20 pb-2">
-          <div className="flex items-center gap-1.5 font-extrabold text-xs text-[#0284C7]">
-            <Sparkles className="w-4 h-4 text-[#0284C7]" /> Real-Time Groq Market Pricing
+      <section className="mx-5 mt-4 rounded-2xl bg-[#0F6236]/10 p-3.5 border border-[#0F6236]/20 shadow-xs">
+        <div className="flex items-center justify-between border-b border-[#0F6236]/20 pb-2">
+          <div className="flex items-center gap-1.5 font-extrabold text-xs text-[#0F6236]">
+            <Sparkles className="w-4 h-4 text-[#0F6236]" /> Real-Time Groq Market Pricing
           </div>
           <button
             onClick={() => fetchMarketInsights("Catfish & Tilapia")}
-            className="flex items-center gap-1 text-[10px] font-extrabold text-[#0284C7] bg-white px-2 py-1 rounded-full border border-sky-200 cursor-pointer hover:bg-sky-50"
+            className="flex items-center gap-1 text-[10px] font-extrabold text-[#0F6236] bg-white px-2 py-1 rounded-full border border-gray-200 cursor-pointer hover:bg-gray-50"
           >
             <RefreshCw className={`w-3 h-3 ${loadingAI ? "animate-spin" : ""}`} /> Refresh
           </button>
         </div>
 
         {loadingAI ? (
-          <div className="flex items-center justify-center p-3 text-xs font-bold text-[#0284C7]">
+          <div className="flex items-center justify-center p-3 text-xs font-bold text-[#0F6236]">
             <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Fetching Live Prices & Demand...
           </div>
         ) : marketInsight ? (
           <div className="mt-2.5 space-y-1 text-xs">
             <div className="flex items-baseline justify-between">
-              <span className="text-slate-600 font-medium">Market Average Price:</span>
-              <span className="text-sm font-extrabold text-[#0284C7]">{marketInsight.currentPricePerKg}</span>
+              <span className="text-gray-600 font-medium">Market Average Price:</span>
+              <span className="text-sm font-extrabold text-[#0F6236]">{marketInsight.currentPricePerKg}</span>
             </div>
-            <p className="text-slate-700 font-medium text-[11.5px] pt-1">
+            <p className="text-gray-700 font-medium text-[11.5px] pt-1">
               📈 <span className="font-bold">Demand: </span>{marketInsight.buyerDemand}
             </p>
           </div>
@@ -161,13 +161,13 @@ export function MarketPage() {
       {/* Search Input Bar */}
       <section className="px-5 mt-4">
         <div className="relative flex items-center">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5" />
+          <Search className="w-4 h-4 text-gray-400 absolute left-3.5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search 30+ fish species by name or type..."
-            className="w-full h-11 pl-10 pr-4 bg-white border border-sky-100 rounded-xl text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-[#0284C7]/30 shadow-xs"
+            className="w-full h-11 pl-10 pr-4 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 outline-none focus:ring-2 focus:ring-[#0F6236]/20 shadow-xs"
           />
         </div>
       </section>
@@ -181,8 +181,8 @@ export function MarketPage() {
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${
                 selectedCategory === cat
-                  ? "bg-[#0284C7] text-white shadow-xs"
-                  : "bg-white text-slate-700 border border-sky-100 hover:bg-sky-50"
+                  ? "bg-[#0F6236] text-white shadow-xs"
+                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
               }`}
             >
               {cat}
@@ -193,44 +193,44 @@ export function MarketPage() {
 
       {/* Fish Grid List (30 Species) */}
       <section className="px-5 mt-4 space-y-3 pb-6">
-        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+        <div className="flex items-center justify-between text-xs font-bold text-gray-700">
           <span>Available Species ({filteredFish.length})</span>
-          <span className="text-[#0284C7] font-semibold">Live Stock Available</span>
+          <span className="text-[#0F6236] font-semibold">Live Stock Available</span>
         </div>
 
         {filteredFish.map((fish) => (
           <div
             key={fish.id}
-            className="bg-white rounded-2xl p-4 border border-sky-100 shadow-xs hover:border-[#0284C7]/40 transition-all space-y-2.5"
+            className="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs hover:border-[#0F6236]/40 transition-all space-y-2.5"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-xl shrink-0">
+                <div className="w-11 h-11 rounded-2xl bg-[#0F6236]/10 border border-[#0F6236]/20 flex items-center justify-center text-xl shrink-0">
                   🐟
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-extrabold text-slate-900">{fish.name}</h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-[#0284C7]">
+                    <h3 className="text-sm font-extrabold text-gray-900">{fish.name}</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#0F6236]/10 text-[#0F6236]">
                       {fish.category}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 italic font-medium">{fish.scientificName}</p>
+                  <p className="text-[11px] text-gray-500 italic font-medium">{fish.scientificName}</p>
                 </div>
               </div>
 
               <div className="text-right">
-                <div className="text-sm font-extrabold text-[#0284C7]">{fish.price}</div>
-                <div className="text-[10px] text-slate-500 font-semibold">{fish.unit}</div>
+                <div className="text-sm font-extrabold text-[#0F6236]">{fish.price}</div>
+                <div className="text-[10px] text-gray-500 font-semibold">{fish.unit}</div>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 font-medium leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+            <p className="text-xs text-gray-600 font-medium leading-relaxed bg-gray-50 p-2.5 rounded-xl border border-gray-100">
               {fish.description}
             </p>
 
-            <div className="flex items-center justify-between pt-1 border-t border-sky-100">
-              <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+            <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+              <span className="text-[11px] text-gray-500 font-semibold flex items-center gap-1">
                 📍 {fish.origin}
               </span>
 
@@ -243,7 +243,7 @@ export function MarketPage() {
                 </button>
                 <button
                   onClick={handleOrderCall}
-                  className="px-3 py-1.5 rounded-xl bg-[#0284C7] hover:bg-sky-600 text-white font-extrabold text-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                  className="px-3 py-1.5 rounded-xl bg-[#0F6236] hover:bg-emerald-800 text-white font-extrabold text-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
                 >
                   <Phone className="w-3.5 h-3.5" /> Call
                 </button>

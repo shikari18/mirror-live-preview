@@ -1,175 +1,131 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Settings, Camera, Award, Waves, Fish, TrendingUp, Calendar, User, LogOut, ChevronRight, MapPin, Globe } from "lucide-react";
-import { BottomNav, PhoneFrame } from "@/components/BottomNav";
+import { ArrowLeft, User, Phone, MapPin, Award, Save, LogOut } from "lucide-react";
 import farmerImg from "@/assets/farmer.jpg";
-import fishDecor from "@/assets/fish-decor.jpg";
-import { useLanguage } from "@/lib/languageContext";
-import { getFarmProfile } from "@/lib/farmMemory";
+import { getFarmProfile, saveFarmProfile } from "@/lib/farmMemory";
 
 export const Route = createFileRoute("/profile")({
   component: ProfilePage,
   head: () => ({
     meta: [
-      { title: "Profile — Fish Doctor App" },
-      { name: "description", content: "Manage your account, farm settings and preferences." },
+      { title: "My Farm Profile — Fish Doctor" },
+      { name: "description", content: "View and edit your farm profile and contact details." },
     ],
   }),
 });
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { language, t } = useLanguage();
-  const [userName, setUserName] = useState("Aquaculture Farmer");
-  const [userPhone, setUserPhone] = useState("+233 248785807");
-  const [pondCount, setPondCount] = useState<number>(0);
-  const [totalFish, setTotalFish] = useState<number>(0);
+  const [profile, setProfileState] = useState(getFarmProfile());
+  const [farmerName, setFarmerName] = useState(profile.farmerName || "Farmer Kofi");
+  const [farmerPhone, setFarmerPhone] = useState(profile.farmerPhone || "+233 248785807");
+  const [location, setLocation] = useState(profile.location || "Accra, Ghana");
+  const [savedMsg, setSavedMsg] = useState(false);
 
   useEffect(() => {
-    const profile = getFarmProfile();
-    const savedName = localStorage.getItem("user_name");
-    if (savedName) setUserName(savedName);
-    const savedPhone = localStorage.getItem("user_phone");
-    if (savedPhone) setUserPhone(savedPhone);
-
-    if (profile.ponds && Array.isArray(profile.ponds)) {
-      setPondCount(profile.ponds.length);
-      setTotalFish(profile.ponds.reduce((sum, p) => sum + (p.fishCount || 0), 0));
-    }
+    const saved = localStorage.getItem("user_name");
+    if (saved) setFarmerName(saved);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user_name");
-    localStorage.removeItem("user_phone");
-    localStorage.removeItem("fish_doctor_unified_farm_memory_v1");
-    navigate({ to: "/login" });
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated = {
+      ...profile,
+      farmerName,
+      farmerPhone,
+      location,
+    };
+    saveFarmProfile(updated);
+    setProfileState(updated);
+    localStorage.setItem("user_name", farmerName);
+    localStorage.setItem("user_phone", farmerPhone);
+
+    setSavedMsg(true);
+    setTimeout(() => setSavedMsg(false), 2500);
   };
 
   return (
-    <PhoneFrame>
-      {/* Header */}
-      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-sky-100 bg-white">
-        <h1 className="text-[24px] font-extrabold text-slate-900">{t("profile")}</h1>
-        <Link to="/settings" className="p-2 text-slate-700 hover:text-[#0284C7] rounded-full hover:bg-sky-50 transition-all cursor-pointer">
-          <Settings className="w-6 h-6" />
-        </Link>
-      </header>
+    <div className="min-h-screen bg-[#EAEFEA] flex justify-center items-center font-sans antialiased sm:py-4">
+      <main className="w-full max-w-[430px] min-h-screen sm:min-h-[820px] bg-[#FAFCFA] relative flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-[36px] sm:border sm:border-gray-200 pb-10">
+        
+        {/* Header */}
+        <header className="px-5 pt-6 pb-4 bg-white border-b border-gray-100 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <Link to="/home" className="p-1 text-gray-700 hover:text-gray-900 rounded-full hover:bg-gray-100">
+              <ArrowLeft className="w-6 h-6" />
+            </Link>
+            <h1 className="text-xl font-extrabold text-gray-900">Farmer Profile</h1>
+          </div>
+        </header>
 
-      {/* Main Profile Card */}
-      <section className="mx-5 mt-4 rounded-3xl bg-[#0284C7] text-white p-5 relative overflow-hidden shadow-lg shadow-[#0284C7]/20">
-        <img src={fishDecor} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-20" />
-        <div className="relative flex items-center gap-4">
-          <div className="relative shrink-0">
-            <img src={farmerImg} alt={userName} className="w-20 h-20 rounded-full object-cover border-4 border-white/30 shadow-md" />
-            <div className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-xs">
-              <Camera className="w-3.5 h-3.5 text-[#0284C7]" />
+        {/* Profile Details Form */}
+        <div className="p-5 space-y-5 flex-1 overflow-y-auto">
+          {/* Avatar Section */}
+          <div className="flex flex-col items-center justify-center pt-2">
+            <div className="relative">
+              <img src={farmerImg} alt="Farmer" className="w-20 h-20 rounded-full object-cover border-4 border-[#0F6236] shadow-md" />
+              <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#0F6236] text-white flex items-center justify-center text-xs font-bold border-2 border-white">
+                ✓
+              </div>
+            </div>
+            <h2 className="mt-3 font-extrabold text-gray-900 text-lg">{farmerName}</h2>
+            <div className="flex items-center gap-1 text-xs text-[#0F6236] font-semibold">
+              <Award className="w-4 h-4" /> Certified Commercial Aquaculture Farmer
             </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-[20px] font-extrabold truncate leading-tight">{userName}</h2>
-            <div className="text-[13px] opacity-90">{userPhone}</div>
-            <div className="flex items-center gap-1 text-[12px] opacity-90 mt-0.5">
-              <MapPin className="w-3.5 h-3.5" /> Accra & Regional Farms
+
+          {savedMsg && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-[#0F6236] text-xs font-bold rounded-xl text-center animate-in fade-in">
+              Profile Updated & Synced with Unified AI Memory!
             </div>
-            <div className="mt-2 inline-flex items-center gap-1 bg-white/20 text-white font-bold text-[11px] rounded-full px-2.5 py-0.5">
-              <Award className="w-3.5 h-3.5 text-sky-200" /> Verified Aquaculture Manager
+          )}
+
+          <form onSubmit={handleSave} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs space-y-3.5 text-xs">
+            <div>
+              <label className="block font-bold text-gray-700 mb-1 flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-[#0F6236]" /> Full Name
+              </label>
+              <input
+                type="text"
+                value={farmerName}
+                onChange={(e) => setFarmerName(e.target.value)}
+                className="w-full h-11 px-3 text-xs font-bold border border-gray-200 rounded-xl bg-gray-50 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
+              />
             </div>
-          </div>
+
+            <div>
+              <label className="block font-bold text-gray-700 mb-1 flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-[#0F6236]" /> Phone Number
+              </label>
+              <input
+                type="tel"
+                value={farmerPhone}
+                onChange={(e) => setFarmerPhone(e.target.value)}
+                className="w-full h-11 px-3 text-xs font-bold border border-gray-200 rounded-xl bg-gray-50 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-gray-700 mb-1 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-[#0F6236]" /> Farm Location / Region
+              </label>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full h-11 px-3 text-xs font-bold border border-gray-200 rounded-xl bg-gray-50 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full h-12 bg-[#0F6236] hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Save className="w-4 h-4" /> Save Profile Details
+            </button>
+          </form>
         </div>
-      </section>
-
-      {/* Dynamic Farm Overview */}
-      <section className="mx-5 mt-4 rounded-2xl border border-sky-100 bg-white p-4 shadow-xs">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-extrabold text-slate-900">Your Farm Metrics</h3>
-          <Link to="/my-farm" className="text-xs font-bold text-[#0284C7] hover:underline flex items-center gap-0.5">
-            Manage Ponds <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-4 gap-2 text-center">
-          <div className="flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-sky-50 text-[#0284C7] flex items-center justify-center">
-              <Waves className="w-5 h-5" />
-            </div>
-            <div className="text-[15px] font-extrabold text-slate-900 mt-1">{pondCount}</div>
-            <div className="text-[10.5px] text-slate-500 font-medium">Ponds</div>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-sky-50 text-[#0284C7] flex items-center justify-center">
-              <Fish className="w-5 h-5" />
-            </div>
-            <div className="text-[15px] font-extrabold text-slate-900 mt-1">{totalFish.toLocaleString()}</div>
-            <div className="text-[10.5px] text-slate-500 font-medium">Total Fish</div>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-sky-50 text-[#0284C7] flex items-center justify-center">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <div className="text-[15px] font-extrabold text-slate-900 mt-1">{pondCount > 0 ? "Good" : "Setup"}</div>
-            <div className="text-[10.5px] text-slate-500 font-medium">Growth</div>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-sky-50 text-[#0284C7] flex items-center justify-center">
-              <Calendar className="w-5 h-5" />
-            </div>
-            <div className="text-[15px] font-extrabold text-slate-900 mt-1">{pondCount > 0 ? "Active" : "None"}</div>
-            <div className="text-[10.5px] text-slate-500 font-medium">Status</div>
-          </div>
-        </div>
-      </section>
-
-      {/* Menu Actions */}
-      <section className="mx-5 mt-4 mb-6 rounded-2xl border border-sky-100 bg-white divide-y divide-sky-100 shadow-xs">
-        <Link to="/my-farm" className="w-full flex items-center gap-3.5 p-4 text-left hover:bg-sky-50 transition-all">
-          <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#0284C7] flex items-center justify-center shrink-0">
-            <Waves className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <div className="text-[14px] font-bold text-slate-900">Manage Ponds & Camera Scanner</div>
-            <div className="text-[12px] text-slate-500">{pondCount} ponds in unified memory</div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-slate-400" />
-        </Link>
-
-        <Link to="/settings" className="w-full flex items-center gap-3.5 p-4 text-left hover:bg-sky-50 transition-all">
-          <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#0284C7] flex items-center justify-center shrink-0">
-            <Globe className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <div className="text-[14px] font-bold text-slate-900">{t("chooseLanguage")} & App Settings</div>
-            <div className="text-[12px] text-slate-500">Current Language: {language}</div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-slate-400" />
-        </Link>
-
-        <button onClick={() => navigate({ to: "/onboarding" })} className="w-full flex items-center gap-3.5 p-4 text-left hover:bg-sky-50 transition-all cursor-pointer">
-          <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#0284C7] flex items-center justify-center shrink-0">
-            <User className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <div className="text-[14px] font-bold text-slate-900">Re-run Onboarding Setup</div>
-            <div className="text-[12px] text-slate-500">Update farm specifications & target weight</div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-slate-400" />
-        </button>
-
-        <button onClick={handleLogout} className="w-full flex items-center gap-3.5 p-4 text-left hover:bg-red-50 transition-all cursor-pointer">
-          <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
-            <LogOut className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <div className="text-[14px] font-bold text-red-600">Log Out</div>
-            <div className="text-[12px] text-slate-500">Sign out of Fish Doctor App</div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-slate-400" />
-        </button>
-      </section>
-
-      <BottomNav />
-    </PhoneFrame>
+      </main>
+    </div>
   );
 }

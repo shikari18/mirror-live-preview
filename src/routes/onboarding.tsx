@@ -8,7 +8,7 @@ export const Route = createFileRoute("/onboarding")({
   component: OnboardingPage,
   head: () => ({
     meta: [
-      { title: "Onboarding — Fish Doctor" },
+      { title: "Onboarding — Fish Doctor App" },
       { name: "description", content: "Customize your fish farm setup." },
     ],
   }),
@@ -74,15 +74,15 @@ export function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#E0F2FE] flex justify-center items-center font-sans antialiased sm:py-4">
-      <main className="w-full max-w-[430px] min-h-screen sm:min-h-[820px] bg-[#F0F9FF] relative flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-[36px] sm:border sm:border-blue-200">
+    <div className="min-h-screen bg-[#EAEFEA] flex justify-center items-center font-sans antialiased sm:py-4">
+      <main className="w-full max-w-[430px] min-h-screen sm:min-h-[820px] bg-[#FAFCFA] relative flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-[36px] sm:border sm:border-gray-200">
         
         {/* Header */}
         <div className="px-6 pt-6 flex items-center justify-between z-10">
           {step > 1 ? (
             <button
               onClick={() => setStep((s) => s - 1)}
-              className="p-2 -ml-2 text-slate-500 hover:text-slate-900 rounded-full hover:bg-sky-50 cursor-pointer"
+              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -97,10 +97,10 @@ export function OnboardingPage() {
                 key={idx}
                 className={`h-2 rounded-full transition-all ${
                   step === idx + 1
-                    ? "w-7 bg-[#0284C7]"
+                    ? "w-7 bg-[#0F6236]"
                     : step > idx + 1
-                    ? "w-2 bg-[#0284C7]/60"
-                    : "w-2 bg-slate-200"
+                    ? "w-2 bg-[#0F6236]/60"
+                    : "w-2 bg-gray-200"
                 }`}
               />
             ))}
@@ -108,7 +108,7 @@ export function OnboardingPage() {
 
           <button
             onClick={handleSkip}
-            className="text-sm font-bold text-slate-400 hover:text-slate-700 px-2 py-1 rounded-lg cursor-pointer"
+            className="text-sm font-bold text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg cursor-pointer"
           >
             Skip
           </button>
@@ -120,13 +120,13 @@ export function OnboardingPage() {
             {/* Step 1: Fish Type */}
             {step === 1 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 flex items-center justify-center text-[#0284C7] mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#0F6236]/10 flex items-center justify-center text-[#0F6236] mb-4">
                   <Fish className="w-6 h-6" />
                 </div>
-                <h1 className="text-[22px] font-extrabold text-slate-900 leading-tight">
+                <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight">
                   What type of fish do you raise?
                 </h1>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-sm text-gray-500 mt-1">
                   We'll customize your feeding schedules and AI Doctor targets.
                 </p>
 
@@ -141,18 +141,18 @@ export function OnboardingPage() {
                       onClick={() => setFishType(item.id)}
                       className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                         fishType === item.id
-                          ? "border-[#0284C7] bg-[#0284C7]/5 text-[#0284C7] font-bold shadow-xs"
-                          : "border-slate-200 hover:bg-sky-50 text-slate-800"
+                          ? "border-[#0F6236] bg-[#0F6236]/5 text-[#0F6236] font-bold shadow-xs"
+                          : "border-gray-200 hover:bg-gray-50 text-gray-800"
                       }`}
                     >
                       <div className="flex items-center gap-3.5">
                         <span className="text-2xl">{item.icon}</span>
                         <div>
                           <div className="text-[15px] font-bold">{item.label}</div>
-                          <div className="text-xs text-slate-400 font-normal">{item.desc}</div>
+                          <div className="text-xs text-gray-400 font-normal">{item.desc}</div>
                         </div>
                       </div>
-                      {fishType === item.id && <Check className="w-5 h-5 text-[#0284C7]" />}
+                      {fishType === item.id && <Check className="w-5 h-5 text-[#0F6236]" />}
                     </button>
                   ))}
                 </div>
@@ -162,13 +162,13 @@ export function OnboardingPage() {
             {/* Step 2: Pond Video */}
             {step === 2 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 flex items-center justify-center text-[#0284C7] mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#0F6236]/10 flex items-center justify-center text-[#0F6236] mb-4">
                   <Waves className="w-6 h-6" />
                 </div>
-                <h1 className="text-[22px] font-extrabold text-slate-900 leading-tight">
+                <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight">
                   Pond Count & Inspection Video
                 </h1>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-sm text-gray-500 mt-1">
                   Upload a short video of your pond for Groq AI inspection.
                 </p>
 
@@ -183,21 +183,21 @@ export function OnboardingPage() {
                       onClick={() => setPondCount(item.id)}
                       className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                         pondCount === item.id
-                          ? "border-[#0284C7] bg-[#0284C7]/5 text-[#0284C7] font-bold shadow-xs"
-                          : "border-slate-200 hover:bg-sky-50 text-slate-800"
+                          ? "border-[#0F6236] bg-[#0F6236]/5 text-[#0F6236] font-bold shadow-xs"
+                          : "border-gray-200 hover:bg-gray-50 text-gray-800"
                       }`}
                     >
                       <div>
                         <div className="text-[14px] font-bold">{item.label}</div>
-                        <div className="text-xs text-slate-400 font-normal">{item.desc}</div>
+                        <div className="text-xs text-gray-400 font-normal">{item.desc}</div>
                       </div>
-                      {pondCount === item.id && <Check className="w-5 h-5 text-[#0284C7]" />}
+                      {pondCount === item.id && <Check className="w-5 h-5 text-[#0F6236]" />}
                     </button>
                   ))}
 
                   <div className="pt-2">
-                    <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center gap-1">
-                      <Video className="w-4 h-4 text-[#0284C7]" /> Upload Pond Inspection Video <span className="text-red-500">*</span>
+                    <label className="block text-xs font-bold text-gray-800 mb-1.5 flex items-center gap-1">
+                      <Video className="w-4 h-4 text-[#0F6236]" /> Upload Pond Inspection Video <span className="text-red-500">*</span>
                     </label>
                     
                     <input
@@ -213,21 +213,21 @@ export function OnboardingPage() {
                       onClick={() => videoInputRef.current?.click()}
                       className={`w-full p-4 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
                         pondVideo
-                          ? "border-sky-600 bg-sky-50 text-sky-900"
-                          : "border-[#0284C7]/40 bg-sky-50 text-[#0284C7] hover:bg-sky-100"
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                          : "border-[#0F6236]/30 bg-[#0F6236]/5 text-[#0F6236] hover:bg-[#0F6236]/10"
                       }`}
                     >
                       {pondVideo ? (
                         <>
-                          <CheckCircle className="w-6 h-6 text-sky-600" />
+                          <CheckCircle className="w-6 h-6 text-emerald-600" />
                           <span>Video Uploaded: {pondVideo.name}</span>
-                          <span className="text-[10px] text-sky-600 font-normal">Fish Doctor AI will inspect your water layout!</span>
+                          <span className="text-[10px] text-emerald-600 font-normal">Fish Doctor AI will inspect your water layout!</span>
                         </>
                       ) : (
                         <>
-                          <UploadCloud className="w-6 h-6 text-[#0284C7]" />
+                          <UploadCloud className="w-6 h-6 text-[#0F6236]" />
                           <span>Tap to Upload / Record Pond Video</span>
-                          <span className="text-[10.5px] text-slate-500 font-normal">Show your water layout or fish swimming</span>
+                          <span className="text-[10.5px] text-gray-500 font-normal">Show your water layout or fish swimming</span>
                         </>
                       )}
                     </button>
@@ -239,13 +239,13 @@ export function OnboardingPage() {
             {/* Step 3: Farming Goal */}
             {step === 3 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 flex items-center justify-center text-[#0284C7] mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#0F6236]/10 flex items-center justify-center text-[#0F6236] mb-4">
                   <Target className="w-6 h-6" />
                 </div>
-                <h1 className="text-[22px] font-extrabold text-slate-900 leading-tight">
+                <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight">
                   What is your primary goal?
                 </h1>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-sm text-gray-500 mt-1">
                   We'll tailor your daily recommendations.
                 </p>
 
@@ -260,15 +260,15 @@ export function OnboardingPage() {
                       onClick={() => setPrimaryGoal(item.id)}
                       className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                         primaryGoal === item.id
-                          ? "border-[#0284C7] bg-[#0284C7]/5 text-[#0284C7] font-bold shadow-xs"
-                          : "border-slate-200 hover:bg-sky-50 text-slate-800"
+                          ? "border-[#0F6236] bg-[#0F6236]/5 text-[#0F6236] font-bold shadow-xs"
+                          : "border-gray-200 hover:bg-gray-50 text-gray-800"
                       }`}
                     >
                       <div>
                         <div className="text-[15px] font-bold">{item.label}</div>
-                        <div className="text-xs text-slate-400 font-normal">{item.desc}</div>
+                        <div className="text-xs text-gray-400 font-normal">{item.desc}</div>
                       </div>
-                      {primaryGoal === item.id && <Check className="w-5 h-5 text-[#0284C7]" />}
+                      {primaryGoal === item.id && <Check className="w-5 h-5 text-[#0F6236]" />}
                     </button>
                   ))}
                 </div>
@@ -278,14 +278,14 @@ export function OnboardingPage() {
             {/* Step 4: Language Selection */}
             {step === 4 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 flex items-center justify-center text-[#0284C7] mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#0F6236]/10 flex items-center justify-center text-[#0F6236] mb-4">
                   <Globe className="w-6 h-6" />
                 </div>
-                <h1 className="text-[22px] font-extrabold text-slate-900 leading-tight">
+                <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight">
                   Choose Preferred Language
                 </h1>
-                <p className="text-sm text-slate-500 mt-1">
-                  Fish Doctor AI will speak and reply in your selected language.
+                <p className="text-sm text-gray-500 mt-1">
+                  Fish Doctor AI will speak and reply in your selected language audio.
                 </p>
 
                 <div className="space-y-2.5 mt-6">
@@ -301,15 +301,15 @@ export function OnboardingPage() {
                       onClick={() => setSelectedLang(lang.id as SupportedLanguage)}
                       className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                         selectedLang === lang.id
-                          ? "border-[#0284C7] bg-[#0284C7]/5 text-[#0284C7] font-bold shadow-xs"
-                          : "border-slate-200 hover:bg-sky-50 text-slate-800"
+                          ? "border-[#0F6236] bg-[#0F6236]/5 text-[#0F6236] font-bold shadow-xs"
+                          : "border-gray-200 hover:bg-gray-50 text-gray-800"
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-xl">{lang.flag}</span>
                         <span className="text-[15px] font-semibold">{lang.label}</span>
                       </div>
-                      {selectedLang === lang.id && <Check className="w-5 h-5 text-[#0284C7]" />}
+                      {selectedLang === lang.id && <Check className="w-5 h-5 text-[#0F6236]" />}
                     </button>
                   ))}
                 </div>
@@ -320,7 +320,7 @@ export function OnboardingPage() {
           {/* Continue / Finish Button */}
           <button
             onClick={handleNext}
-            className="w-full h-13 mt-6 bg-[#0284C7] hover:bg-sky-600 text-white font-extrabold text-[15.5px] rounded-2xl shadow-lg shadow-[#0284C7]/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+            className="w-full h-13 mt-6 bg-[#0F6236] hover:bg-[#0B502B] text-white font-extrabold text-[15.5px] rounded-2xl shadow-lg shadow-[#0F6236]/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
           >
             {step === totalSteps ? (
               <>Finish & Go to Dashboard</>
