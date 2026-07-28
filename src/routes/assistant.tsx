@@ -308,16 +308,17 @@ export function AssistantPage() {
   };
 
   const parseInlineBold = (str: string) => {
+    if (!str) return "";
     const parts = str.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) => {
-      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      if (part && part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         return (
           <strong key={i} className="font-extrabold text-gray-900">
             {part.slice(2, -2)}
           </strong>
         );
       }
-      return part;
+      return part || "";
     });
   };
 

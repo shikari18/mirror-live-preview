@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { ArrowLeft, ShieldAlert, Key, Users, Eye, EyeOff, Trash2, Search, Download, CheckCircle2, XCircle, RefreshCw, Cpu } from "lucide-react";
+import { ArrowLeft, ShieldAlert, Key, Users, Eye, EyeOff, Trash2, Search, Download, CheckCircle2, XCircle, RefreshCw, Cpu, Lock, LogOut } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import { getRegisteredAccounts, deleteAccountById, UserAccount } from "@/lib/userAccounts";
 
@@ -27,6 +27,10 @@ const getGroqKey = (): string => {
 };
 
 export function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [passwordInput, setPasswordInput] = useState<string>("");
+  const [passwordError, setPasswordError] = useState<string>("");
+
   const [accounts, setAccounts] = useState<UserAccount[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showKeys, setShowKeys] = useState(false);
@@ -35,8 +39,30 @@ export function AdminPage() {
   const googleClientId = "452065425715-minmjhca07v6102q8al1ephe2l6sdvds.apps.googleusercontent.com";
 
   useEffect(() => {
-    refreshAccounts();
+    const savedAuth = sessionStorage.getItem("admin_authenticated_v1");
+    if (savedAuth === "true") {
+      setIsAuthenticated(true);
+      refreshAccounts();
+    }
   }, []);
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === "1222") {
+      setIsAuthenticated(true);
+      sessionStorage.setItem("admin_authenticated_v1", "true");
+      setPasswordError("");
+      refreshAccounts();
+    } else {
+      setPasswordError("Incorrect Admin password! Please try again.");
+    }
+  };
+
+  const handleAdminLogout = () => {
+    sessionStorage.removeItem("admin_authenticated_v1");
+    setIsAuthenticated(false);
+    setPasswordInput("");
+  };
 
   const refreshAccounts = () => {
     setAccounts(getRegisteredAccounts());
@@ -67,6 +93,61 @@ export function AdminPage() {
       (acc.farmName && acc.farmName.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // If not authenticated, render Password Gate Screen
+  if (!isAuthenticated) {
+    return (
+      <PhoneFrame>
+        <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-200 bg-white">
+          <div className="flex items-center gap-3">
+            <Link to="/home" className="p-1 hover:bg-gray-100 rounded-full">
+              <ArrowLeft className="w-5.5 h-5.5 text-gray-900" />
+            </Link>
+            <h1 className="text-[19px] font-extrabold text-gray-900 leading-tight">Admin Authentication</h1>
+          </div>
+        </header>
+
+        <div className="p-6 flex-1 flex flex-col justify-center items-center text-center">
+          <div className="w-16 h-16 rounded-3xl bg-[#0F6236] text-white flex items-center justify-center shadow-xl shadow-[#0F6236]/30 mb-4">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <h2 className="text-xl font-extrabold text-gray-900 mb-1">Restricted Access</h2>
+          <p className="text-xs text-gray-500 font-medium mb-6 max-w-[260px]">
+            Please enter your 4-digit Admin Security PIN to view system keys & user database.
+          </p>
+
+          <form onSubmit={handlePasswordSubmit} className="w-full max-w-[300px] space-y-4">
+            <input
+              type="password"
+              maxLength={10}
+              required
+              autoFocus
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="Enter PIN (1222)"
+              className="w-full h-13 rounded-2xl border border-gray-300 text-center text-lg font-mono font-extrabold text-gray-900 bg-white shadow-xs outline-none focus:ring-2 focus:ring-[#0F6236]"
+            />
+
+            {passwordError && (
+              <div className="text-xs font-bold text-red-600 bg-red-50 p-2.5 rounded-xl border border-red-200 animate-in fade-in">
+                {passwordError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full h-13 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-sm shadow-lg shadow-[#0F6236]/25 cursor-pointer transition-all active:scale-95"
+            >
+              Unlock Console
+            </button>
+          </form>
+        </div>
+
+        <BottomNav />
+      </PhoneFrame>
+    );
+  }
+
   return (
     <PhoneFrame>
       {/* Header */}
@@ -82,8 +163,8 @@ export function AdminPage() {
             <div className="text-xs font-bold text-gray-500">System Keys & Accounts Database</div>
           </div>
         </div>
-        <button onClick={refreshAccounts} className="p-2 rounded-xl bg-emerald-50 text-[#0F6236] hover:bg-emerald-100 cursor-pointer">
-          <RefreshCw className="w-4 h-4" />
+        <button onClick={handleAdminLogout} title="Lock Console" className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer">
+          <LogOut className="w-4 h-4" />
         </button>
       </header>
 
