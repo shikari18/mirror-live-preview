@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { User, Lock, Eye, EyeOff, ChevronDown, Globe, Info, X } from "lucide-react";
-import { useState } from "react";
+import { User, Lock, Eye, EyeOff, ChevronDown, Globe } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { GhanaFlag } from "@/components/ui/GhanaFlag";
 import { GoogleLogo } from "@/components/ui/GoogleLogo";
 import { FishFarmLogo } from "@/components/ui/FishFarmLogo";
@@ -17,6 +17,24 @@ export const Route = createFileRoute("/signup")({
   }),
 });
 
+const GOOGLE_CLIENT_ID = "452065425715-minmjhca07v6102q8al1ephe2l6sdvds.apps.googleusercontent.com";
+
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
+
 function SignUpPage() {
   const navigate = useNavigate();
   const { t, language } = useLanguage();
@@ -27,9 +45,52 @@ function SignUpPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLangOpen, setIsLangOpen] = useState(false);
-  const [isGoogleInfoOpen, setIsGoogleInfoOpen] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  const googleClientId = "452065425715-minmjhca07v6102q8al1ephe2l6sdvds.apps.googleusercontent.com";
+  useEffect(() => {
+    // Dynamically load Google Identity Services Script
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if ((window as any).google) {
+        (window as any).google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredentialResponse,
+        });
+
+        if (googleBtnRef.current) {
+          (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
+            theme: "outline",
+            size: "large",
+            width: "350",
+            text: "signup_with",
+            shape: "pill",
+          });
+        }
+      }
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      try {
+        document.body.removeChild(script);
+      } catch {}
+    };
+  }, []);
+
+  const handleGoogleCredentialResponse = (response: any) => {
+    if (response?.credential) {
+      const payload = parseJwt(response.credential);
+      if (payload) {
+        localStorage.setItem("user_name", payload.name || payload.given_name || "Google User");
+        localStorage.setItem("user_email", payload.email || "");
+        localStorage.setItem("user_google_signed_in", "true");
+        navigate({ to: "/onboarding" });
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,29 +103,25 @@ function SignUpPage() {
     navigate({ to: "/onboarding" });
   };
 
-  const handleGoogleSignup = () => {
-    localStorage.setItem("user_google_signed_in", "true");
-    navigate({ to: "/onboarding" });
+  const triggerGooglePrompt = () => {
+    if ((window as any).google) {
+      (window as any).google.accounts.id.prompt();
+    } else {
+      alert("Google Sign-In is initializing. Please tap again in a moment.");
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#EAEFEA] flex justify-center items-center font-sans antialiased sm:py-4">
       <main className="w-full max-w-[430px] min-h-screen sm:min-h-[860px] bg-[#FAFCFA] relative flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-[36px] sm:border sm:border-gray-200">
         
-        {/* Header Bar */}
+        {/* Header Bar - Top Right Info Button Removed as requested */}
         <div className="px-5 pt-5 z-20 flex items-center justify-between">
           <button
             onClick={() => setIsLangOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-bold text-[#0F6236] shadow-xs cursor-pointer hover:bg-gray-50"
           >
             <Globe className="w-3.5 h-3.5" /> Language: {language}
-          </button>
-
-          <button
-            onClick={() => setIsGoogleInfoOpen(true)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#0F6236]/10 text-xs font-bold text-[#0F6236] cursor-pointer hover:bg-[#0F6236]/20"
-          >
-            <Info className="w-3.5 h-3.5" /> Google Auth Info
           </button>
         </div>
 
@@ -195,10 +252,15 @@ function SignUpPage() {
               </span>
             </div>
 
-            {/* Google Sign In Button */}
+            {/* Official Google GIS Button Render Container */}
+            <div className="flex justify-center my-1">
+              <div ref={googleBtnRef} />
+            </div>
+
+            {/* Fallback Google Sign In Button */}
             <button
               type="button"
-              onClick={handleGoogleSignup}
+              onClick={triggerGooglePrompt}
               className="w-full h-12 bg-white border border-gray-200 hover:bg-gray-50 active:scale-[0.98] transition-all text-gray-900 text-[15px] font-bold rounded-[15px] shadow-xs flex items-center justify-center gap-2.5 cursor-pointer"
             >
               <GoogleLogo className="w-4.5 h-4.5" />
@@ -217,57 +279,6 @@ function SignUpPage() {
 
         {/* Modals */}
         <LanguageModal isOpen={isLangOpen} onClose={() => setIsLangOpen(false)} />
-
-        {/* Google OAuth Credentials Instructions Modal */}
-        {isGoogleInfoOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-            <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-gray-100 relative space-y-3">
-              <button
-                onClick={() => setIsGoogleInfoOpen(false)}
-                className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
-                🔑 Google OAuth 2.0 Client ID Active
-              </h3>
-              <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs">
-                <span className="font-extrabold text-[#0F6236] block">Client ID Configured:</span>
-                <code className="text-[10px] break-all font-mono text-emerald-900">{googleClientId}</code>
-              </div>
-
-              <p className="text-xs text-gray-600">
-                Render Domain: <code className="font-bold text-[#0F6236]">https://fish-t7c0.onrender.com</code>
-              </p>
-
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200">
-                  <span className="font-extrabold text-[#0F6236] block mb-1">Authorised JavaScript origins:</span>
-                  <code className="text-[10.5px] block text-gray-800 space-y-0.5">
-                    <div>http://localhost:5173</div>
-                    <div>https://fish-t7c0.onrender.com</div>
-                  </code>
-                </div>
-
-                <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200">
-                  <span className="font-extrabold text-[#0F6236] block mb-1">Authorised redirect URIs:</span>
-                  <code className="text-[10.5px] block text-gray-800 space-y-0.5">
-                    <div>http://localhost:5173/login</div>
-                    <div>https://fish-t7c0.onrender.com/login</div>
-                  </code>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setIsGoogleInfoOpen(false)}
-                className="w-full h-11 bg-[#0F6236] text-white font-bold text-xs rounded-xl cursor-pointer"
-              >
-                Got It
-              </button>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

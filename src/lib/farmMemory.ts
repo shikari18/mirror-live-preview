@@ -22,42 +22,15 @@ export interface UserFarmProfile {
   notes: string[];
 }
 
-const STORAGE_KEY = "fish_doctor_unified_farm_memory_v1";
+const STORAGE_KEY = "fish_doctor_unified_farm_memory_v2";
 
 const DEFAULT_PROFILE: UserFarmProfile = {
   name: "Aquaculture Farmer",
   phone: "+233 248785807",
   location: "Accra, Ghana",
-  experienceLevel: "Intermediate",
+  experienceLevel: "Commercial Farmer",
   targetWeightKg: 1.2,
-  ponds: [
-    {
-      id: "pond-1",
-      name: "Main Concrete Pond 1",
-      type: "Concrete",
-      widthMeters: 5,
-      lengthMeters: 8,
-      depthMeters: 1.5,
-      volumeLiters: 60000,
-      fishCount: 1500,
-      fishType: "Nile Tilapia",
-      dateAdded: new Date().toISOString(),
-      measuredViaCamera: false,
-    },
-    {
-      id: "pond-2",
-      name: "Tarpaulin Rearing Pond 2",
-      type: "Tarpaulin",
-      widthMeters: 4,
-      lengthMeters: 4,
-      depthMeters: 1.2,
-      volumeLiters: 19200,
-      fishCount: 800,
-      fishType: "African Catfish",
-      dateAdded: new Date().toISOString(),
-      measuredViaCamera: false,
-    }
-  ],
+  ponds: [], // STRICTLY EMPTY - No hardcoded sample ponds!
   notes: [],
 };
 
@@ -92,6 +65,18 @@ export function addPondToMemory(pond: Omit<PondRecord, "id" | "dateAdded">): Pon
   return newPond;
 }
 
+export function deletePondFromMemory(id: string): void {
+  const profile = getFarmProfile();
+  profile.ponds = profile.ponds.filter((p) => p.id !== id);
+  saveFarmProfile(profile);
+}
+
+export function clearAllPondsFromMemory(): void {
+  const profile = getFarmProfile();
+  profile.ponds = [];
+  saveFarmProfile(profile);
+}
+
 export function getUnifiedMemoryPrompt(): string {
   const profile = getFarmProfile();
   const totalFish = profile.ponds.reduce((acc, p) => acc + (p.fishCount || 0), 0);
@@ -103,10 +88,14 @@ export function getUnifiedMemoryPrompt(): string {
   summary += `TARGET HARVEST WEIGHT: ${profile.targetWeightKg} kg\n`;
   summary += `TOTAL PONDS: ${profile.ponds.length} ponds | TOTAL FISH STOCK: ${totalFish} fish | TOTAL WATER VOLUME: ${totalVolume.toLocaleString()} Liters\n\n`;
 
-  summary += `DETAILED POND INVENTORY:\n`;
-  profile.ponds.forEach((p, idx) => {
-    summary += `${idx + 1}. [${p.name}] - Type: ${p.type} | Dimensions: ${p.widthMeters}m W x ${p.lengthMeters}m L x ${p.depthMeters}m D | Volume: ${p.volumeLiters.toLocaleString()} L | Stock: ${p.fishCount} ${p.fishType} ${p.measuredViaCamera ? "(Measured via AR Camera Scanner)" : ""}\n`;
-  });
+  if (profile.ponds.length > 0) {
+    summary += `DETAILED POND INVENTORY:\n`;
+    profile.ponds.forEach((p, idx) => {
+      summary += `${idx + 1}. [${p.name}] - Type: ${p.type} | Dimensions: ${p.widthMeters}m W x ${p.lengthMeters}m L x ${p.depthMeters}m D | Volume: ${p.volumeLiters.toLocaleString()} L | Stock: ${p.fishCount} ${p.fishType} ${p.measuredViaCamera ? "(Measured via AR Camera Scanner)" : ""}\n`;
+    });
+  } else {
+    summary += `NO PONDS MEASURED YET.\n`;
+  }
 
   return summary;
 }

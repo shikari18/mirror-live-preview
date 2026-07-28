@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Plus, Waves, MapPin, ArrowLeft, Camera, Check, RefreshCw, X, Sparkles } from "lucide-react";
+import { Plus, Waves, MapPin, ArrowLeft, Camera, Check, RefreshCw, X, Sparkles, Trash2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { useLanguage } from "@/lib/languageContext";
-import { getFarmProfile, addPondToMemory, PondRecord } from "@/lib/farmMemory";
+import { getFarmProfile, addPondToMemory, deletePondFromMemory, clearAllPondsFromMemory, PondRecord } from "@/lib/farmMemory";
 
 export const Route = createFileRoute("/my-farm")({
   component: MyFarmPage,
@@ -56,6 +56,18 @@ export function MyFarmPage() {
     const fresh = getFarmProfile();
     setProfile(fresh);
     setPonds(fresh.ponds || []);
+  };
+
+  const handleDeletePond = (id: string) => {
+    deletePondFromMemory(id);
+    refreshMemory();
+  };
+
+  const handleClearAllPonds = () => {
+    if (confirm("Are you sure you want to clear all measured ponds?")) {
+      clearAllPondsFromMemory();
+      refreshMemory();
+    }
   };
 
   useEffect(() => {
@@ -111,10 +123,8 @@ export function MyFarmPage() {
           canvas.width = video.videoWidth || 640;
           canvas.height = video.videoHeight || 480;
 
-          // Draw live video frame into canvas
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-          // Real-time brightness & pixel boundary estimation
           const frameData = ctx.getImageData(canvas.width / 4, canvas.height / 4, canvas.width / 2, canvas.height / 2);
           let pixelSum = 0;
           for (let i = 0; i < frameData.data.length; i += 16) {
@@ -122,7 +132,6 @@ export function MyFarmPage() {
           }
           const avgBrightness = pixelSum / (frameData.data.length / 16);
 
-          // Dynamic scale based on real camera focal frame
           const dynamicFactor = 1 + (avgBrightness % 20) / 100;
           const calculatedLiters = Math.round(targetWidth * targetLength * targetDepth * 1000 * dynamicFactor);
           setLiveVolumeLiters(calculatedLiters);
@@ -246,13 +255,20 @@ export function MyFarmPage() {
       {/* Ponds List */}
       <section className="px-5 mt-5 pb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-extrabold text-gray-900">Your Active Ponds</h2>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="text-xs font-bold text-[#0F6236] hover:underline cursor-pointer"
-          >
-            + Add Standard Pond
-          </button>
+          <h2 className="text-base font-extrabold text-gray-900">Your Active Ponds ({ponds.length})</h2>
+          <div className="flex items-center gap-2">
+            {ponds.length > 0 && (
+              <button onClick={handleClearAllPonds} className="text-xs font-bold text-red-500 hover:underline cursor-pointer">
+                Clear All
+              </button>
+            )}
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="text-xs font-bold text-[#0F6236] hover:underline cursor-pointer"
+            >
+              + Add Standard Pond
+            </button>
+          </div>
         </div>
 
         {ponds.length === 0 ? (
@@ -272,7 +288,7 @@ export function MyFarmPage() {
         ) : (
           <div className="space-y-3">
             {ponds.map((p) => (
-              <div key={p.id} className="p-4 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-2">
+              <div key={p.id} className="p-4 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-2 relative">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-2xl bg-[#0F6236]/10 text-[#0F6236] border border-[#0F6236]/20 flex items-center justify-center font-bold text-lg shrink-0">
@@ -284,11 +300,20 @@ export function MyFarmPage() {
                     </div>
                   </div>
 
-                  {p.measuredViaCamera && (
-                    <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Camera className="w-3 h-3" /> AR Measured
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {p.measuredViaCamera && (
+                      <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Camera className="w-3 h-3" /> AR Measured
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleDeletePond(p.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 cursor-pointer transition-colors"
+                      title="Delete Pond"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-gray-100 text-center text-xs">
