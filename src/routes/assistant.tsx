@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Send, Mic, ArrowLeft, Stethoscope, Loader2, MapPin, Video, PhoneOff, MicOff, RefreshCw, Volume2, Download, Paperclip, FileText, Camera, Check, VideoOff, SwitchCamera, UserCheck } from "lucide-react";
+import { Send, Mic, ArrowLeft, Stethoscope, Loader2, MapPin, Video, PhoneOff, MicOff, RefreshCw, Volume2, Download, Paperclip, FileText, Camera, Check, VideoOff, SwitchCamera, UserCheck, Plus } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
