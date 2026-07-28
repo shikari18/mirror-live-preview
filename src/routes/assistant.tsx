@@ -312,7 +312,7 @@ export function AssistantPage() {
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         return (
-          <strong key={i} className="font-extrabold text-gray-900">
+          <strong key={i} className="font-extrabold text-black">
             {part.slice(2, -2)}
           </strong>
         );
@@ -323,22 +323,22 @@ export function AssistantPage() {
 
   return (
     <PhoneFrame>
-      {/* Header */}
-      <header className="px-5 pt-3.5 pb-3.5 flex items-center justify-between border-b border-gray-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-20 shadow-xs">
+      {/* Header - Apple Frosted Glass */}
+      <header className="px-5 pt-3.5 pb-3.5 flex items-center justify-between border-b border-black/5 bg-white/75 backdrop-blur-2xl sticky top-0 z-30">
         <div className="flex items-center gap-3">
-          <Link to="/home" className="p-1.5 cursor-pointer hover:bg-gray-100/80 rounded-full transition-all">
-            <ArrowLeft className="w-5.5 h-5.5 text-gray-900" />
+          <Link to="/home" className="p-1.5 cursor-pointer hover:bg-black/5 rounded-full transition-all">
+            <ArrowLeft className="w-5.5 h-5.5 text-black" />
           </Link>
-          <div className="w-10 h-10 rounded-2xl bg-[#0F6236] text-white flex items-center justify-center font-extrabold text-base shadow-md shadow-[#0F6236]/20">
+          <div className="w-10 h-10 rounded-[20px] bg-black text-white flex items-center justify-center font-extrabold text-base shadow-md">
             <Stethoscope className="w-5.5 h-5.5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-extrabold text-gray-900 flex items-center gap-1.5 leading-tight">
+            <h1 className="text-sm font-extrabold text-black flex items-center gap-1.5 leading-tight tracking-tight">
               Fish Doctor AI
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             </h1>
             <p className="text-[10.5px] text-gray-500 font-semibold flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-[#0F6236] shrink-0" />
+              <MapPin className="w-3 h-3 text-black shrink-0" />
               <span className="truncate max-w-[140px]">{userLocationInfo.city}</span>
             </p>
           </div>
@@ -348,14 +348,14 @@ export function AssistantPage() {
         <div className="flex items-center gap-2">
           <Link
             to="/extension-support"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-[#0F6236]/10 text-[#0F6236] border border-[#0F6236]/20 text-[11px] font-extrabold cursor-pointer hover:bg-[#0F6236]/20 transition-all"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-gray-100 text-black border border-black/10 text-[11px] font-extrabold cursor-pointer hover:bg-gray-200 transition-all"
           >
             <UserCheck className="w-3.5 h-3.5" /> Extension
           </Link>
 
           <button
             onClick={() => setIsVideoCallOpen(true)}
-            className="flex items-center gap-1 px-3.5 py-1.5 rounded-2xl bg-[#0F6236] hover:bg-[#0B4A28] text-white text-[11px] font-extrabold shadow-md shadow-[#0F6236]/25 transition-all cursor-pointer active:scale-95"
+            className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-black text-white text-[11px] font-extrabold shadow-md hover:bg-gray-800 transition-all cursor-pointer active:scale-95"
           >
             <Video className="w-3.5 h-3.5" /> Video Call
           </button>
@@ -363,29 +363,29 @@ export function AssistantPage() {
       </header>
 
       {/* AI Chat Messages UI */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-[#F6F8F6] min-h-[460px]">
+      <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-[#F2F2F7] min-h-[460px]">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
           >
             <div
-              className={`max-w-[88%] p-4 rounded-3xl text-xs leading-relaxed ${
+              className={`max-w-[88%] p-4 rounded-[26px] text-xs leading-relaxed ${
                 msg.sender === "user"
-                  ? "bg-[#0F6236] text-white font-medium rounded-br-xs shadow-md shadow-[#0F6236]/20"
-                  : "bg-white text-gray-900 border border-gray-200/90 rounded-bl-xs shadow-md"
+                  ? "bg-black text-white font-medium rounded-br-xs shadow-md"
+                  : "bg-white text-black border border-black/10 rounded-bl-xs shadow-md"
               }`}
             >
               {/* Attachment Preview */}
               {msg.attachment && (
-                <div className="mb-2.5 p-1.5 bg-gray-100 rounded-2xl overflow-hidden border border-gray-200">
+                <div className="mb-2.5 p-1.5 bg-gray-100 rounded-[20px] overflow-hidden border border-black/5">
                   {msg.attachment.type === "image" ? (
-                    <img src={msg.attachment.url} alt="Uploaded" className="w-full h-44 object-cover rounded-xl" />
+                    <img src={msg.attachment.url} alt="Uploaded" className="w-full h-44 object-cover rounded-[16px]" />
                   ) : msg.attachment.type === "video" ? (
-                    <video src={msg.attachment.url} controls className="w-full h-44 object-cover rounded-xl" />
+                    <video src={msg.attachment.url} controls className="w-full h-44 object-cover rounded-[16px]" />
                   ) : (
-                    <div className="flex items-center gap-2 text-xs font-bold text-gray-900">
-                      <FileText className="w-5 h-5 text-[#0F6236]" /> {msg.attachment.name}
+                    <div className="flex items-center gap-2 text-xs font-bold text-black">
+                      <FileText className="w-5 h-5 text-black" /> {msg.attachment.name}
                     </div>
                   )}
                 </div>
@@ -396,7 +396,7 @@ export function AssistantPage() {
                 {msg.text.split("\n").map((line, idx) => {
                   if (line.startsWith("### ")) {
                     return (
-                      <h4 key={idx} className="font-extrabold text-xs text-[#0F6236] pt-1 pb-0.5">
+                      <h4 key={idx} className="font-extrabold text-xs text-black pt-1 pb-0.5 tracking-tight">
                         {parseInlineBold(line.replace("### ", ""))}
                       </h4>
                     );
@@ -404,8 +404,8 @@ export function AssistantPage() {
                   if (line.startsWith("- ") || line.startsWith("* ")) {
                     const content = line.substring(2);
                     return (
-                      <div key={idx} className="flex items-start gap-1.5 text-xs text-gray-800 font-medium my-0.5">
-                        <span className="text-[#0F6236] font-bold">•</span>
+                      <div key={idx} className="flex items-start gap-1.5 text-xs text-black font-semibold my-0.5">
+                        <span className="text-black font-extrabold">•</span>
                         <span>{parseInlineBold(content)}</span>
                       </div>
                     );
@@ -417,13 +417,13 @@ export function AssistantPage() {
               {/* Audio Player Button */}
               {msg.sender === "ai" && (
                 <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between mt-2.5">
-                  <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
+                  <span className="text-[10px] text-gray-500 font-medium">{msg.time}</span>
                   <button
                     onClick={() => playVoice(msg.text, msg.id)}
                     className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-extrabold transition-all cursor-pointer shadow-xs ${
                       playingMsgId === msg.id
-                        ? "bg-[#0F6236] text-white animate-pulse"
-                        : "bg-emerald-50 text-[#0F6236] hover:bg-emerald-100 border border-[#0F6236]/20"
+                        ? "bg-black text-white animate-pulse"
+                        : "bg-gray-100 text-black hover:bg-gray-200 border border-black/10"
                     }`}
                   >
                     {playingMsgId === msg.id && voiceProgress.includes("Downloading") ? (
@@ -438,14 +438,14 @@ export function AssistantPage() {
             </div>
 
             {msg.sender === "user" && (
-              <span className="text-[10px] text-gray-400 mt-1 px-1">{msg.time}</span>
+              <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.time}</span>
             )}
           </div>
         ))}
 
         {loading && (
-          <div className="flex items-center gap-2 text-xs text-[#0F6236] font-extrabold bg-white p-3.5 rounded-2xl border border-gray-200 w-fit shadow-md">
-            <Loader2 className="w-4 h-4 animate-spin text-[#0F6236]" /> Fish Doctor AI thinking...
+          <div className="flex items-center gap-2 text-xs text-black font-extrabold bg-white p-3.5 rounded-[22px] border border-black/10 w-fit shadow-md">
+            <Loader2 className="w-4 h-4 animate-spin text-black" /> Fish Doctor AI thinking...
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -453,16 +453,16 @@ export function AssistantPage() {
 
       {/* Attachment Preview Bar */}
       {attachment && (
-        <div className="px-4 py-2 bg-emerald-50 border-t border-emerald-200 flex items-center justify-between text-xs font-extrabold text-emerald-900">
+        <div className="px-4 py-2 bg-gray-100 border-t border-black/10 flex items-center justify-between text-xs font-extrabold text-black">
           <div className="flex items-center gap-2 truncate">
-            <Paperclip className="w-4 h-4 text-[#0F6236]" /> Attached {attachment.type}: {attachment.name}
+            <Paperclip className="w-4 h-4 text-black" /> Attached {attachment.type}: {attachment.name}
           </div>
           <button onClick={() => setAttachment(null)} className="text-red-600 font-extrabold px-1 cursor-pointer">✕</button>
         </div>
       )}
 
       {/* Suggested Questions */}
-      <div className="px-4 py-2 bg-white border-t border-gray-200/80 flex gap-2 overflow-x-auto">
+      <div className="px-4 py-2 bg-white border-t border-black/5 flex gap-2 overflow-x-auto">
         {[
           "Best feed for 1kg Catfish?",
           "How to calculate pond volume?",
@@ -472,7 +472,7 @@ export function AssistantPage() {
           <button
             key={q}
             onClick={() => handleSend(q)}
-            className="shrink-0 text-[11px] font-extrabold text-[#0F6236] bg-[#0F6236]/10 px-3.5 py-1.5 rounded-full hover:bg-[#0F6236]/20 transition-all cursor-pointer shadow-2xs border border-[#0F6236]/20"
+            className="shrink-0 text-[11px] font-extrabold text-white bg-black px-4 py-1.5 rounded-full hover:bg-gray-800 transition-all cursor-pointer shadow-xs"
           >
             💬 {q}
           </button>
@@ -480,7 +480,7 @@ export function AssistantPage() {
       </div>
 
       {/* Input Bar */}
-      <div className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
+      <div className="p-3 bg-white border-t border-black/5 flex items-center gap-2">
         <input
           type="file"
           ref={fileInputRef}
@@ -490,10 +490,10 @@ export function AssistantPage() {
         />
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="w-11 h-11 rounded-2xl bg-gray-100 hover:bg-[#0F6236]/10 text-gray-700 hover:text-[#0F6236] flex items-center justify-center font-extrabold text-xl shrink-0 transition-all cursor-pointer border border-gray-200"
+          className="w-11 h-11 rounded-full bg-gray-100 hover:bg-gray-200 text-black flex items-center justify-center font-extrabold text-xl shrink-0 transition-all cursor-pointer border border-black/10"
           title="Upload photo or video of your fish"
         >
-          <Plus className="w-5 h-5 text-gray-700" />
+          <Plus className="w-5 h-5 text-black" />
         </button>
 
         <input
@@ -502,13 +502,13 @@ export function AssistantPage() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Ask Fish Doctor AI..."
-          className="flex-1 h-11 bg-gray-50 border border-gray-200/80 rounded-2xl px-4 text-xs font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
+          className="flex-1 h-11 bg-gray-100 border border-black/10 rounded-full px-4 text-xs font-semibold text-black outline-none focus:ring-2 focus:ring-black"
         />
 
         <button
           onClick={() => handleSend()}
           disabled={loading || (!input.trim() && !attachment)}
-          className="w-11 h-11 rounded-2xl bg-[#0F6236] hover:bg-[#0B4A28] text-white flex items-center justify-center shadow-md shadow-[#0F6236]/25 disabled:opacity-50 cursor-pointer shrink-0 transition-all active:scale-95"
+          className="w-11 h-11 rounded-full bg-black hover:bg-gray-800 text-white flex items-center justify-center shadow-md disabled:opacity-50 cursor-pointer shrink-0 transition-all active:scale-95"
         >
           <Send className="w-4.5 h-4.5 text-white" />
         </button>
@@ -547,9 +547,9 @@ export function AssistantPage() {
             </button>
           </div>
 
-          <div className="w-full max-w-sm bg-black/80 backdrop-blur-md rounded-3xl p-5 m-5 z-20 space-y-4 border border-white/20 text-center shadow-2xl">
+          <div className="w-full max-w-sm bg-black/85 backdrop-blur-2xl rounded-[32px] p-5 m-5 z-20 space-y-4 border border-white/20 text-center shadow-2xl">
             <div className="flex items-center justify-center gap-2">
-              <Stethoscope className="w-6 h-6 text-emerald-400 animate-bounce" />
+              <Stethoscope className="w-6 h-6 text-white animate-bounce" />
               <span className="text-sm font-extrabold text-white">AI Doctor Listening...</span>
             </div>
 
