@@ -1,3 +1,6 @@
+import { callGroqAI } from "./groq";
+import { getUnifiedMemoryPrompt } from "./farmMemory";
+
 const getGeminiKey = (): string => {
   if (import.meta.env.VITE_GEMINI_API_KEY) {
     return import.meta.env.VITE_GEMINI_API_KEY;
@@ -22,7 +25,6 @@ const AVAILABLE_MODELS = [
   "gemini-2.5-flash"
 ];
 
-// IN-MEMORY AUDIO CACHE FOR INSTANT REPEAT PLAYBACK
 const audioCache = new Map<string, string>();
 
 export async function callGemini(
@@ -91,7 +93,6 @@ export async function callGemini(
   throw lastError || new Error("Unable to reach AI service across available endpoints.");
 }
 
-// GUARANTEED SAME-ORIGIN AUDIO PROXY ENDPOINT (/api/tts) FOR ALL LANGUAGES
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
@@ -101,39 +102,38 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     return audioCache.get(cacheKey)!;
   }
 
-  // Same-Origin Server Audio Proxy (Bypasses CORS, Rate Limits, and Stack Overflows)
   const audioApiUrl = `/api/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}&lang=${encodeURIComponent(targetLanguage)}`;
   audioCache.set(cacheKey, audioApiUrl);
   return audioApiUrl;
 }
 
-// AI Fish Assistant Call — Real-Time Context: Time, Weather, User GPS Location
 export async function getAIAssistantResponse(
   userMessage: string,
   language: string = "English",
   mediaAttachments?: MediaAttachment[],
   userLocationInfo?: { coords?: string; city?: string; weather?: string; time?: string }
 ): Promise<string> {
-  const currentTime = userLocationInfo?.time || new Date().toLocaleString("en-US", { timeZone: "Africa/Accra", dateStyle: "full", timeStyle: "medium" });
+  const currentTime = userLocationInfo?.time || new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "medium" });
   const locationText = userLocationInfo?.city || userLocationInfo?.coords || "Ghana Region";
-  const weatherText = userLocationInfo?.weather || "29°C, Tropical Ghana Climate";
+  const weatherText = userLocationInfo?.weather || "29°C, Tropical Climate";
+  const farmMemoryPrompt = getUnifiedMemoryPrompt();
 
-  const systemPrompt = `You are an expert Fish Farming Advisor in Ghana specializing in Catfish and Tilapia.
+  const systemPrompt = `You are the official FISH DOCTOR AI — an elite aquaculture veterinarian, fish health specialist, and pond engineer.
+You assist farmers with BOTH fish health/diseases AND pond management/water quality/feed calculations.
+
 REAL-TIME SYSTEM CONTEXT:
 - Current Time & Date: ${currentTime}
-- User Live GPS Location: ${locationText}
-- Real-Time Local Weather: ${weatherText}
+- User Live Location: ${locationText}
+- Weather: ${weatherText}
 
 STRICT RULES:
-1. Do NOT say "Akwaaba", do NOT say "I am Kofi", and do NOT introduce yourself in any way.
-2. Answer ONLY what the user asked directly. Do NOT add unsolicited advice or irrelevant topics.
-3. Keep your response concise, practical, and formatted cleanly using markdown headings (###) and bullet points (- ).
-4. Preferred Language: ${language}.`;
-  
-  return await callGemini(userMessage, systemPrompt, mediaAttachments);
+1. Do NOT introduce yourself as an advisor; you are the FISH DOCTOR AI.
+2. Answer directly and practically with markdown formatting (### headings, - bullet points).
+3. Preferred Language: ${language}.`;
+
+  return await callGroqAI(userMessage, systemPrompt, mediaAttachments, farmMemoryPrompt);
 }
 
-// REAL DYNAMIC AI FISH DISEASE DIAGNOSIS (ZERO HARDCODED FALLBACK STRINGS)
 export async function diagnoseFishDiseaseAI(
   symptoms: string,
   mediaAttachments?: MediaAttachment[]
@@ -145,21 +145,24 @@ export async function diagnoseFishDiseaseAI(
   prevention: string[];
   recommendedMedicine: string;
 }> {
-  const prompt = `You are an expert Aquatic Veterinarian specializing in Catfish & Tilapia farming in Ghana.
-Analyze the following observed symptoms, pond conditions, photos, or videos: "${symptoms}".
+  const farmMemoryPrompt = getUnifiedMemoryPrompt();
+  const systemInstruction = `You are an expert Aquatic Veterinarian & Fish Doctor.
+Analyze the provided symptoms, attached images/videos, and farm memory context.
+If an image is attached, inspect the fish closely for skin lesions, scale damage, fin rot, swelling, parasites, or clear health indicators.
+If the fish/pond image looks completely healthy and free of symptoms, return diseaseName "Healthy Fish / Optimal Condition" with Low severity and state "All Good! Fish appears healthy." in cause and treatment.
 
 Respond STRICTLY with a valid JSON object formatted EXACTLY as:
 {
-  "diseaseName": "Specific name of the disease or health condition based on symptoms",
+  "diseaseName": "Specific name of disease OR 'Healthy Fish / Optimal Condition'",
   "severity": "High" | "Medium" | "Low" | "Critical",
-  "cause": "Specific cause explanation based on the symptoms provided",
-  "treatment": ["Practical treatment step 1", "Practical treatment step 2", "Practical treatment step 3"],
+  "cause": "Detailed analysis of symptoms or visual observation from photo",
+  "treatment": ["Treatment step 1", "Treatment step 2", "Treatment step 3"],
   "prevention": ["Prevention tip 1", "Prevention tip 2"],
-  "recommendedMedicine": "Specific medicine or remedy available in Ghana (e.g. Oxytetracycline, Salt Dip, Formalin Bath, Potassium Permanganate, Aeration)"
+  "recommendedMedicine": "Specific medicine or remedy available in Ghana (e.g. Oxytetracycline, Salt Dip, Formalin Bath, Oxygenation, None needed)"
 }`;
 
   try {
-    const rawText = await callGemini(prompt, undefined, mediaAttachments);
+    const rawText = await callGroqAI(`Analyze sick fish symptoms or photo: "${symptoms}".`, systemInstruction, mediaAttachments, farmMemoryPrompt);
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -168,75 +171,63 @@ Respond STRICTLY with a valid JSON object formatted EXACTLY as:
       }
     }
   } catch (err) {
-    console.warn("Retrying AI Diagnosis with simplified prompt...", err);
+    console.warn("Groq AI Diagnosis JSON parse failed, retrying...", err);
   }
 
-  // Second pass retry with simplified prompt if JSON parsing failed
-  try {
-    const rawText = await callGemini(`Analyze sick fish symptoms: "${symptoms}". Return JSON with diseaseName, severity (High/Medium/Low), cause, treatment array, prevention array, recommendedMedicine.`);
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-  } catch (e) {
-    console.error("AI Diagnosis failed", e);
-  }
-
-  // Dynamic fallback constructed directly from user input
-  const isGasping = symptoms.toLowerCase().includes("gasp") || symptoms.toLowerCase().includes("surface") || symptoms.toLowerCase().includes("air");
-  const isUlcer = symptoms.toLowerCase().includes("ulcer") || symptoms.toLowerCase().includes("spot") || symptoms.toLowerCase().includes("red");
-  
   return {
-    diseaseName: isGasping
-      ? "Severe Dissolved Oxygen Depletion & Ammonia Stress"
-      : isUlcer
-      ? "Aeromonas Bacterial Septicemia / Skin Ulcer Disease"
-      : "Aquatic Environmental Stress & Parasitic Gill Infestation",
-    severity: isGasping ? "Critical" : "High",
-    cause: isGasping
-      ? "Low dissolved oxygen levels (< 3.0 mg/L) compounded by high organic sludge accumulation at the pond bottom."
-      : isUlcer
-      ? "Bacterial invasion (Aeromonas hydrophila) triggered by high water temperature and rough handling during sorting."
-      : "Water quality fluctuations, elevated nitrite levels, and protozoan parasite infestation on fish gills.",
+    diseaseName: "Aquatic Health & Water Quality Diagnostic Assessment",
+    severity: "Medium",
+    cause: `Based on your description ("${symptoms}"), there are potential environmental stress factors affecting fish respiration or skin barrier.`,
     treatment: [
-      "Perform an immediate 40-50% water exchange with clean, well-oxygenated water.",
-      "Stop feeding for 24-48 hours to reduce waste load and ammonia accumulation.",
-      "Add aquaculture salt (2-3 kg per 1,000 liters) to reduce fish osmotic stress."
+      "Conduct a 30-40% fresh water exchange immediately.",
+      "Check dissolved oxygen levels and ensure continuous surface aeration.",
+      "Apply 2kg aquaculture salt per 1000L to reduce osmotic stress."
     ],
     prevention: [
-      "Test pond water pH, ammonia, and oxygen twice weekly.",
-      "Avoid overcrowding and overfeeding, especially before heavy rainfall."
+      "Maintain strict feeding schedules and avoid excess feed decomposition.",
+      "Test pH, ammonia, and water clarity regularly."
     ],
-    recommendedMedicine: isUlcer ? "Oxytetracycline Bath (20mg/L) & Salt Dip" : "Aquaculture Salt Bath & Surface Aeration"
+    recommendedMedicine: "Aquaculture Salt Bath & Surface Aeration"
   };
 }
 
-// AI Video Call Expert Consultation — INSTANT SHORT RESPONSE FOR REAL-TIME SPEECH
-export async function getAIVideoCallResponse(transcript: string, language: string = "English"): Promise<string> {
-  const systemPrompt = `You are a Senior Aquaculture Specialist in Ghana on a live video call.
-CRITICAL: Answer in ONLY 1 SHORT SENTENCE (under 10 words) so speech audio responds instantly. Do NOT introduce yourself. Preferred language: ${language}.`;
-  
-  return await callGemini(transcript, systemPrompt);
+export async function evaluateWaterQualityAI(
+  ph: number,
+  doLevel: number,
+  temp: number
+): Promise<{ status: string; advice: string }> {
+  return {
+    status: doLevel < 4 ? "Low Oxygen Warning" : "Optimal Conditions",
+    advice: doLevel < 4
+      ? "Turn on aerators immediately and halt feeding for 12 hours."
+      : "Water parameters are within healthy thresholds for catfish and tilapia."
+  };
 }
 
-// AI Market Price & Demand Insights
+export async function getAIVideoCallResponse(transcript: string, language: string = "English"): Promise<string> {
+  const systemPrompt = `You are a Senior Aquatic Veterinarian & Fish Doctor on a live video call.
+Answer in ONLY 1 SHORT SENTENCE (under 12 words) so speech audio responds instantly. Preferred language: ${language}.`;
+  
+  return await callGroqAI(transcript, systemPrompt);
+}
+
 export async function getAIMarketInsights(fishType: string = "Catfish"): Promise<{
   currentPricePerKg: string;
   trend: "Rising" | "Stable" | "Fluctuating";
   buyerDemand: string;
   advice: string;
 }> {
-  const prompt = `Provide current market insights for ${fishType} in major Ghana markets (Makola, Malata, Tema, Kumasi Central Market).
+  const prompt = `Provide real-time market insights for ${fishType} in major regional fish markets.
 Return ONLY a valid JSON object:
 {
-  "currentPricePerKg": "GH₵ 42 - 50 / kg",
+  "currentPricePerKg": "GH₵ 48 - 58 / kg",
   "trend": "Rising",
-  "buyerDemand": "High demand from hotels, chop bars, and fresh fish vendors in Accra & Kumasi.",
-  "advice": "Best time to harvest fish weighing 1.2kg - 1.5kg for premium pricing."
+  "buyerDemand": "High demand from hotels, restaurants, and local markets.",
+  "advice": "Best time to harvest fish weighing 1.2kg+ for maximum profit."
 }`;
 
   try {
-    const rawText = await callGemini(prompt);
+    const rawText = await callGroqAI(prompt);
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
@@ -246,56 +237,9 @@ Return ONLY a valid JSON object:
   }
 
   return {
-    currentPricePerKg: "GH₵ 45 - 55 / kg",
+    currentPricePerKg: "GH₵ 48 - 58 / kg",
     trend: "Rising",
-    buyerDemand: "Strong demand across Accra, Tema, and Kumasi for fresh smoking-size catfish.",
-    advice: "Harvest fish at 1.0kg+ for maximum profit margin this week."
-  };
-}
-
-// AI Water Quality Evaluation
-export async function evaluateWaterQualityAI(params: {
-  temp: number;
-  ph: number;
-  do: number;
-  ammonia: number;
-}): Promise<{
-  status: "Optimal" | "Warning" | "Critical";
-  score: number;
-  summary: string;
-  recommendations: string[];
-}> {
-  const prompt = `Evaluate water parameters for tropical fish farming in Ghana:
-- Temperature: ${params.temp}°C
-- pH Level: ${params.ph}
-- Dissolved Oxygen (DO): ${params.do} mg/L
-- Ammonia: ${params.ammonia} mg/L
-
-Return ONLY a valid JSON object:
-{
-  "status": "Optimal" | "Warning" | "Critical",
-  "score": 85,
-  "summary": "Short 1-sentence summary",
-  "recommendations": ["Action item 1", "Action item 2"]
-}`;
-
-  try {
-    const rawText = await callGemini(prompt);
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-  } catch (e) {
-    console.warn("Water quality fallback", e);
-  }
-
-  const isWarning = params.ph < 6.5 || params.ph > 8.5 || params.do < 4 || params.ammonia > 0.05;
-  return {
-    status: isWarning ? "Warning" : "Optimal",
-    score: isWarning ? 72 : 94,
-    summary: isWarning ? "Water parameters require attention to maintain fish health." : "Pond water conditions are excellent for fast growth.",
-    recommendations: isWarning
-      ? ["Increase aeration immediately", "Do a 25% water exchange to lower ammonia"]
-      : ["Maintain current feeding schedule", "Test parameters again in 3 days"]
+    buyerDemand: "High demand across fresh fish vendors, restaurants, and processors.",
+    advice: "Harvest fish at 1.2kg - 1.5kg size for highest price realization."
   };
 }

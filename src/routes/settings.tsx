@@ -8,8 +8,8 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
   head: () => ({
     meta: [
-      { title: "Settings — FishFarm OS Ghana" },
-      { name: "description", content: "Manage your app preferences and farm setup." },
+      { title: "Settings — Fish Doctor App" },
+      { name: "description", content: "Manage app preferences and language options." },
     ],
   }),
 });
@@ -19,8 +19,8 @@ export function SettingsPage() {
   const { language, t } = useLanguage();
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
 
-  const [userName, setUserName] = useState("Farmer Kofi");
-  const [region] = useState("Ashanti Region, Ghana");
+  const [userName, setUserName] = useState("Aquaculture Farmer");
+  const [region] = useState("Accra, Ghana");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [offlineSync, setOfflineSync] = useState(true);
 
@@ -32,21 +32,21 @@ export function SettingsPage() {
   const handleLogout = () => {
     localStorage.removeItem("user_name");
     localStorage.removeItem("user_phone");
-    localStorage.removeItem("user_ponds");
+    localStorage.removeItem("fish_doctor_unified_farm_memory_v1");
     navigate({ to: "/login" });
   };
 
   return (
-    <div className="min-h-screen bg-[#EAEFEA] flex justify-center items-center font-sans antialiased sm:py-4">
-      <main className="w-full max-w-[430px] min-h-screen sm:min-h-[820px] bg-[#FAFCFA] relative flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-[36px] sm:border sm:border-gray-200 pb-10">
+    <div className="min-h-screen bg-[#E0F2FE] flex justify-center items-center font-sans antialiased sm:py-4">
+      <main className="w-full max-w-[430px] min-h-screen sm:min-h-[820px] bg-[#F0F9FF] relative flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-[36px] sm:border sm:border-blue-200 pb-10">
         
         {/* Header */}
-        <header className="px-5 pt-6 pb-4 bg-white border-b border-gray-100 flex items-center justify-between sticky top-0 z-20">
+        <header className="px-5 pt-6 pb-4 bg-white border-b border-sky-100 flex items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-3">
-            <Link to="/home" className="p-1 text-gray-700 hover:text-gray-900 rounded-full hover:bg-gray-100">
+            <Link to="/home" className="p-1 text-slate-700 hover:text-slate-900 rounded-full hover:bg-sky-50">
               <ArrowLeft className="w-6 h-6" />
             </Link>
-            <h1 className="text-xl font-extrabold text-gray-900">{t("settings")}</h1>
+            <h1 className="text-xl font-extrabold text-slate-900">{t("settings")}</h1>
           </div>
         </header>
 
@@ -54,115 +54,98 @@ export function SettingsPage() {
         <div className="p-5 space-y-6 flex-1 overflow-y-auto">
           
           {/* User Profile Card */}
-          <section className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex items-center justify-between">
+          <section className="bg-white p-4 rounded-2xl border border-sky-100 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-full bg-[#0F6236] text-white flex items-center justify-center font-bold text-lg">
+              <div className="w-12 h-12 rounded-full bg-[#0284C7] text-white flex items-center justify-center font-bold text-lg">
                 {userName.charAt(0)}
               </div>
               <div>
-                <h2 className="font-bold text-gray-900 text-base">{userName}</h2>
-                <div className="flex items-center gap-1 text-xs text-gray-500 font-medium">
-                  <MapPin className="w-3.5 h-3.5 text-[#0F6236]" />
+                <h2 className="font-bold text-slate-900 text-base">{userName}</h2>
+                <div className="flex items-center gap-1 text-xs text-slate-500 font-medium">
+                  <MapPin className="w-3.5 h-3.5 text-[#0284C7]" />
                   {region}
                 </div>
               </div>
             </div>
-            <Link to="/profile" className="text-xs font-bold text-[#0F6236] hover:underline">
+            <Link to="/profile" className="text-xs font-bold text-[#0284C7] hover:underline">
               Edit
             </Link>
           </section>
 
           {/* AI Status Banner */}
-          <section className="bg-[#0F6236]/10 p-4 rounded-2xl border border-[#0F6236]/20 flex items-center justify-between">
+          <section className="bg-sky-50 p-4 rounded-2xl border border-sky-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#0F6236] text-white flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-[#0284C7] text-white flex items-center justify-center">
                 <Cpu className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-bold text-[#0F6236] uppercase tracking-wider">AI Intelligence</div>
-                <div className="text-sm font-extrabold text-gray-900">Smart AI Engine Connected</div>
+                <div className="text-xs font-bold text-[#0284C7] uppercase tracking-wider">Groq Vision & AI Engine</div>
+                <div className="text-sm font-extrabold text-slate-900">Unified Farm Memory Synced</div>
               </div>
             </div>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-pulse" />
           </section>
 
           {/* General Preferences */}
           <section className="space-y-3">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">App Preferences</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">App Preferences</h3>
             
             {/* Language Selector */}
             <button
               onClick={() => setIsLangModalOpen(true)}
-              className="w-full bg-white p-4 rounded-2xl border border-gray-200/80 flex items-center justify-between hover:bg-gray-50 transition-all text-left cursor-pointer"
+              className="w-full bg-white p-4 rounded-2xl border border-sky-100 flex items-center justify-between hover:bg-sky-50 transition-all text-left cursor-pointer"
             >
               <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-sky-50 text-[#0284C7] flex items-center justify-center">
                   <Globe className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-gray-900">Language / Kasa</div>
-                  <div className="text-xs text-gray-500">{language}</div>
+                  <div className="text-sm font-bold text-slate-900">{t("chooseLanguage")}</div>
+                  <div className="text-xs text-slate-500">Active: {language}</div>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+              <ChevronRight className="w-5 h-5 text-slate-400" />
             </button>
 
-            {/* Voice Assistant Toggle */}
-            <div className="bg-white p-4 rounded-2xl border border-gray-200/80 flex items-center justify-between">
+            {/* Voice Readout Toggle */}
+            <div className="bg-white p-4 rounded-2xl border border-sky-100 flex items-center justify-between">
               <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-sky-50 text-[#0284C7] flex items-center justify-center">
                   <Volume2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-gray-900">Voice Assistant Response</div>
-                  <div className="text-xs text-gray-500">Read AI answers aloud in local accent</div>
+                  <div className="text-sm font-bold text-slate-900">Voice Audio Output</div>
+                  <div className="text-xs text-slate-500">Read AI advice out loud</div>
                 </div>
               </div>
-              <input
-                type="checkbox"
-                checked={voiceEnabled}
-                onChange={(e) => setVoiceEnabled(e.target.checked)}
-                className="w-5 h-5 accent-[#0F6236] cursor-pointer"
-              />
-            </div>
-
-            {/* Offline Mode Toggle */}
-            <div className="bg-white p-4 rounded-2xl border border-gray-200/80 flex items-center justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <Wifi className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-gray-900">Offline Data Sync</div>
-                  <div className="text-xs text-gray-500">Cache feed & water logs for offline use</div>
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={offlineSync}
-                onChange={(e) => setOfflineSync(e.target.checked)}
-                className="w-5 h-5 accent-[#0F6236] cursor-pointer"
-              />
+              <button
+                onClick={() => setVoiceEnabled(!voiceEnabled)}
+                className={`w-12 h-6.5 rounded-full transition-colors relative p-0.5 cursor-pointer ${
+                  voiceEnabled ? "bg-[#0284C7]" : "bg-slate-300"
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    voiceEnabled ? "translate-x-5.5" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
           </section>
 
-          {/* Account Actions */}
-          <section className="pt-4">
+          {/* Logout */}
+          <section className="pt-2">
             <button
               onClick={handleLogout}
-              className="w-full p-4 rounded-2xl border border-red-200 bg-red-50 text-red-700 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-all cursor-pointer"
+              className="w-full h-12 bg-white border border-red-200 text-red-600 font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-red-50 cursor-pointer"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4.5 h-4.5" />
               Log Out
             </button>
           </section>
         </div>
 
-        {/* Language Selection Modal */}
-        <LanguageModal
-          isOpen={isLangModalOpen}
-          onClose={() => setIsLangModalOpen(false)}
-        />
+        <LanguageModal isOpen={isLangModalOpen} onClose={() => setIsLangModalOpen(false)} />
       </main>
     </div>
   );
