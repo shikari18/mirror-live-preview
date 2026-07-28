@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiDoctorRouteImport } from './routes/ai-doctor'
 import { Route as AiWelcomeRouteImport } from './routes/ai-welcome'
 import { Route as AssistantRouteImport } from './routes/assistant'
@@ -32,6 +33,11 @@ import { Route as PondPondIdRouteImport } from './routes/pond.$pondId'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AiDoctorRoute = AiDoctorRouteImport.update({
@@ -127,6 +133,7 @@ const PondPondIdRoute = PondPondIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/ai-doctor': typeof AiDoctorRoute
   '/ai-welcome': typeof AiWelcomeRoute
   '/assistant': typeof AssistantRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/ai-doctor': typeof AiDoctorRoute
   '/ai-welcome': typeof AiWelcomeRoute
   '/assistant': typeof AssistantRoute
@@ -170,6 +178,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/ai-doctor': typeof AiDoctorRoute
   '/ai-welcome': typeof AiWelcomeRoute
   '/assistant': typeof AssistantRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/ai-doctor'
     | '/ai-welcome'
     | '/assistant'
@@ -214,6 +224,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/ai-doctor'
     | '/ai-welcome'
     | '/assistant'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/ai-doctor'
     | '/ai-welcome'
     | '/assistant'
@@ -257,6 +269,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   AiDoctorRoute: typeof AiDoctorRoute
   AiWelcomeRoute: typeof AiWelcomeRoute
   AssistantRoute: typeof AssistantRoute
@@ -284,6 +297,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ai-doctor': {
@@ -417,6 +437,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   AiDoctorRoute: AiDoctorRoute,
   AiWelcomeRoute: AiWelcomeRoute,
   AssistantRoute: AssistantRoute,

@@ -8,6 +8,8 @@ import { LanguageModal } from "@/components/ui/LanguageModal";
 import { useLanguage } from "@/lib/languageContext";
 import { getFarmProfile } from "@/lib/farmMemory";
 
+import { registerOrLoginAccount } from "@/lib/userAccounts";
+
 export const Route = createFileRoute("/login")({
   component: LoginPage,
   head: () => ({
@@ -83,31 +85,34 @@ function LoginPage() {
     if (response?.credential) {
       const payload = parseJwt(response.credential);
       if (payload) {
-        localStorage.setItem("user_name", payload.name || payload.given_name || "Google User");
-        localStorage.setItem("user_email", payload.email || "");
-        localStorage.setItem("user_google_signed_in", "true");
-        localStorage.setItem("user_logged_in", "true");
-        checkRedirect();
-      }
-    }
-  };
+        const { account } = registerOrLoginAccount({
+          name: payload.name || payload.given_name || "Google User",
+          email: payload.email || "",
+          isGoogle: true,
+        });
 
-  const checkRedirect = () => {
-    localStorage.setItem("user_logged_in", "true");
-    const isOnboardingComplete = localStorage.getItem("user_onboarding_completed");
-    if (isOnboardingComplete === "true") {
-      navigate({ to: "/home" });
-    } else {
-      navigate({ to: "/onboarding" });
+        if (account.onboardingCompleted) {
+          navigate({ to: "/home" });
+        } else {
+          navigate({ to: "/onboarding" });
+        }
+      }
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (phone) {
-      localStorage.setItem("user_phone", `+233 ${phone}`);
+    const formattedPhone = phone ? `+233 ${phone}` : undefined;
+    const { account } = registerOrLoginAccount({
+      name: "Farmer",
+      phone: formattedPhone,
+    });
+
+    if (account.onboardingCompleted) {
+      navigate({ to: "/home" });
+    } else {
+      navigate({ to: "/onboarding" });
     }
-    checkRedirect();
   };
 
   const triggerGooglePrompt = () => {

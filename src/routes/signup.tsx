@@ -7,6 +7,8 @@ import { FishFarmLogo } from "@/components/ui/FishFarmLogo";
 import { LanguageModal } from "@/components/ui/LanguageModal";
 import { useLanguage } from "@/lib/languageContext";
 
+import { registerOrLoginAccount } from "@/lib/userAccounts";
+
 export const Route = createFileRoute("/signup")({
   component: SignUpPage,
   head: () => ({
@@ -85,25 +87,34 @@ function SignUpPage() {
     if (response?.credential) {
       const payload = parseJwt(response.credential);
       if (payload) {
-        localStorage.setItem("user_name", payload.name || payload.given_name || "Google User");
-        localStorage.setItem("user_email", payload.email || "");
-        localStorage.setItem("user_google_signed_in", "true");
-        localStorage.setItem("user_logged_in", "true");
-        navigate({ to: "/onboarding" });
+        const { account } = registerOrLoginAccount({
+          name: payload.name || payload.given_name || "Google User",
+          email: payload.email || "",
+          isGoogle: true,
+        });
+
+        if (account.onboardingCompleted) {
+          navigate({ to: "/home" });
+        } else {
+          navigate({ to: "/onboarding" });
+        }
       }
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (fullName) {
-      localStorage.setItem("user_name", fullName);
+    const formattedPhone = phone ? `+233 ${phone}` : undefined;
+    const { account } = registerOrLoginAccount({
+      name: fullName || "Farmer",
+      phone: formattedPhone,
+    });
+
+    if (account.onboardingCompleted) {
+      navigate({ to: "/home" });
+    } else {
+      navigate({ to: "/onboarding" });
     }
-    if (phone) {
-      localStorage.setItem("user_phone", `+233 ${phone}`);
-    }
-    localStorage.setItem("user_logged_in", "true");
-    navigate({ to: "/onboarding" });
   };
 
   const triggerGooglePrompt = () => {

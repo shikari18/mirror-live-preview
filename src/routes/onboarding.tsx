@@ -4,6 +4,8 @@ import { Check, ChevronRight, ArrowLeft, Fish, Waves, Target, Globe, Video, Uplo
 import { useLanguage, SupportedLanguage } from "@/lib/languageContext";
 import { saveFarmProfile, getFarmProfile } from "@/lib/farmMemory";
 
+import { markCurrentAccountOnboardingComplete } from "@/lib/userAccounts";
+
 export const Route = createFileRoute("/onboarding")({
   component: OnboardingPage,
   head: () => ({
@@ -87,6 +89,7 @@ export function OnboardingPage() {
     localStorage.setItem("user_fish_species", finalFishType);
     localStorage.setItem("user_onboarding_completed", "true");
     localStorage.setItem("user_logged_in", "true");
+    markCurrentAccountOnboardingComplete(finalFarmName);
     setLanguage(selectedLang);
     navigate({ to: "/home" });
   };

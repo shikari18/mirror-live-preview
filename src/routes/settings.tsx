@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { ArrowLeft, Globe, Cpu, Volume2, Wifi, LogOut, ChevronRight, MapPin } from "lucide-react";
+import { ArrowLeft, Globe, Cpu, Volume2, Wifi, LogOut, ChevronRight, MapPin, ShieldAlert } from "lucide-react";
 import { useLanguage } from "@/lib/languageContext";
 import { LanguageModal } from "@/components/ui/LanguageModal";
 
@@ -114,6 +114,23 @@ export function SettingsPage() {
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
+
+            {/* Admin Console Link */}
+            <Link
+              to="/admin"
+              className="w-full bg-[#0F6236]/10 p-4 rounded-2xl border border-[#0F6236]/20 flex items-center justify-between hover:bg-[#0F6236]/15 transition-all text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-[#0F6236] text-white flex items-center justify-center">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-extrabold text-gray-900">Admin Console</div>
+                  <div className="text-xs text-[#0F6236] font-bold">View Accounts Database & System Keys</div>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-[#0F6236]" />
+            </Link>
 
             {/* Voice Readout Toggle */}
             <div className="bg-white p-4 rounded-2xl border border-gray-200 flex items-center justify-between">
