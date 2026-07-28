@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { ArrowLeft, Globe, Cpu, Volume2, Wifi, LogOut, ChevronRight, MapPin, ShieldAlert } from "lucide-react";
 import { useLanguage } from "@/lib/languageContext";
 import { LanguageModal } from "@/components/ui/LanguageModal";
+import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
   head: () => ({
     meta: [
-      { title: "Settings — Fish Doctor App" },
-      { name: "description", content: "Manage app preferences and language options." },
+      { title: "App Settings & Voice — Fish Doctor" },
+      { name: "description", content: "Configure voice language translation and offline AI settings." },
     ],
   }),
 });
@@ -18,160 +19,132 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
-
-  const [userName, setUserName] = useState("Farmer Kofi");
-  const [region] = useState("Accra & Ashanti Region, Ghana");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [farmerName, setFarmerName] = useState("Farmer Kofi");
+  const [farmName, setFarmName] = useState("Green Aqua Farm");
 
   useEffect(() => {
     const savedName = localStorage.getItem("user_name");
-    if (savedName) setUserName(savedName);
+    if (savedName) setFarmerName(savedName);
+
+    const savedFarm = localStorage.getItem("user_farm_name");
+    if (savedFarm) setFarmName(savedFarm);
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("user_logged_in");
-    localStorage.removeItem("user_onboarding_completed");
-    localStorage.removeItem("user_welcome_seen");
-    localStorage.removeItem("user_name");
-    localStorage.removeItem("user_farm_name");
-    localStorage.removeItem("user_phone");
-    localStorage.removeItem("user_email");
-    localStorage.removeItem("user_google_signed_in");
-    localStorage.removeItem("user_profile_image");
-    localStorage.removeItem("fish_doctor_unified_farm_memory_v2");
-    
-    // Redirect cleanly to login screen
-    window.location.href = "/login";
+    if (confirm("Are you sure you want to log out of your account?")) {
+      localStorage.removeItem("user_logged_in");
+      localStorage.removeItem("user_onboarding_completed");
+      localStorage.removeItem("user_name");
+      localStorage.removeItem("user_farm_name");
+      localStorage.removeItem("user_phone");
+      localStorage.removeItem("user_email");
+      localStorage.removeItem("user_google_signed_in");
+      navigate({ to: "/login" });
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#EAEFEA] flex justify-center items-center font-sans antialiased sm:py-4">
-      <main className="w-full max-w-[430px] min-h-screen sm:min-h-[820px] bg-[#FAFCFA] relative flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-[36px] sm:border sm:border-gray-200 pb-10">
-        
-        {/* Header */}
-        <header className="px-5 pt-6 pb-4 bg-white border-b border-gray-100 flex items-center justify-between sticky top-0 z-20">
-          <div className="flex items-center gap-3">
-            <Link to="/home" className="p-1 text-gray-700 hover:text-gray-900 rounded-full hover:bg-gray-100">
-              <ArrowLeft className="w-6 h-6" />
-            </Link>
-            <h1 className="text-xl font-extrabold text-gray-900">{t("settings")}</h1>
+    <PhoneFrame>
+      {/* Header */}
+      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-[#0F6236]/10 bg-white/80 backdrop-blur-md sticky top-0 z-30 shadow-xs">
+        <div className="flex items-center gap-3">
+          <Link to="/home" className="p-1 hover:bg-emerald-50 rounded-full">
+            <ArrowLeft className="w-5.5 h-5.5 text-gray-900" />
+          </Link>
+          <h1 className="text-[19px] font-extrabold text-gray-900 leading-tight">Settings & Preferences</h1>
+        </div>
+      </header>
+
+      {/* User Profile Bar */}
+      <section className="mx-5 mt-4">
+        <Link to="/profile" className="emerald-card p-4 rounded-3xl flex items-center justify-between shadow-md">
+          <div>
+            <div className="text-xs font-bold text-[#0F6236]">Logged in as</div>
+            <div className="text-sm font-extrabold text-gray-900">{farmerName}</div>
+            <div className="text-[11px] text-gray-500 font-semibold">{farmName}</div>
           </div>
-        </header>
+          <span className="text-xs font-extrabold text-[#0F6236] bg-emerald-100 px-3 py-1.5 rounded-full">Edit Profile</span>
+        </Link>
+      </section>
 
-        {/* Settings Options */}
-        <div className="p-5 space-y-6 flex-1 overflow-y-auto">
-          
-          {/* User Profile Card */}
-          <section className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex items-center justify-between">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-full bg-[#0F6236] text-white flex items-center justify-center font-bold text-lg">
-                {userName.charAt(0)}
-              </div>
-              <div>
-                <h2 className="font-bold text-gray-900 text-base">{userName}</h2>
-                <div className="flex items-center gap-1 text-xs text-gray-500 font-medium">
-                  <MapPin className="w-3.5 h-3.5 text-[#0F6236]" />
-                  {region}
-                </div>
-              </div>
+      {/* Settings Options */}
+      <section className="mx-5 mt-4 space-y-3 mb-6">
+        {/* Language Selector */}
+        <button
+          onClick={() => setIsLangModalOpen(true)}
+          className="w-full emerald-card p-4 rounded-3xl flex items-center justify-between hover:bg-emerald-50/50 transition-all text-left cursor-pointer shadow-xs"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center">
+              <Globe className="w-5 h-5 text-[#0F6236]" />
             </div>
-            <Link to="/profile" className="text-xs font-bold text-[#0F6236] hover:underline">
-              Edit
-            </Link>
-          </section>
-
-          {/* AI Status Banner */}
-          <section className="bg-[#0F6236]/10 p-4 rounded-2xl border border-[#0F6236]/20 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#0F6236] text-white flex items-center justify-center">
-                <Cpu className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-[#0F6236] uppercase tracking-wider">Fish Doctor AI Engine</div>
-                <div className="text-sm font-extrabold text-gray-900">Unified Farm Memory Synced</div>
-              </div>
+            <div>
+              <div className="text-sm font-extrabold text-gray-900">{t("chooseLanguage")}</div>
+              <div className="text-xs text-gray-500 font-bold">Active: {language} (Twi & Audio Active)</div>
             </div>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          </section>
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </button>
 
-          {/* General Preferences */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">App Preferences</h3>
-            
-            {/* Language Selector */}
-            <button
-              onClick={() => setIsLangModalOpen(true)}
-              className="w-full bg-white p-4 rounded-2xl border border-gray-200 flex items-center justify-between hover:bg-gray-50 transition-all text-left cursor-pointer"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center">
-                  <Globe className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-gray-900">{t("chooseLanguage")}</div>
-                  <div className="text-xs text-gray-500">Active: {language} (Audio translation active)</div>
-                </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
-
-            {/* Admin Console Link */}
-            <Link
-              to="/admin"
-              className="w-full bg-[#0F6236]/10 p-4 rounded-2xl border border-[#0F6236]/20 flex items-center justify-between hover:bg-[#0F6236]/15 transition-all text-left cursor-pointer"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-[#0F6236] text-white flex items-center justify-center">
-                  <ShieldAlert className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-extrabold text-gray-900">Admin Console</div>
-                  <div className="text-xs text-[#0F6236] font-bold">View Accounts Database & System Keys</div>
-                </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-[#0F6236]" />
-            </Link>
-
-            {/* Voice Readout Toggle */}
-            <div className="bg-white p-4 rounded-2xl border border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center">
-                  <Volume2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-gray-900">Voice Audio Output</div>
-                  <div className="text-xs text-gray-500">Read AI advice in selected language audio</div>
-                </div>
-              </div>
-              <button
-                onClick={() => setVoiceEnabled(!voiceEnabled)}
-                className={`w-12 h-6.5 rounded-full transition-colors relative p-0.5 cursor-pointer ${
-                  voiceEnabled ? "bg-[#0F6236]" : "bg-gray-300"
-                }`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                    voiceEnabled ? "translate-x-5.5" : "translate-x-0"
-                  }`}
-                />
-              </button>
+        {/* Admin Console Link */}
+        <Link
+          to="/admin"
+          className="w-full bg-[#0F6236]/10 p-4 rounded-3xl border border-[#0F6236]/20 flex items-center justify-between hover:bg-[#0F6236]/15 transition-all text-left cursor-pointer shadow-xs"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-[#0F6236] text-white flex items-center justify-center shadow-md">
+              <ShieldAlert className="w-5 h-5 text-white" />
             </div>
-          </section>
+            <div>
+              <div className="text-sm font-extrabold text-gray-900">Admin Console</div>
+              <div className="text-xs text-[#0F6236] font-extrabold">View Accounts Database & System Keys</div>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-[#0F6236]" />
+        </Link>
 
-          {/* Logout Button */}
-          <section className="pt-2">
-            <button
-              onClick={handleLogout}
-              className="w-full h-12 bg-white border border-red-200 text-red-600 font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-red-50 cursor-pointer shadow-xs active:scale-95 transition-all"
-            >
-              <LogOut className="w-4.5 h-4.5" />
-              Log Out
-            </button>
-          </section>
+        {/* Voice Readout Toggle */}
+        <div className="emerald-card p-4 rounded-3xl flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center">
+              <Volume2 className="w-5 h-5 text-[#0F6236]" />
+            </div>
+            <div>
+              <div className="text-sm font-extrabold text-gray-900">Voice Audio Output</div>
+              <div className="text-xs text-gray-500 font-medium">Read AI advice in selected language audio</div>
+            </div>
+          </div>
+          <button
+            onClick={() => setVoiceEnabled(!voiceEnabled)}
+            className={`w-12 h-7 rounded-full transition-colors relative p-0.5 cursor-pointer ${
+              voiceEnabled ? "bg-[#0F6236]" : "bg-gray-300"
+            }`}
+          >
+            <div
+              className={`w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+                voiceEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
         </div>
 
-        <LanguageModal isOpen={isLangModalOpen} onClose={() => setIsLangModalOpen(false)} />
-      </main>
-    </div>
+        {/* Log Out Button */}
+        <button
+          onClick={handleLogout}
+          className="w-full p-4 rounded-3xl bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 flex items-center justify-between font-extrabold text-sm cursor-pointer transition-all active:scale-[0.98] shadow-xs"
+        >
+          <div className="flex items-center gap-3">
+            <LogOut className="w-5 h-5 text-red-600" />
+            <span>Sign Out of Account</span>
+          </div>
+          <ChevronRight className="w-5 h-5 text-red-400" />
+        </button>
+      </section>
+
+      <LanguageModal isOpen={isLangModalOpen} onClose={() => setIsLangModalOpen(false)} />
+      <BottomNav />
+    </PhoneFrame>
   );
 }

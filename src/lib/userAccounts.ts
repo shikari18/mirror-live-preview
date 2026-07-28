@@ -52,7 +52,6 @@ export function registerOrLoginAccount(details: {
   farmName?: string;
 }): { account: UserAccount; isExisting: boolean } {
   const accounts = getRegisteredAccounts();
-  const identifier = details.email || details.phone || details.name;
 
   let existing = accounts.find((acc) => {
     if (details.email && acc.email && acc.email.toLowerCase() === details.email.toLowerCase()) return true;
@@ -66,6 +65,7 @@ export function registerOrLoginAccount(details: {
     existing.lastLoginAt = now;
     if (details.name && details.name !== "Google User") existing.name = details.name;
     if (details.farmName) existing.farmName = details.farmName;
+    if (details.isGoogle) existing.isGoogleSignedIn = true;
     saveRegisteredAccounts(accounts);
 
     // Save Active Session
@@ -115,7 +115,7 @@ export function markCurrentAccountOnboardingComplete(farmName?: string): void {
   const currentName = localStorage.getItem("user_name");
 
   const accounts = getRegisteredAccounts();
-  const acc = accounts.find(
+  let acc = accounts.find(
     (a) =>
       (currentEmail && a.email && a.email.toLowerCase() === currentEmail.toLowerCase()) ||
       (currentPhone && a.phone && a.phone.replaceAll(" ", "") === currentPhone.replaceAll(" ", "")) ||
@@ -126,8 +126,24 @@ export function markCurrentAccountOnboardingComplete(farmName?: string): void {
     acc.onboardingCompleted = true;
     if (farmName) acc.farmName = farmName;
     saveRegisteredAccounts(accounts);
+  } else {
+    const newAcc: UserAccount = {
+      id: "usr_" + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+      name: currentName || "Farmer",
+      phone: currentPhone || undefined,
+      email: currentEmail || undefined,
+      farmName: farmName || "Green Aqua Farm",
+      isGoogleSignedIn: localStorage.getItem("user_google_signed_in") === "true",
+      onboardingCompleted: true,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
+    accounts.push(newAcc);
+    saveRegisteredAccounts(accounts);
   }
+
   localStorage.setItem("user_onboarding_completed", "true");
+  localStorage.setItem("user_logged_in", "true");
 }
 
 export function deleteAccountById(id: string): void {
