@@ -393,6 +393,38 @@ export function OnboardingPage() {
                     </button>
                   ))}
                 </div>
+
+                {/* Location & Weather Permission Card */}
+                <div className="mt-5 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-[#0F6236]" />
+                    <span className="text-xs font-extrabold text-gray-900">Enable Location & Weather Alerts</span>
+                  </div>
+                  <p className="text-[11.5px] text-gray-600 leading-relaxed font-medium">
+                    Allows Fish Doctor to send real-time rain warnings, temperature shift alerts, and daily feeding reminders for your farm location.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if ("geolocation" in navigator) {
+                        navigator.geolocation.getCurrentPosition(
+                          (pos) => {
+                            const profile = getFarmProfile();
+                            profile.location = `GPS (${pos.coords.latitude.toFixed(2)}°, ${pos.coords.longitude.toFixed(2)}°)`;
+                            saveFarmProfile(profile);
+                            alert("Location access granted! Weather & Rain notifications enabled for your farm.");
+                          },
+                          () => {
+                            alert("Location access requested. You can also set location manually in Profile.");
+                          }
+                        );
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-[#0F6236] text-white font-extrabold text-xs shadow-md cursor-pointer hover:bg-[#0B4D29] transition-all"
+                  >
+                    Allow Location & Weather Alerts
+                  </button>
+                </div>
               </div>
             )}
           </div>

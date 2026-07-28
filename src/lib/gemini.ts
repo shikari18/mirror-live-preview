@@ -21,22 +21,20 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   let cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
 
+  const isTwi = targetLanguage.toLowerCase().includes("twi") || targetLanguage.toLowerCase().includes("akan");
+
+  // In-browser Web Speech Synthesis fallback for zero latency
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = isTwi ? "en-GH" : targetLanguage === "French" ? "fr-FR" : "en-US";
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+  }
+
   const cacheKey = `${targetLanguage}:${cleanText.slice(0, 150)}`;
   if (audioCache.has(cacheKey)) {
     return audioCache.get(cacheKey)!;
-  }
-
-  if (targetLanguage && targetLanguage !== "English") {
-    try {
-      const translatedText = await callGroqAI(
-        `Translate this aquaculture advice into natural spoken ${targetLanguage} (if Twi, use authentic Akan Twi expressions): "${cleanText.slice(0, 250)}". Return ONLY the translated ${targetLanguage} text without quotes or explanation.`
-      );
-      if (translatedText && translatedText.trim()) {
-        cleanText = translatedText.trim();
-      }
-    } catch (err) {
-      console.warn(`Background speech translation to ${targetLanguage} failed:`, err);
-    }
   }
 
   const audioApiUrl = `/api/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}&lang=${encodeURIComponent(targetLanguage)}`;
@@ -58,9 +56,9 @@ export async function getAIAssistantResponse(
   const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
 
   const languagePrompt = isTwi
-    ? `IMPORTANT LANGUAGE RULE: The user has selected AKAN TWI language. Respond ENTIRELY in fluent, authentic Akan Twi (Asante Twi)! Use natural Twi aquaculture phrasing (e.g., "Akwaaba! Meyɛ wo Fish Doctor AI. Wo nsuo foforo a wode gu mu no bɛma wo nsuo no aye kuro...").`
+    ? `CRITICAL LANGUAGE DIRECTIVE: The user wants their response ENTIRELY in authentic AKAN TWI (Asante Twi). DO NOT include any English sentences! Write EVERYTHING in natural Akan Twi (e.g., "Akwaaba! Meyɛ wo Fish Doctor AI. Wo nsuo foforo a wode gu mu no bɛma wo nsuo no aye kuro na nsuo no ho afi...").`
     : language && language !== "English"
-    ? `IMPORTANT LANGUAGE RULE: The user has selected ${language}. Respond ENTIRELY in fluent ${language}!`
+    ? `CRITICAL LANGUAGE DIRECTIVE: The user selected ${language}. Respond ENTIRELY in fluent ${language}!`
     : `Respond in clear, professional English.`;
 
   const systemPrompt = `You are the official FISH DOCTOR AI — an elite aquatic veterinarian, fish health specialist, and pond engineer.
@@ -74,7 +72,7 @@ REAL-TIME SYSTEM CONTEXT:
 ${languagePrompt}
 
 FORMATTING RULES:
-- Use clean headings (### Heading) and bullet points (- Point).
+- Use clean markdown formatting (### Heading, - Bullet points).
 - Keep response concise, direct, and actionable.`;
 
   return await callGroqAI(userMessage, systemPrompt, mediaAttachments, farmMemoryPrompt);
