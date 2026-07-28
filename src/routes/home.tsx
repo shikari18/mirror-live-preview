@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Bell, MapPin, Check, Volume2, Play, Sparkles, Plus, CloudRain, Zap, Camera, UserCheck, AlertCircle, Building2, ChevronRight, Activity, ArrowUpRight } from "lucide-react";
+import { Settings, Bell, MapPin, Volume2, Play, Stethoscope, CloudRain, Zap, Camera, AlertCircle, Building2, ChevronRight } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import feedSacks from "@/assets/feed-sacks.jpg";
