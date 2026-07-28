@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Bell, MapPin, Check, Volume2, Play, Sparkles, Plus, CloudRain, Zap, Camera, UserCheck } from "lucide-react";
+import { Settings, Bell, MapPin, Check, Volume2, Play, Sparkles, Plus, CloudRain, Zap, Camera, UserCheck, AlertCircle, Building2 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import feedSacks from "@/assets/feed-sacks.jpg";
@@ -42,9 +42,11 @@ const quickActions: { img: string; label: string; tint: string; to?: string }[] 
 export function HomePage() {
   const { language } = useLanguage();
   const [userName, setUserName] = useState("");
+  const [farmName, setFarmName] = useState("Green Aqua Farm");
+  const [userProfilePic, setUserProfilePic] = useState<string | null>(null);
   const [pondsCount, setPondsCount] = useState<number>(0);
   const [totalFish, setTotalFish] = useState<number>(0);
-  const [userLocation, setUserLocation] = useState<string>("Accra & Ashanti Region, Ghana");
+  const [userLocation, setUserLocation] = useState<string>("");
 
   // Audio Playback State
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -59,6 +61,12 @@ export function HomePage() {
     const savedName = localStorage.getItem("user_name");
     if (savedName) setUserName(savedName);
 
+    const savedFarmName = localStorage.getItem("user_farm_name");
+    if (savedFarmName) setFarmName(savedFarmName);
+
+    const savedPic = localStorage.getItem("user_profile_image");
+    if (savedPic) setUserProfilePic(savedPic);
+
     const profile = getFarmProfile();
     if (profile.ponds && profile.ponds.length > 0) {
       setPondsCount(profile.ponds.length);
@@ -66,17 +74,6 @@ export function HomePage() {
     }
     if (profile.location) {
       setUserLocation(profile.location);
-    }
-
-    if (typeof window !== "undefined" && "geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          setUserLocation(`GPS: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`);
-        },
-        () => {}
-      );
     }
   }, []);
 
@@ -127,18 +124,31 @@ export function HomePage() {
 
   return (
     <PhoneFrame>
-      {/* Header - Akwaaba removed */}
-      <header className="px-5 pt-4 pb-3 flex items-center justify-between">
+      {/* Location Completion Prompt if location is empty */}
+      {!userLocation && (
+        <div className="mx-5 mt-3 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between text-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Almost done! Just a few details: add your farm location</span>
+          </div>
+          <Link to="/profile" className="px-2.5 py-1 rounded-xl bg-amber-600 text-white font-extrabold shrink-0">
+            Complete
+          </Link>
+        </div>
+      )}
+
+      {/* Header */}
+      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-white">
         <div className="flex items-center gap-3">
           <Link to="/settings" className="p-1.5 text-gray-700 hover:text-[#0F6236] rounded-full hover:bg-gray-100 transition-all cursor-pointer">
             <Settings className="w-5.5 h-5.5" />
           </Link>
           <div>
-            <div className="text-[19px] font-extrabold text-foreground leading-tight">
+            <div className="text-[18px] font-extrabold text-gray-900 leading-tight">
               {userName ? `Welcome, ${userName} 👋` : "Welcome, Farmer 👋"}
             </div>
-            <div className="flex items-center gap-1 text-[#0F6236] text-[12px] font-medium">
-              <MapPin className="w-3.5 h-3.5" /> {userLocation} • {language}
+            <div className="flex items-center gap-1.5 text-[#0F6236] text-[12px] font-bold mt-0.5">
+              <Building2 className="w-3.5 h-3.5" /> {farmName} {userLocation ? `• ${userLocation}` : ""}
             </div>
           </div>
         </div>
@@ -148,7 +158,11 @@ export function HomePage() {
             <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-background animate-pulse" />
           </Link>
           <Link to="/profile" className="cursor-pointer">
-            <img src={farmerImg} alt="User" className="w-9 h-9 rounded-full object-cover border-2 border-[#0F6236]" />
+            <img
+              src={userProfilePic || farmerImg}
+              alt="User profile"
+              className="w-9 h-9 rounded-full object-cover border-2 border-[#0F6236]"
+            />
           </Link>
         </div>
       </header>
@@ -158,7 +172,7 @@ export function HomePage() {
         <img src={fishDecor} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-20" />
         <div className="relative z-10">
           <div className="flex items-center gap-1.5 text-[11.5px] opacity-90 font-semibold">
-            <Sparkles className="w-3.5 h-3.5" /> Unified Farm Status
+            <Sparkles className="w-3.5 h-3.5" /> {farmName} Monitored
           </div>
           <div className="mt-1 text-[21px] font-extrabold leading-tight">
             {pondsCount > 0 ? `${pondsCount} Active Ponds Monitored` : "Farm Profile Ready"}
@@ -206,7 +220,7 @@ export function HomePage() {
             🌊 {weatherAlert.summary}
           </h3>
           <p className="text-[11.5px] text-emerald-100 mt-1 leading-normal font-medium">
-            Tap below to listen to Fish Doctor AI voice advisory in {language}. (Written text remains English).
+            Tap below to listen to Fish Doctor AI voice advisory in {language}.
           </p>
         </div>
 

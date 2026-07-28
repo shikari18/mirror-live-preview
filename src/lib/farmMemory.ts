@@ -14,9 +14,11 @@ export interface PondRecord {
 
 export interface UserFarmProfile {
   name: string;
+  farmName: string;
   phone: string;
   location: string;
   experienceLevel: string;
+  primaryGoal: string;
   targetWeightKg: number;
   ponds: PondRecord[];
   notes: string[];
@@ -26,9 +28,11 @@ const STORAGE_KEY = "fish_doctor_unified_farm_memory_v2";
 
 const DEFAULT_PROFILE: UserFarmProfile = {
   name: "Aquaculture Farmer",
+  farmName: "Green Aqua Farm",
   phone: "+233 248785807",
   location: "Accra, Ghana",
   experienceLevel: "Commercial Farmer",
+  primaryGoal: "Increase Yield & Growth Rate",
   targetWeightKg: 1.2,
   ponds: [], // STRICTLY EMPTY - No hardcoded sample ponds!
   notes: [],
@@ -38,11 +42,25 @@ export function getFarmProfile(): UserFarmProfile {
   if (typeof window === "undefined") return DEFAULT_PROFILE;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
+    const storedFarmName = localStorage.getItem("user_farm_name");
+    const storedGoal = localStorage.getItem("user_primary_goal");
+    const storedName = localStorage.getItem("user_name");
+
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_PROFILE));
-      return DEFAULT_PROFILE;
+      const init = {
+        ...DEFAULT_PROFILE,
+        name: storedName || DEFAULT_PROFILE.name,
+        farmName: storedFarmName || DEFAULT_PROFILE.farmName,
+        primaryGoal: storedGoal || DEFAULT_PROFILE.primaryGoal,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
+      return init;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (storedFarmName) parsed.farmName = storedFarmName;
+    if (storedGoal) parsed.primaryGoal = storedGoal;
+    if (storedName) parsed.name = storedName;
+    return parsed;
   } catch {
     return DEFAULT_PROFILE;
   }
@@ -50,6 +68,9 @@ export function getFarmProfile(): UserFarmProfile {
 
 export function saveFarmProfile(profile: UserFarmProfile): void {
   if (typeof window === "undefined") return;
+  if (profile.farmName) localStorage.setItem("user_farm_name", profile.farmName);
+  if (profile.primaryGoal) localStorage.setItem("user_primary_goal", profile.primaryGoal);
+  if (profile.name) localStorage.setItem("user_name", profile.name);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
 }
 
@@ -81,10 +102,12 @@ export function getUnifiedMemoryPrompt(): string {
   const profile = getFarmProfile();
   const totalFish = profile.ponds.reduce((acc, p) => acc + (p.fishCount || 0), 0);
   const totalVolume = profile.ponds.reduce((acc, p) => acc + (p.volumeLiters || 0), 0);
+  const primaryGoal = profile.primaryGoal || localStorage.getItem("user_primary_goal") || "Increase Yield & Growth Rate";
 
   let summary = `FARM OWNER: ${profile.name}\n`;
+  summary += `FARM NAME: ${profile.farmName || "Green Aqua Farm"}\n`;
   summary += `LOCATION: ${profile.location}\n`;
-  summary += `EXPERIENCE: ${profile.experienceLevel}\n`;
+  summary += `PRIMARY FARM GOAL & AI MANDATE: The farmer's primary goal is "${primaryGoal}". You MUST prioritize achieving this primary goal in every diagnosis, calculation, and advice.\n`;
   summary += `TARGET HARVEST WEIGHT: ${profile.targetWeightKg} kg\n`;
   summary += `TOTAL PONDS: ${profile.ponds.length} ponds | TOTAL FISH STOCK: ${totalFish} fish | TOTAL WATER VOLUME: ${totalVolume.toLocaleString()} Liters\n\n`;
 

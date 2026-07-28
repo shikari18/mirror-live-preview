@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiDoctorRouteImport } from './routes/ai-doctor'
+import { Route as AiWelcomeRouteImport } from './routes/ai-welcome'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as ExtensionSupportRouteImport } from './routes/extension-support'
 import { Route as FeedCalculatorRouteImport } from './routes/feed-calculator'
@@ -36,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
 const AiDoctorRoute = AiDoctorRouteImport.update({
   id: '/ai-doctor',
   path: '/ai-doctor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiWelcomeRoute = AiWelcomeRouteImport.update({
+  id: '/ai-welcome',
+  path: '/ai-welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssistantRoute = AssistantRouteImport.update({
@@ -122,6 +128,7 @@ const PondPondIdRoute = PondPondIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-doctor': typeof AiDoctorRoute
+  '/ai-welcome': typeof AiWelcomeRoute
   '/assistant': typeof AssistantRoute
   '/extension-support': typeof ExtensionSupportRoute
   '/feed-calculator': typeof FeedCalculatorRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-doctor': typeof AiDoctorRoute
+  '/ai-welcome': typeof AiWelcomeRoute
   '/assistant': typeof AssistantRoute
   '/extension-support': typeof ExtensionSupportRoute
   '/feed-calculator': typeof FeedCalculatorRoute
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-doctor': typeof AiDoctorRoute
+  '/ai-welcome': typeof AiWelcomeRoute
   '/assistant': typeof AssistantRoute
   '/extension-support': typeof ExtensionSupportRoute
   '/feed-calculator': typeof FeedCalculatorRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai-doctor'
+    | '/ai-welcome'
     | '/assistant'
     | '/extension-support'
     | '/feed-calculator'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai-doctor'
+    | '/ai-welcome'
     | '/assistant'
     | '/extension-support'
     | '/feed-calculator'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai-doctor'
+    | '/ai-welcome'
     | '/assistant'
     | '/extension-support'
     | '/feed-calculator'
@@ -246,6 +258,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiDoctorRoute: typeof AiDoctorRoute
+  AiWelcomeRoute: typeof AiWelcomeRoute
   AssistantRoute: typeof AssistantRoute
   ExtensionSupportRoute: typeof ExtensionSupportRoute
   FeedCalculatorRoute: typeof FeedCalculatorRoute
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       path: '/ai-doctor'
       fullPath: '/ai-doctor'
       preLoaderRoute: typeof AiDoctorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-welcome': {
+      id: '/ai-welcome'
+      path: '/ai-welcome'
+      fullPath: '/ai-welcome'
+      preLoaderRoute: typeof AiWelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assistant': {
@@ -398,6 +418,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiDoctorRoute: AiDoctorRoute,
+  AiWelcomeRoute: AiWelcomeRoute,
   AssistantRoute: AssistantRoute,
   ExtensionSupportRoute: ExtensionSupportRoute,
   FeedCalculatorRoute: FeedCalculatorRoute,

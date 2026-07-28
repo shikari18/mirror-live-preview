@@ -49,6 +49,18 @@ function SignUpPage() {
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Persistent Login Check
+    const isLoggedIn = localStorage.getItem("user_logged_in") === "true";
+    if (isLoggedIn) {
+      const isOnboardingComplete = localStorage.getItem("user_onboarding_completed");
+      if (isOnboardingComplete === "true") {
+        navigate({ to: "/home" });
+      } else {
+        navigate({ to: "/onboarding" });
+      }
+      return;
+    }
+
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
@@ -88,6 +100,7 @@ function SignUpPage() {
         localStorage.setItem("user_name", payload.name || payload.given_name || "Google User");
         localStorage.setItem("user_email", payload.email || "");
         localStorage.setItem("user_google_signed_in", "true");
+        localStorage.setItem("user_logged_in", "true");
         navigate({ to: "/onboarding" });
       }
     }
@@ -101,6 +114,7 @@ function SignUpPage() {
     if (phone) {
       localStorage.setItem("user_phone", `+233 ${phone}`);
     }
+    localStorage.setItem("user_logged_in", "true");
     navigate({ to: "/onboarding" });
   };
 

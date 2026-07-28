@@ -47,6 +47,13 @@ function LoginPage() {
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Persistent Login Check
+    const isLoggedIn = localStorage.getItem("user_logged_in") === "true";
+    if (isLoggedIn) {
+      checkRedirect();
+      return;
+    }
+
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
@@ -86,16 +93,16 @@ function LoginPage() {
         localStorage.setItem("user_name", payload.name || payload.given_name || "Google User");
         localStorage.setItem("user_email", payload.email || "");
         localStorage.setItem("user_google_signed_in", "true");
+        localStorage.setItem("user_logged_in", "true");
         checkRedirect();
       }
     }
   };
 
   const checkRedirect = () => {
-    const profile = getFarmProfile();
-    const hasPonds = profile.ponds && profile.ponds.length > 0;
+    localStorage.setItem("user_logged_in", "true");
     const isOnboardingComplete = localStorage.getItem("user_onboarding_completed");
-    if (isOnboardingComplete === "true" && hasPonds) {
+    if (isOnboardingComplete === "true") {
       navigate({ to: "/home" });
     } else {
       navigate({ to: "/onboarding" });
