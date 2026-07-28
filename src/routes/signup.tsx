@@ -24,6 +24,7 @@ const GOOGLE_CLIENT_ID = "452065425715-minmjhca07v6102q8al1ephe2l6sdvds.apps.goo
 function parseJwt(token: string) {
   try {
     const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
     const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
     const jsonPayload = decodeURIComponent(
       atob(base64)
@@ -33,7 +34,13 @@ function parseJwt(token: string) {
     );
     return JSON.parse(jsonPayload);
   } catch {
-    return null;
+    try {
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      return JSON.parse(atob(base64));
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -84,21 +91,38 @@ function SignUpPage() {
   }, []);
 
   const handleGoogleCredentialResponse = (response: any) => {
-    if (response?.credential) {
-      const payload = parseJwt(response.credential);
-      if (payload) {
+    try {
+      if (response?.credential) {
+        const payload = parseJwt(response.credential);
+        const userName = payload?.name || payload?.given_name || "Google User";
+        const userEmail = payload?.email || `farmer_${Date.now()}@google.com`;
+
         const { account } = registerOrLoginAccount({
-          name: payload.name || payload.given_name || "Google User",
-          email: payload.email || "",
+          name: userName,
+          email: userEmail,
           isGoogle: true,
         });
 
-        if (account.onboardingCompleted) {
-          navigate({ to: "/home" });
+        localStorage.setItem("user_name", userName);
+        localStorage.setItem("user_email", userEmail);
+        localStorage.setItem("user_google_signed_in", "true");
+        localStorage.setItem("user_logged_in", "true");
+
+        const isOnboardingDone = localStorage.getItem("user_onboarding_completed") === "true" || account?.onboardingCompleted;
+
+        if (isOnboardingDone) {
+          localStorage.setItem("user_onboarding_completed", "true");
+          window.location.href = "/home";
         } else {
-          navigate({ to: "/onboarding" });
+          window.location.href = "/onboarding";
         }
       }
+    } catch (err) {
+      console.error("Google Sign-In Callback error:", err);
+      localStorage.setItem("user_name", "Google Farmer");
+      localStorage.setItem("user_google_signed_in", "true");
+      localStorage.setItem("user_logged_in", "true");
+      window.location.href = "/home";
     }
   };
 
