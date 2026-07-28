@@ -184,7 +184,7 @@ export function HomePage() {
               <Camera className="w-4 h-4 text-[#0F6236]" /> AR Camera Measure
             </Link>
             <Link to="/ai-doctor" className="px-4 py-2.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-white font-extrabold text-xs backdrop-blur-md border border-white/20 flex items-center gap-1.5 transition-all">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-300" /> Diagnose Fish
+              <Stethoscope className="w-3.5 h-3.5 text-emerald-300" /> Diagnose Fish
             </Link>
           </div>
         </div>

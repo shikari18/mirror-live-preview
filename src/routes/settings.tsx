@@ -88,22 +88,6 @@ export function SettingsPage() {
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </button>
 
-        {/* Admin Console Link */}
-        <Link
-          to="/admin"
-          className="w-full bg-[#0F6236]/10 p-4 rounded-3xl border border-[#0F6236]/20 flex items-center justify-between hover:bg-[#0F6236]/15 transition-all text-left cursor-pointer shadow-xs"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-[#0F6236] text-white flex items-center justify-center shadow-md">
-              <ShieldAlert className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="text-sm font-extrabold text-gray-900">Admin Console</div>
-              <div className="text-xs text-[#0F6236] font-extrabold">View Accounts Database & System Keys</div>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-[#0F6236]" />
-        </Link>
 
         {/* Voice Readout Toggle */}
         <div className="emerald-card p-4 rounded-3xl flex items-center justify-between shadow-xs">

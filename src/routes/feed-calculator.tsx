@@ -161,7 +161,7 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" /> Calculate Daily Ration
+                <Calculator className="w-4 h-4" /> Calculate Daily Ration
               </>
             )}
           </button>

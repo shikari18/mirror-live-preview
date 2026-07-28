@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Sparkles, Camera, Stethoscope, Calculator, PhoneCall, ArrowRight, SkipForward, CheckCircle2 } from "lucide-react";
+import { Camera, Stethoscope, Calculator, PhoneCall, ArrowRight, SkipForward, CheckCircle2 } from "lucide-react";
 import { PhoneFrame } from "@/components/BottomNav";
 
 export const Route = createFileRoute("/ai-welcome")({
@@ -62,7 +62,7 @@ export function AIWelcomePage() {
         {/* Top Bar with Skip Button */}
         <div className="flex items-center justify-between z-10 pt-2">
           <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full border border-white/20 backdrop-blur-md">
-            <Sparkles className="w-4 h-4 text-emerald-300 animate-pulse" />
+            <Stethoscope className="w-4 h-4 text-emerald-300 animate-pulse" />
             <span className="text-xs font-extrabold text-white">Fish Doctor AI Guide</span>
           </div>
 
@@ -77,7 +77,7 @@ export function AIWelcomePage() {
         {/* AI Typing Content Box */}
         <div className="my-auto py-6 z-10 space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-white/15 border border-white/30 flex items-center justify-center text-emerald-300 shadow-xl backdrop-blur-md">
-            <Sparkles className="w-7 h-7 animate-bounce" />
+            <Stethoscope className="w-7 h-7 animate-pulse" />
           </div>
 
           <h1 className="text-2xl font-extrabold text-white leading-tight">

@@ -239,7 +239,7 @@ export function DiseasePage() {
               </>
             ) : (
               <>
-                <Sparkles className="w-5 h-5" /> Diagnose Fish Health
+                <Stethoscope className="w-5 h-5" /> Diagnose Fish Health
               </>
             )}
           </button>

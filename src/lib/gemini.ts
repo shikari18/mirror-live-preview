@@ -1,29 +1,10 @@
-import { callGroqAI } from "./groq";
 import { getUnifiedMemoryPrompt } from "./farmMemory";
-
-const getGeminiKey = (): string => {
-  if (import.meta.env.VITE_GEMINI_API_KEY) {
-    return import.meta.env.VITE_GEMINI_API_KEY;
-  }
-  const encodedKey = "QVEuQWI4Uk42S2RUMzViR3JXajYxQ0RBWlpIaGNfY2pxcFBsRG9tdlFnbnZqOWF2Q3N0NUE=";
-  try {
-    return typeof atob === "function" ? atob(encodedKey) : Buffer.from(encodedKey, "base64").toString("utf-8");
-  } catch {
-    return Buffer.from(encodedKey, "base64").toString("utf-8");
-  }
-};
+import { callGroqAI } from "./groq";
 
 export interface MediaAttachment {
   mimeType: string;
-  data: string; // Base64 or Data URL
+  data: string; // Base64 or URL
 }
-
-const AVAILABLE_MODELS = [
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
-  "gemini-3.6-flash",
-  "gemini-2.5-flash"
-];
 
 const audioCache = new Map<string, string>();
 
@@ -32,65 +13,8 @@ export async function callGemini(
   systemInstruction?: string,
   mediaAttachments?: MediaAttachment[]
 ): Promise<string> {
-  const apiKey = getGeminiKey();
-  const parts: any[] = [];
-  
-  if (systemInstruction) {
-    parts.push({ text: `System Context: ${systemInstruction}\n\nUser Message: ${prompt}` });
-  } else {
-    parts.push({ text: prompt });
-  }
-
-  if (mediaAttachments && mediaAttachments.length > 0) {
-    for (const media of mediaAttachments) {
-      const base64Data = media.data.includes(",") ? media.data.split(",")[1] : media.data;
-      parts.push({
-        inlineData: {
-          mimeType: media.mimeType,
-          data: base64Data,
-        },
-      });
-    }
-  }
-
-  let lastError: Error | null = null;
-
-  for (const model of AVAILABLE_MODELS) {
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts }],
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 350,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        console.warn(`Model ${model} returned status ${response.status}:`, errData);
-        continue;
-      }
-
-      const data = await response.json();
-      const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      if (replyText) {
-        return replyText;
-      }
-    } catch (err: any) {
-      console.warn(`Attempt with ${model} failed:`, err);
-      lastError = err;
-    }
-  }
-
-  throw lastError || new Error("Unable to reach AI service across available endpoints.");
+  const farmMemoryPrompt = getUnifiedMemoryPrompt();
+  return await callGroqAI(prompt, systemInstruction, mediaAttachments, farmMemoryPrompt);
 }
 
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
@@ -105,7 +29,7 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   if (targetLanguage && targetLanguage !== "English") {
     try {
       const translatedText = await callGroqAI(
-        `Translate this text into conversational spoken ${targetLanguage} for voice speech: "${cleanText.slice(0, 250)}". Return ONLY the translated ${targetLanguage} text without quotes or explanations.`
+        `Translate this aquaculture advice into natural spoken ${targetLanguage} (if Twi, use authentic Akan Twi expressions): "${cleanText.slice(0, 250)}". Return ONLY the translated ${targetLanguage} text without quotes or explanation.`
       );
       if (translatedText && translatedText.trim()) {
         cleanText = translatedText.trim();
@@ -131,7 +55,15 @@ export async function getAIAssistantResponse(
   const weatherText = userLocationInfo?.weather || "29°C, Tropical Climate";
   const farmMemoryPrompt = getUnifiedMemoryPrompt();
 
-  const systemPrompt = `You are the official FISH DOCTOR AI — an elite aquaculture veterinarian, fish health specialist, and pond engineer.
+  const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
+
+  const languagePrompt = isTwi
+    ? `IMPORTANT LANGUAGE RULE: The user has selected AKAN TWI language. Respond ENTIRELY in fluent, authentic Akan Twi (Asante Twi)! Use natural Twi aquaculture phrasing (e.g., "Akwaaba! Meyɛ wo Fish Doctor AI. Wo nsuo foforo a wode gu mu no bɛma wo nsuo no aye kuro...").`
+    : language && language !== "English"
+    ? `IMPORTANT LANGUAGE RULE: The user has selected ${language}. Respond ENTIRELY in fluent ${language}!`
+    : `Respond in clear, professional English.`;
+
+  const systemPrompt = `You are the official FISH DOCTOR AI — an elite aquatic veterinarian, fish health specialist, and pond engineer.
 You assist farmers with BOTH fish health/diseases AND pond management/water quality/feed calculations.
 
 REAL-TIME SYSTEM CONTEXT:
@@ -139,9 +71,11 @@ REAL-TIME SYSTEM CONTEXT:
 - User Live Location: ${locationText}
 - Weather: ${weatherText}
 
-STRICT RULES:
-1. Always write the text output in clean ENGLISH so the user can read it clearly.
-2. Answer directly and practically with markdown formatting (### headings, - bullet points).`;
+${languagePrompt}
+
+FORMATTING RULES:
+- Use clean headings (### Heading) and bullet points (- Point).
+- Keep response concise, direct, and actionable.`;
 
   return await callGroqAI(userMessage, systemPrompt, mediaAttachments, farmMemoryPrompt);
 }
@@ -199,94 +133,71 @@ Respond STRICTLY with a valid JSON object formatted EXACTLY as:
       "Maintain strict feeding schedules and avoid excess feed decomposition.",
       "Test pH, ammonia, and water clarity regularly."
     ],
-    recommendedMedicine: "Aquaculture Salt Bath & Surface Aeration"
+    recommendedMedicine: "Aquaculture Salt Dip & Oxytetracycline"
   };
 }
 
-export async function evaluateWaterQualityAI(
-  params: { temp?: number; ph?: number; do?: number; doLevel?: number; ammonia?: number } | number,
-  doLevel?: number,
-  temp?: number
-): Promise<{ status: string; advice: string }> {
-  let pTH = 7.2;
-  let dO = 5.5;
-  let tP = 28;
-  let aM = 0.02;
-
-  if (typeof params === "object") {
-    pTH = params.ph ?? 7.2;
-    dO = params.do ?? params.doLevel ?? 5.5;
-    tP = params.temp ?? 28;
-    aM = params.ammonia ?? 0.02;
-  } else {
-    pTH = params;
-    dO = doLevel ?? 5.5;
-    tP = temp ?? 28;
-  }
-
-  const farmMemoryPrompt = getUnifiedMemoryPrompt();
-  const prompt = `Water Quality Measurement: Temp ${tP}°C, pH ${pTH}, Dissolved Oxygen ${dO} mg/L, Ammonia ${aM} ppm. Evaluate fish health risk and advice. Return ONLY valid JSON: {"status": "Optimal Conditions OR Warning", "advice": "Practical advice"}`;
-
-  try {
-    const raw = await callGroqAI(prompt, "You are an Aquatic Water Quality Specialist.", [], farmMemoryPrompt);
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (match) {
-      return JSON.parse(match[0]);
-    }
-  } catch (e) {
-    console.warn("Water quality AI parse fallback", e);
-  }
-
-  const isLowDO = dO < 4.0;
-  const isBadPH = pTH < 6.5 || pTH > 8.5;
-  const isHighAmmonia = aM > 0.05;
-
-  return {
-    status: isLowDO || isBadPH || isHighAmmonia ? "Water Quality Warning" : "Optimal Conditions",
-    advice: isLowDO
-      ? "Turn on paddlewheel aerators immediately and reduce feeding to prevent oxygen depletion."
-      : isHighAmmonia
-      ? "Perform a 30% water exchange to flush toxic ammonia and add aquaculture salt."
-      : "Water parameters are optimal for catfish and tilapia growth."
-  };
-}
-
-export async function getAIVideoCallResponse(transcript: string, language: string = "English"): Promise<string> {
-  const systemPrompt = `You are a Senior Aquatic Veterinarian & Fish Doctor on a live video call.
-Answer in ONLY 1 SHORT SENTENCE (under 12 words) in ENGLISH so speech audio responds instantly.`;
-  
-  return await callGroqAI(transcript, systemPrompt);
-}
-
-export async function getAIMarketInsights(fishType: string = "Catfish"): Promise<{
-  currentPricePerKg: string;
-  trend: "Rising" | "Stable" | "Fluctuating";
-  buyerDemand: string;
-  advice: string;
+export async function evaluateWaterQualityAI(params: {
+  temp: number;
+  ph: number;
+  doMg: number;
+  ammonia: number;
+  clarityCm: number;
+}): Promise<{
+  overallStatus: "Optimal" | "Warning" | "Critical";
+  score: number;
+  issues: string[];
+  recommendations: string[];
 }> {
-  const prompt = `Provide real-time market insights for ${fishType} in major regional fish markets.
-Return ONLY a valid JSON object:
+  const prompt = `Water Quality Data: Temperature: ${params.temp}°C, pH: ${params.ph}, Dissolved Oxygen: ${params.doMg} mg/L, Ammonia: ${params.ammonia} mg/L, Secchi Clarity: ${params.clarityCm} cm.
+Evaluate water quality and provide score (0-100), overallStatus ("Optimal"|"Warning"|"Critical"), issues list, and recommendations list.
+Respond STRICTLY in JSON format:
 {
-  "currentPricePerKg": "GH₵ 48 - 58 / kg",
-  "trend": "Rising",
-  "buyerDemand": "High demand from hotels, restaurants, and local markets.",
-  "advice": "Best time to harvest fish weighing 1.2kg+ for maximum profit."
+  "overallStatus": "Optimal" | "Warning" | "Critical",
+  "score": 85,
+  "issues": ["Issue 1"],
+  "recommendations": ["Recommendation 1"]
 }`;
 
   try {
-    const rawText = await callGroqAI(prompt);
+    const rawText = await callGroqAI(prompt, "You are a Senior Water Quality & Limnology Specialist.");
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-  } catch (err) {
-    console.warn("Using fallback market insight format", err);
+  } catch (e) {
+    console.warn("Water quality AI fallback", e);
+  }
+
+  let status: "Optimal" | "Warning" | "Critical" = "Optimal";
+  let score = 90;
+  const issues: string[] = [];
+  const recommendations: string[] = [];
+
+  if (params.doMg < 4.0) {
+    status = "Critical";
+    score -= 30;
+    issues.push("Dissolved Oxygen is dangerously low (< 4.0 mg/L).");
+    recommendations.push("Turn on aerators immediately and do a 25% water exchange.");
+  }
+  if (params.ammonia > 0.5) {
+    status = "Warning";
+    score -= 20;
+    issues.push("Ammonia level is elevated (> 0.5 mg/L).");
+    recommendations.push("Reduce feed ration by 50% for 24 hours.");
   }
 
   return {
-    currentPricePerKg: "GH₵ 48 - 58 / kg",
-    trend: "Rising",
-    buyerDemand: "High demand across fresh fish vendors, restaurants, and processors.",
-    advice: "Harvest fish at 1.2kg - 1.5kg size for highest price realization."
+    overallStatus: status,
+    score: Math.max(score, 30),
+    issues: issues.length ? issues : ["All water parameters within healthy aquaculture limits."],
+    recommendations: recommendations.length ? recommendations : ["Maintain regular feeding and testing schedules."]
   };
+}
+
+export async function getAIVideoCallResponse(userTranscript: string): Promise<string> {
+  if (!userTranscript || !userTranscript.trim()) {
+    return "I am observing your fish pond via live camera. What issue or fish symptoms do you see?";
+  }
+  return await callGroqAI(userTranscript, "You are an expert Fish Doctor conducting a live video call consultation. Keep responses under 2 sentences.");
 }

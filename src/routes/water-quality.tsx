@@ -130,7 +130,7 @@ export function WaterQualityPage() {
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" /> Evaluate Water Health with AI
+                <FlaskConical className="w-4 h-4" /> Evaluate Water Health with AI
               </>
             )}
           </button>

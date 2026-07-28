@@ -203,7 +203,7 @@ export function MyFarmPage() {
       <section className="mx-5 mt-4 rounded-3xl bg-gradient-to-br from-[#09341D] via-[#0F6236] to-[#082917] text-white p-5 shadow-xl shadow-[#0F6236]/30 border border-emerald-500/20">
         <div className="flex items-center justify-between border-b border-white/20 pb-3 mb-3">
           <span className="text-xs font-extrabold uppercase tracking-wide text-emerald-200 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-emerald-300" /> Unified Farm Memory
+            <Waves className="w-4 h-4 text-emerald-300" /> Unified Farm Memory
           </span>
           <button
             onClick={() => setIsCameraScannerOpen(true)}
@@ -355,7 +355,7 @@ export function MyFarmPage() {
 
             {/* Live Volume Counter Overlay */}
             <div className="absolute top-4 bg-black/75 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-full text-xs font-extrabold flex items-center gap-2 shadow-2xl z-20">
-              <Sparkles className="w-4 h-4 text-emerald-400 animate-spin" />
+              <Waves className="w-4 h-4 text-emerald-400 animate-pulse" />
               <span>Live Volume: {liveVolumeLiters.toLocaleString()} Liters ({(liveVolumeLiters/1000).toFixed(1)} m³)</span>
             </div>
           </div>
