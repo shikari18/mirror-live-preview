@@ -171,16 +171,7 @@ export function HomePage() {
       <section className="mx-5 mt-4 rounded-3xl bg-gradient-to-br from-[#09341D] via-[#0F6236] to-[#082917] text-white p-5 relative overflow-hidden shadow-2xl shadow-[#0F6236]/30 border border-emerald-500/20">
         <img src={fishDecor} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-15" />
         <div className="relative z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-300 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md border border-white/10">
-              <Sparkles className="w-3.5 h-3.5 animate-spin text-emerald-300" /> {farmName} Live Status
-            </div>
-            <span className="flex items-center gap-1 text-[10.5px] font-extrabold bg-emerald-500 text-white px-2.5 py-0.5 rounded-full shadow-xs">
-              <Activity className="w-3 h-3" /> AI Active
-            </span>
-          </div>
-
-          <div className="mt-3 text-[23px] font-extrabold leading-tight tracking-tight">
+          <div className="text-[23px] font-extrabold leading-tight tracking-tight">
             {pondsCount > 0 ? `${pondsCount} Active Ponds Monitored` : "Farm Profile Ready"}
           </div>
 

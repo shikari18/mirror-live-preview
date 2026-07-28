@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, MapPin, Camera, Sparkles, Loader2, Stethoscope, Pill, Volume2, VolumeX, CheckCircle2, ChevronRight } from "lucide-react";
+import { ArrowLeft, MapPin, Camera, Sparkles, Loader2, Stethoscope, Pill, Volume2, VolumeX, CheckCircle2, Upload } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { diagnoseFishDiseaseAI, MediaAttachment, getGeminiLiveVoiceAudio } from "@/lib/gemini";
@@ -11,24 +11,14 @@ export const Route = createFileRoute("/ai-doctor")({
   component: DiseasePage,
   head: () => ({
     meta: [
-      { title: "AI Fish Doctor — Aquatic Health & Vision Diagnosis" },
-      { name: "description", content: "Upload photos or video of fish or ponds for instant AI diagnosis." },
+      { title: "AI Fish Doctor — Photo Health Diagnosis" },
+      { name: "description", content: "Upload a photo of your fish or pond for instant AI diagnosis." },
     ],
   }),
 });
 
-const commonSymptomsList = [
-  "Red Spots & Skin Ulcers",
-  "Gasping at Water Surface",
-  "White Spots / Fungal Growth",
-  "Frayed & Rotting Fins",
-  "Swollen Abdomen & Swimming Spiral",
-  "Loss of Appetite & Lethargy"
-];
-
 export function DiseasePage() {
   const { t, language } = useLanguage();
-  const [selectedSymptom, setSelectedSymptom] = useState<string>("Red Spots & Skin Ulcers");
   const [description, setDescription] = useState<string>("");
   const [ponds, setPonds] = useState<PondRecord[]>([]);
   const [selectedPond, setSelectedPond] = useState<string>("");
@@ -44,8 +34,8 @@ export function DiseasePage() {
 
   useEffect(() => {
     const profile = getFarmProfile();
-    setPonds(profile.ponds);
-    if (profile.ponds.length > 0) {
+    setPonds(profile.ponds || []);
+    if (profile.ponds && profile.ponds.length > 0) {
       setSelectedPond(profile.ponds[0].name);
     }
     if (profile.location) {
@@ -57,7 +47,7 @@ export function DiseasePage() {
         (position) => {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
-          setUserCity(`GPS Location (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)`);
+          setUserCity(`GPS (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)`);
         },
         () => {}
       );
@@ -85,7 +75,7 @@ export function DiseasePage() {
     setLoading(true);
     setDiagnosisResult(null);
 
-    let fullSymptomsText = `Symptom Category: ${selectedSymptom}. Target Pond: ${selectedPond || "Main Pond"}. Additional Details: ${description || "Observed health signs in fish pond."}`;
+    let fullSymptomsText = `Target Pond: ${selectedPond || "General Pond"}. Observations: ${description || "Attached fish photo for visual health diagnosis."}`;
 
     let mediaAttachments: MediaAttachment[] = [];
     if (uploadedMedia) {
@@ -99,7 +89,7 @@ export function DiseasePage() {
       const result = await diagnoseFishDiseaseAI(fullSymptomsText, mediaAttachments);
       setDiagnosisResult(result);
 
-      const ttsSummary = `${result.diseaseName}. ${result.cause}. Recommended medicine: ${result.recommendedMedicine}.`;
+      const ttsSummary = `${result.diseaseName}. ${result.cause}. Recommended treatment: ${result.recommendedMedicine}.`;
       const audioUrl = await getGeminiLiveVoiceAudio(ttsSummary, language);
       if (audioUrl) {
         if (audioRef.current) audioRef.current.pause();
@@ -146,67 +136,15 @@ export function DiseasePage() {
         <img src={farmerImg} alt="Farmer" className="w-9 h-9 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
-      {/* Hero Banner */}
-      <section className="mx-5 mt-4 rounded-3xl bg-gradient-to-br from-[#09341D] to-[#0F6236] text-white p-4.5 flex items-start gap-3 shadow-xl border border-emerald-500/20">
-        <div className="w-10 h-10 rounded-2xl bg-white/15 text-emerald-300 flex items-center justify-center shrink-0 mt-0.5 shadow-md backdrop-blur-md border border-white/10">
-          <Stethoscope className="w-5 h-5 animate-pulse" />
-        </div>
-        <div className="flex-1 text-[12.5px]">
-          <div className="font-extrabold text-white text-sm">Fish Doctor AI Vision Engine</div>
-          <div className="text-emerald-100 font-medium leading-relaxed">Upload a photo of your fish or pond. AI Vision analyzes scale lesions, fin rot, water clarity & prescribes treatment.</div>
-        </div>
-      </section>
-
-      {/* Diagnostic Form */}
-      <section className="mx-5 mt-4 rounded-3xl border border-[#0F6236]/15 p-5 bg-white shadow-md">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
-          <span className="text-sm font-extrabold text-gray-900">Fish Health & Vision Assessment</span>
-          <span className="text-[10px] font-extrabold text-[#0F6236] bg-[#0F6236]/10 px-2.5 py-1 rounded-full border border-[#0F6236]/20">
-            AI Vision Model
-          </span>
-        </div>
-
-        <form onSubmit={handleDiagnose} className="space-y-3.5">
-          {/* Select Common Symptom */}
+      {/* Super Simple Photo Upload Form */}
+      <section className="mx-5 mt-4 space-y-4">
+        <form onSubmit={handleDiagnose} className="emerald-card p-5 rounded-3xl space-y-4">
+          
+          {/* Photo Dropzone */}
           <div>
-            <label className="block text-xs font-bold text-gray-800 mb-1.5">Select Primary Symptom</label>
-            <div className="grid grid-cols-2 gap-2">
-              {commonSymptomsList.map((sym) => (
-                <button
-                  type="button"
-                  key={sym}
-                  onClick={() => setSelectedSymptom(sym)}
-                  className={`p-2.5 rounded-2xl border text-left text-xs font-bold transition-all cursor-pointer ${
-                    selectedSymptom === sym
-                      ? "border-[#0F6236] bg-[#0F6236]/10 text-[#0F6236] shadow-xs"
-                      : "border-gray-200 text-gray-700 hover:bg-emerald-50/50"
-                  }`}
-                >
-                  🐟 {sym}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Target Pond */}
-          <div>
-            <label className="block text-xs font-bold text-gray-800 mb-1">Affected Pond</label>
-            <select
-              value={selectedPond}
-              onChange={(e) => setSelectedPond(e.target.value)}
-              className="w-full h-11 rounded-2xl border border-gray-200 px-3 text-xs font-bold bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-[#0F6236]/30"
-            >
-              {ponds.length > 0 ? (
-                ponds.map((p) => <option key={p.id} value={p.name}>{p.name} ({p.fishCount} {p.fishType})</option>)
-              ) : (
-                <option value="Main Pond">Main Pond 1</option>
-              )}
-            </select>
-          </div>
-
-          {/* Photo Upload Field */}
-          <div>
-            <label className="block text-xs font-bold text-gray-800 mb-1">Upload Fish Photo for AI Vision</label>
+            <label className="block text-xs font-extrabold text-gray-900 mb-2">
+              1. Upload Fish or Pond Photo
+            </label>
             <input
               type="file"
               ref={fileInputRef}
@@ -217,32 +155,57 @@ export function DiseasePage() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full h-16 rounded-2xl border-2 border-dashed border-[#0F6236]/40 bg-[#0F6236]/5 hover:bg-[#0F6236]/10 flex items-center justify-center gap-2 text-xs font-extrabold text-[#0F6236] transition-all cursor-pointer shadow-xs"
+              className="w-full h-32 rounded-2xl border-2 border-dashed border-[#0F6236]/30 bg-[#0F6236]/5 hover:bg-[#0F6236]/10 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
             >
               {uploadedMedia ? (
-                <>
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" /> Image Attached: {uploadedMedia.name}
-                </>
+                <div className="flex flex-col items-center gap-1">
+                  <CheckCircle2 className="w-8 h-8 text-[#0F6236]" />
+                  <span className="text-xs font-extrabold text-[#0F6236] px-2 truncate max-w-[200px]">
+                    {uploadedMedia.name}
+                  </span>
+                  <span className="text-[10px] text-gray-500 font-bold">Tap to replace image</span>
+                </div>
               ) : (
-                <>
-                  <Camera className="w-5 h-5 text-[#0F6236]" /> Tap to Upload Fish or Pond Image
-                </>
+                <div className="flex flex-col items-center gap-1.5 text-[#0F6236]">
+                  <Upload className="w-7 h-7 text-[#0F6236]" />
+                  <span className="text-xs font-extrabold text-gray-900">Tap to upload photo from camera</span>
+                  <span className="text-[10.5px] text-gray-500 font-medium">AI automatically detects disease & health</span>
+                </div>
               )}
             </button>
 
             {uploadedMedia && uploadedMedia.type === "image" && (
-              <img src={uploadedMedia.url} alt="Uploaded fish" className="mt-2 w-full h-40 object-cover rounded-2xl border border-gray-200 shadow-md" />
+              <img src={uploadedMedia.url} alt="Uploaded fish" className="mt-3 w-full h-44 object-cover rounded-2xl border border-gray-200 shadow-md" />
             )}
           </div>
 
-          {/* Description Input */}
+          {/* Optional Pond Select */}
           <div>
-            <label className="block text-xs font-bold text-gray-800 mb-1">Additional Observations / Notes</label>
+            <label className="block text-xs font-extrabold text-gray-900 mb-1">
+              2. Select Pond <span className="text-gray-400 font-normal">(Optional)</span>
+            </label>
+            <select
+              value={selectedPond}
+              onChange={(e) => setSelectedPond(e.target.value)}
+              className="w-full h-11 rounded-2xl border border-gray-200 px-3.5 text-xs font-bold bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-[#0F6236]/30"
+            >
+              <option value="General Pond">General Pond</option>
+              {ponds.map((p) => (
+                <option key={p.id} value={p.name}>{p.name} ({p.fishCount} {p.fishType})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Optional Notes */}
+          <div>
+            <label className="block text-xs font-extrabold text-gray-900 mb-1">
+              3. Any Notes? <span className="text-gray-400 font-normal">(Optional)</span>
+            </label>
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Fish floating near water surface, sluggish feeding, white spots..."
+              placeholder="e.g. Fish floating, white spots or swimming slowly..."
               className="w-full p-3 rounded-2xl border border-gray-200 text-xs font-medium text-gray-900 outline-none focus:ring-2 focus:ring-[#0F6236]/20 bg-gray-50"
             />
           </div>
@@ -255,11 +218,11 @@ export function DiseasePage() {
           >
             {loading ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" /> AI Analyzing Vision & Symptoms...
+                <Loader2 className="w-5 h-5 animate-spin" /> AI Analyzing Fish Photo...
               </>
             ) : (
               <>
-                <Sparkles className="w-5 h-5" /> Run AI Vision Diagnosis
+                <Sparkles className="w-5 h-5" /> Diagnose Fish Health
               </>
             )}
           </button>
@@ -267,10 +230,10 @@ export function DiseasePage() {
 
         {/* Dynamic AI Diagnosis Results Card */}
         {diagnosisResult && (
-          <div className="mt-5 p-4.5 rounded-3xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-300 animate-in fade-in space-y-3.5 shadow-xl">
+          <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-300 animate-in fade-in space-y-3.5 shadow-xl">
             <div className="flex items-center justify-between border-b border-emerald-200 pb-3">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#0F6236]">AI Diagnosis Result</span>
+                <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#0F6236]">AI Health Assessment</span>
                 <h3 className="text-base font-extrabold text-gray-900">{diagnosisResult.diseaseName}</h3>
               </div>
               <div className="flex items-center gap-2">
@@ -294,12 +257,12 @@ export function DiseasePage() {
 
             <div className="space-y-3 text-xs text-gray-900">
               <div>
-                <span className="font-extrabold text-gray-900 block mb-0.5">Cause & Visual Analysis:</span>
+                <span className="font-extrabold text-gray-900 block mb-0.5">Cause & Visual Findings:</span>
                 <p className="text-gray-700 leading-relaxed font-medium bg-white p-3 rounded-2xl border border-gray-200/80 shadow-2xs">{diagnosisResult.cause}</p>
               </div>
 
               <div>
-                <span className="font-extrabold text-gray-900 block mb-1">Recommended Treatment Steps:</span>
+                <span className="font-extrabold text-gray-900 block mb-1">Treatment & Solution:</span>
                 <ul className="space-y-2 bg-white p-3.5 rounded-2xl border border-gray-200/80 shadow-2xs">
                   {diagnosisResult.treatment?.map((t: string, idx: number) => (
                     <li key={idx} className="flex items-start gap-2 text-gray-800 font-medium">
@@ -313,7 +276,7 @@ export function DiseasePage() {
               <div className="pt-2 border-t border-emerald-200 flex items-center justify-between">
                 <div>
                   <span className="font-extrabold text-[#0F6236] text-[11px] block flex items-center gap-1">
-                    <Pill className="w-3.5 h-3.5" /> Recommended Medicine / Action:
+                    <Pill className="w-3.5 h-3.5" /> Recommended Medicine:
                   </span>
                   <span className="font-extrabold text-gray-900 text-xs">{diagnosisResult.recommendedMedicine}</span>
                 </div>
