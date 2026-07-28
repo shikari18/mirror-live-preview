@@ -43,10 +43,10 @@ function LoginPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [isLangOpen, setIsLangOpen] = useState(false);
+  const [isGisRendered, setIsGisRendered] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Dynamically load Google Identity Services Script
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
@@ -66,6 +66,7 @@ function LoginPage() {
             text: "continue_with",
             shape: "pill",
           });
+          setIsGisRendered(true);
         }
       }
     };
@@ -121,7 +122,7 @@ function LoginPage() {
     <div className="min-h-screen bg-[#EAEFEA] flex justify-center items-center font-sans antialiased sm:py-4">
       <main className="w-full max-w-[430px] min-h-screen sm:min-h-[820px] bg-[#FAFCFA] relative flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-[36px] sm:border sm:border-gray-200">
         
-        {/* Header - Top Right Info Button Removed as requested */}
+        {/* Header */}
         <div className="px-5 pt-5 z-20 flex items-center justify-between">
           <button
             onClick={() => setIsLangOpen(true)}
@@ -215,20 +216,21 @@ function LoginPage() {
               </span>
             </div>
 
-            {/* Official Google GIS Button Render Container */}
-            <div className="flex justify-center my-1">
-              <div ref={googleBtnRef} />
-            </div>
+            {/* SINGLE Google Sign In Button Container */}
+            <div className="w-full min-h-[50px] flex items-center justify-center">
+              <div ref={googleBtnRef} className={isGisRendered ? "block" : "hidden"} />
 
-            {/* Fallback Google Sign In Button */}
-            <button
-              type="button"
-              onClick={triggerGooglePrompt}
-              className="w-full h-13 bg-white border border-gray-200 hover:bg-gray-50 active:scale-[0.98] transition-all text-gray-900 text-[15.5px] font-bold rounded-[16px] shadow-xs flex items-center justify-center gap-2.5 cursor-pointer"
-            >
-              <GoogleLogo className="w-4.5 h-4.5" />
-              {t("continueGoogle")}
-            </button>
+              {!isGisRendered && (
+                <button
+                  type="button"
+                  onClick={triggerGooglePrompt}
+                  className="w-full h-13 bg-white border border-gray-200 hover:bg-gray-50 active:scale-[0.98] transition-all text-gray-900 text-[15.5px] font-bold rounded-[16px] shadow-xs flex items-center justify-center gap-2.5 cursor-pointer"
+                >
+                  <GoogleLogo className="w-4.5 h-4.5" />
+                  {t("continueGoogle")}
+                </button>
+              )}
+            </div>
 
             {/* Footer Link */}
             <p className="text-center text-[13.5px] text-gray-500 font-medium mt-3">
