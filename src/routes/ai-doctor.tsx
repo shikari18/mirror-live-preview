@@ -12,7 +12,7 @@ export const Route = createFileRoute("/ai-doctor")({
   head: () => ({
     meta: [
       { title: "AI Fish Doctor — Aquatic Health & Vision Diagnosis" },
-      { name: "description", content: "Upload photos or video of fish or ponds for instant Groq AI diagnosis." },
+      { name: "description", content: "Upload photos or video of fish or ponds for instant AI diagnosis." },
     ],
   }),
 });
@@ -99,7 +99,6 @@ export function DiseasePage() {
       const result = await diagnoseFishDiseaseAI(fullSymptomsText, mediaAttachments);
       setDiagnosisResult(result);
 
-      // Auto TTS readout summary in chosen language (Twi translated in background)
       const ttsSummary = `${result.diseaseName}. ${result.cause}. Recommended medicine: ${result.recommendedMedicine}.`;
       const audioUrl = await getGeminiLiveVoiceAudio(ttsSummary, language);
       if (audioUrl) {
@@ -153,8 +152,8 @@ export function DiseasePage() {
           <Stethoscope className="w-4.5 h-4.5" />
         </div>
         <div className="flex-1 text-[12.5px]">
-          <div className="font-extrabold text-[#0F6236]">Groq Vision AI Aquatic Doctor</div>
-          <div className="text-gray-600">Upload a photo of your fish or pond. Groq Vision analyzes lesions, fins, water clarity & prescribes treatments.</div>
+          <div className="font-extrabold text-[#0F6236]">Fish Doctor AI Vision</div>
+          <div className="text-gray-600">Upload a photo of your fish or pond. AI Vision analyzes lesions, fins, water clarity & prescribes treatments.</div>
         </div>
       </section>
 
@@ -163,7 +162,7 @@ export function DiseasePage() {
         <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
           <span className="text-sm font-extrabold text-gray-900">Fish Health & Vision Assessment</span>
           <span className="text-[10px] font-bold text-[#0F6236] bg-[#0F6236]/10 px-2 py-0.5 rounded-full">
-            Groq Vision AI
+            AI Vision Engine
           </span>
         </div>
 
@@ -200,14 +199,14 @@ export function DiseasePage() {
               {ponds.length > 0 ? (
                 ponds.map((p) => <option key={p.id} value={p.name}>{p.name} ({p.fishCount} {p.fishType})</option>)
               ) : (
-                <option value="Main Pond">Main Pond 1 (Catfish / Tilapia)</option>
+                <option value="Main Pond">Main Pond 1</option>
               )}
             </select>
           </div>
 
           {/* Photo Upload Field */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Upload Fish Photo for Groq Vision</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1">Upload Fish Photo for AI Vision</label>
             <input
               type="file"
               ref={fileInputRef}
@@ -256,11 +255,11 @@ export function DiseasePage() {
           >
             {loading ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" /> Groq AI Analyzing Vision & Symptoms...
+                <Loader2 className="w-5 h-5 animate-spin" /> AI Analyzing Vision & Symptoms...
               </>
             ) : (
               <>
-                <Sparkles className="w-5 h-5" /> Run Groq AI Vision Diagnosis
+                <Sparkles className="w-5 h-5" /> Run AI Vision Diagnosis
               </>
             )}
           </button>
@@ -271,7 +270,7 @@ export function DiseasePage() {
           <div className="mt-5 p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200 animate-in fade-in space-y-3 shadow-sm">
             <div className="flex items-center justify-between border-b border-emerald-200 pb-2.5">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#0F6236]">Groq AI Diagnosis Result</span>
+                <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#0F6236]">AI Diagnosis Result</span>
                 <h3 className="text-base font-extrabold text-gray-900">{diagnosisResult.diseaseName}</h3>
               </div>
               <div className="flex items-center gap-1.5">

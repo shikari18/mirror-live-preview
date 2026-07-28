@@ -47,7 +47,7 @@ export function OnboardingPage() {
   const [primaryGoal, setPrimaryGoal] = useState<string>("Increase Yield & Growth");
   const [selectedLang, setSelectedLang] = useState<SupportedLanguage>("English");
 
-  // Mandatory Pond Video State
+  // Optional Pond Video State
   const [pondVideo, setPondVideo] = useState<{ name: string; url: string } | null>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,11 +88,7 @@ export function OnboardingPage() {
       return;
     }
 
-    if (step === 2 && !pondVideo) {
-      alert("Please upload or record a short video of your pond(s) so AI can inspect your water layout!");
-      return;
-    }
-
+    // Step 2 Pond Video Upload is now completely OPTIONAL!
     if (step < totalSteps) {
       setStep((s) => s + 1);
     } else {
@@ -221,7 +217,7 @@ export function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 2: Pond Video */}
+            {/* Step 2: Pond Count & OPTIONAL Pond Video */}
             {step === 2 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="w-12 h-12 rounded-2xl bg-[#0F6236]/10 flex items-center justify-center text-[#0F6236] mb-4">
@@ -231,7 +227,7 @@ export function OnboardingPage() {
                   Pond Count & Inspection Video
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Upload a short video of your pond for Groq AI inspection.
+                  Select your pond count. Uploading a video of your pond is optional.
                 </p>
 
                 <div className="space-y-3 mt-4">
@@ -259,7 +255,7 @@ export function OnboardingPage() {
 
                   <div className="pt-2">
                     <label className="block text-xs font-bold text-gray-800 mb-1.5 flex items-center gap-1">
-                      <Video className="w-4 h-4 text-[#0F6236]" /> Upload Pond Inspection Video <span className="text-red-500">*</span>
+                      <Video className="w-4 h-4 text-[#0F6236]" /> Upload Pond Inspection Video <span className="text-gray-400 font-semibold">(Optional)</span>
                     </label>
                     
                     <input
@@ -288,7 +284,7 @@ export function OnboardingPage() {
                       ) : (
                         <>
                           <UploadCloud className="w-6 h-6 text-[#0F6236]" />
-                          <span>Tap to Upload / Record Pond Video</span>
+                          <span>Tap to Upload / Record Pond Video (Optional)</span>
                           <span className="text-[10.5px] text-gray-500 font-normal">Show your water layout or fish swimming</span>
                         </>
                       )}

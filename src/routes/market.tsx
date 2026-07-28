@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { MapPin, ShoppingCart, Tag, Sparkles, Loader2, MessageSquare, Phone, ArrowLeft, Search, RefreshCw, Fish, Package, Wrench, ShieldAlert } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
@@ -41,7 +41,7 @@ const MARKET_ITEMS: MarketItem[] = [
 
   // --- EQUIPMENT & TOOLS SECTION ---
   { id: "eq-1", name: "Dual-Impeller Paddlewheel Aerator 1.5HP", subtitle: "220V Solar / Grid Powered", section: "Equipment", category: "Aeration", price: "GH₵ 3,850.00", unit: "per Unit", origin: "High-Efficiency Taiwan Import", description: "Increases dissolved oxygen levels rapidly in earthen & concrete ponds.", icon: "⚙️", inStock: true },
-  { id: "eq-[#eq-2]", name: "Heavy Duty Tarpaulin Tank (5m Diameter x 1.2m)", subtitle: "Galvanized Mesh Frame", section: "Equipment", category: "Tanks & Cages", price: "GH₵ 2,900.00", unit: "per Set", origin: "Local Fabrication", description: "Complete ready-to-assemble mobile fish pond with drainage valve.", icon: "🌊", inStock: true },
+  { id: "eq-2", name: "Heavy Duty Tarpaulin Tank (5m Diameter x 1.2m)", subtitle: "Galvanized Mesh Frame", section: "Equipment", category: "Tanks & Cages", price: "GH₵ 2,900.00", unit: "per Set", origin: "Local Fabrication", description: "Complete ready-to-assemble mobile fish pond with drainage valve.", icon: "🌊", inStock: true },
   { id: "eq-3", name: "Submersible Water Transfer Pump 2HP", subtitle: "High Discharge Volume", section: "Equipment", category: "Pumps", price: "GH₵ 1,450.00", unit: "per Unit", origin: "Shimge Duty Pump", description: "Drains or fills 50,000L ponds in under 2 hours.", icon: "⚡", inStock: true },
   { id: "eq-4", name: "Digital Dissolved Oxygen (DO) & Temp Meter", subtitle: "Handheld Water Tester", section: "Equipment", category: "Testing Instruments", price: "GH₵ 680.00", unit: "per Device", origin: "Precision Lab Instrument", description: "Instant real-time DO mg/L and temperature digital readout.", icon: "🧪", inStock: true },
   { id: "eq-5", name: "5-in-1 Water Quality Test Kit (pH, Ammonia, Nitrite)", subtitle: "100 Test Strips + Reagents", section: "Equipment", category: "Testing Instruments", price: "GH₵ 240.00", unit: "per Kit", origin: "API Fish Care", description: "Essential water chemistry kit for monitoring toxic ammonia & pH spikes.", icon: "📊", inStock: true },
@@ -160,7 +160,7 @@ export function MarketPage() {
       <section className="mx-5 mt-3.5 rounded-2xl bg-[#0F6236]/10 p-3.5 border border-[#0F6236]/20 shadow-xs">
         <div className="flex items-center justify-between border-b border-[#0F6236]/20 pb-2">
           <div className="flex items-center gap-1.5 font-extrabold text-xs text-[#0F6236]">
-            <Sparkles className="w-4 h-4 text-[#0F6236]" /> Real-Time Groq AI Price Monitor
+            <Sparkles className="w-4 h-4 text-[#0F6236]" /> Real-Time AI Price Monitor
           </div>
           <button
             onClick={() => fetchMarketInsights(activeSection)}

@@ -31,7 +31,7 @@ export function SettingsPage() {
   const handleLogout = () => {
     localStorage.removeItem("user_name");
     localStorage.removeItem("user_phone");
-    localStorage.removeItem("fish_doctor_unified_farm_memory_v1");
+    localStorage.removeItem("fish_doctor_unified_farm_memory_v2");
     navigate({ to: "/login" });
   };
 
@@ -78,7 +78,7 @@ export function SettingsPage() {
                 <Cpu className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-bold text-[#0F6236] uppercase tracking-wider">Groq Vision & AI Engine</div>
+                <div className="text-xs font-bold text-[#0F6236] uppercase tracking-wider">Fish Doctor AI Engine</div>
                 <div className="text-sm font-extrabold text-gray-900">Unified Farm Memory Synced</div>
               </div>
             </div>

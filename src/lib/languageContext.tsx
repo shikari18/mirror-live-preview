@@ -36,8 +36,8 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
     continue: "Continue",
   },
   Twi: {
-    welcome: "Akwaaba wo FishFarm OS",
-    welcomeBack: "Akwaaba bio!",
+    welcome: "Welcome to Fish Doctor App",
+    welcomeBack: "Welcome back!",
     loginSubtitle: "Kɔ so wo nsuom nam yɛnsɛm mu.",
     createAccount: "Bɔ Akawnt Foforo",
     signupSubtitle: "Kɔm FishFarm OS na hyɛ aseɛ nsuom nam adwuma.",

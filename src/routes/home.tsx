@@ -127,7 +127,7 @@ export function HomePage() {
 
   return (
     <PhoneFrame>
-      {/* Header */}
+      {/* Header - Akwaaba removed */}
       <header className="px-5 pt-4 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/settings" className="p-1.5 text-gray-700 hover:text-[#0F6236] rounded-full hover:bg-gray-100 transition-all cursor-pointer">
@@ -135,7 +135,7 @@ export function HomePage() {
           </Link>
           <div>
             <div className="text-[19px] font-extrabold text-foreground leading-tight">
-              {userName ? `Akwaaba, ${userName} 👋` : "Akwaaba, Farmer 👋"}
+              {userName ? `Welcome, ${userName} 👋` : "Welcome, Farmer 👋"}
             </div>
             <div className="flex items-center gap-1 text-[#0F6236] text-[12px] font-medium">
               <MapPin className="w-3.5 h-3.5" /> {userLocation} • {language}
@@ -179,10 +179,10 @@ export function HomePage() {
 
       {/* Dynamic Farm Stats Cards */}
       <section className="px-5 mt-4 grid grid-cols-2 gap-2.5">
-        <StatCard tint="bg-secondary/60" img={iconFeedSack} label="Daily Feed Estimate" value={totalFish > 0 ? `${(totalFish * 0.03 * 0.05).toFixed(1)} kg` : "0.0 kg"} sub="Groq Calculated" />
+        <StatCard tint="bg-secondary/60" img={iconFeedSack} label="Daily Feed Estimate" value={totalFish > 0 ? `${(totalFish * 0.03 * 0.05).toFixed(1)} kg` : "0.0 kg"} sub="AI Calculated" />
         <StatCard tint="bg-yellow-50" img={iconGrowth} label="Active Ponds" value={`${pondsCount} Ponds`} sub="In Production" />
         <StatCard tint="bg-purple-50" img={iconCalendar} label="Total Fish Stock" value={`${totalFish.toLocaleString()} Fish`} sub="Live Count" />
-        <StatCard tint="bg-blue-50" img={iconAiDoctor} label="AI Doctor Status" value="Online" sub="Groq Vision Ready" />
+        <StatCard tint="bg-blue-50" img={iconAiDoctor} label="AI Doctor Status" value="Online" sub="AI Vision Ready" />
       </section>
 
       {/* Daily Voice Advice Card */}

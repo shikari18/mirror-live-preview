@@ -11,7 +11,7 @@ export const Route = createFileRoute("/feed-calculator")({
   head: () => ({
     meta: [
       { title: "Feed Calculator — Fish Doctor" },
-      { name: "description", content: "Calculate daily feed rations and growth targets using Groq AI." },
+      { name: "description", content: "Calculate daily feed rations and growth targets using AI." },
     ],
   }),
 });
@@ -31,7 +31,7 @@ export function FeedCalculatorPage() {
 
     const totalBiomassKg = (fishCount * avgWeightGrams) / 1000;
     const dailyFeedKg = Number(((totalBiomassKg * feedingRatePct) / 100).toFixed(2));
-    const bagCount50kg = Number((dailyFeedKg / 15).toFixed(1)); // 15kg feed bag
+    const bagCount50kg = Number((dailyFeedKg / 15).toFixed(1));
 
     const farmMemory = getUnifiedMemoryPrompt();
     const prompt = `Fish species: ${fishType}, Total count: ${fishCount}, Average weight: ${avgWeightGrams}g, Feeding rate: ${feedingRatePct}%.
@@ -44,7 +44,7 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
         aiAdvice = groqRes.trim();
       }
     } catch (e) {
-      console.warn("Groq AI feed calculator fallback", e);
+      console.warn("AI feed calculator fallback", e);
     }
 
     setResult({
@@ -152,7 +152,7 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-emerald-200 text-xs text-gray-700 font-medium">
-              <span className="font-extrabold text-gray-900 block mb-0.5">Groq AI Nutrition Advice:</span>
+              <span className="font-extrabold text-gray-900 block mb-0.5">AI Nutrition Advice:</span>
               {result.aiAdvice}
             </div>
           </div>
