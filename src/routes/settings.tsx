@@ -29,10 +29,19 @@ export function SettingsPage() {
   }, []);
 
   const handleLogout = () => {
+    localStorage.removeItem("user_logged_in");
+    localStorage.removeItem("user_onboarding_completed");
+    localStorage.removeItem("user_welcome_seen");
     localStorage.removeItem("user_name");
+    localStorage.removeItem("user_farm_name");
     localStorage.removeItem("user_phone");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_google_signed_in");
+    localStorage.removeItem("user_profile_image");
     localStorage.removeItem("fish_doctor_unified_farm_memory_v2");
-    navigate({ to: "/login" });
+    
+    // Redirect cleanly to login screen
+    window.location.href = "/login";
   };
 
   return (
@@ -132,11 +141,11 @@ export function SettingsPage() {
             </div>
           </section>
 
-          {/* Logout */}
+          {/* Logout Button */}
           <section className="pt-2">
             <button
               onClick={handleLogout}
-              className="w-full h-12 bg-white border border-red-200 text-red-600 font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-red-50 cursor-pointer"
+              className="w-full h-12 bg-white border border-red-200 text-red-600 font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-red-50 cursor-pointer shadow-xs active:scale-95 transition-all"
             >
               <LogOut className="w-4.5 h-4.5" />
               Log Out
