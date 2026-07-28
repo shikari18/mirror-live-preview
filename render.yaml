@@ -2,5 +2,5 @@ services:
   - type: web
     name: fish-farm-os
     env: node
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
+    buildCommand: bun install && bun run build
+    startCommand: bun run start
