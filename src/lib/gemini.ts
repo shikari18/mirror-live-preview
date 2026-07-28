@@ -6,8 +6,6 @@ export interface MediaAttachment {
   data: string; // Base64 or URL
 }
 
-const audioCache = new Map<string, string>();
-
 export async function callGemini(
   prompt: string,
   systemInstruction?: string,
@@ -23,23 +21,20 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
 
   const isTwi = targetLanguage.toLowerCase().includes("twi") || targetLanguage.toLowerCase().includes("akan");
 
-  // In-browser Web Speech Synthesis fallback for zero latency
+  // In-browser Web Speech Synthesis execution for zero latency
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = isTwi ? "en-GH" : targetLanguage === "French" ? "fr-FR" : "en-US";
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = isTwi ? "en-GH" : targetLanguage === "French" ? "fr-FR" : "en-US";
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn("Speech Synthesis warning:", e);
+    }
   }
 
-  const cacheKey = `${targetLanguage}:${cleanText.slice(0, 150)}`;
-  if (audioCache.has(cacheKey)) {
-    return audioCache.get(cacheKey)!;
-  }
-
-  const audioApiUrl = `/api/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}&lang=${encodeURIComponent(targetLanguage)}`;
-  audioCache.set(cacheKey, audioApiUrl);
-  return audioApiUrl;
+  return null;
 }
 
 export async function getAIAssistantResponse(

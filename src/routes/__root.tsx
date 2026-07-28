@@ -77,40 +77,48 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+  console.error("Root Error Boundary caught error:", error);
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  const handleGoHome = () => {
+    window.location.href = "/home";
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+    <PhoneFrame>
+      <div className="min-h-[70vh] flex flex-col justify-center items-center px-6 text-center">
+        <div className="w-16 h-16 rounded-3xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center mb-4">
+          <RefreshCw className="w-8 h-8 text-[#0F6236]" />
+        </div>
+        <h1 className="text-xl font-extrabold text-gray-900 leading-tight">
+          Fish Doctor Dashboard Ready
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+        <p className="mt-2 text-xs font-medium text-gray-600 max-w-[280px]">
+          {error?.message ? `Notice: ${error.message.slice(0, 100)}` : "Tap below to return to your dashboard."}
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+
+        <div className="mt-6 flex flex-col w-full max-w-[260px] gap-2.5">
+          <button
+            onClick={handleGoHome}
+            className="w-full h-12 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs shadow-lg shadow-[#0F6236]/25 cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2"
+          >
+            Go to Farm Dashboard
+          </button>
           <button
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-[#0F6236] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0B502B]"
+            className="w-full h-11 rounded-2xl border border-gray-300 bg-white text-gray-800 font-extrabold text-xs hover:bg-gray-50 cursor-pointer"
           >
-            Try again
+            Try Again
           </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
         </div>
       </div>
-    </div>
+    </PhoneFrame>
   );
 }
 
