@@ -29,6 +29,8 @@ function SignUpPage() {
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isGoogleInfoOpen, setIsGoogleInfoOpen] = useState(false);
 
+  const googleClientId = "452065425715-minmjhca07v6102q8al1ephe2l6sdvds.apps.googleusercontent.com";
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (fullName) {
@@ -228,29 +230,30 @@ function SignUpPage() {
               </button>
 
               <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
-                🔑 Google OAuth 2.0 Credentials Info
+                🔑 Google OAuth 2.0 Client ID Active
               </h3>
+              <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs">
+                <span className="font-extrabold text-[#0F6236] block">Client ID Configured:</span>
+                <code className="text-[10px] break-all font-mono text-emerald-900">{googleClientId}</code>
+              </div>
+
               <p className="text-xs text-gray-600">
-                For Render App: <code className="font-bold text-[#0F6236]">https://fish-t7c0.onrender.com</code>
+                Render Domain: <code className="font-bold text-[#0F6236]">https://fish-t7c0.onrender.com</code>
               </p>
 
               <div className="space-y-2 text-xs">
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200">
                   <span className="font-extrabold text-[#0F6236] block mb-1">Authorised JavaScript origins:</span>
-                  <code className="text-[11px] block text-gray-800 space-y-0.5">
+                  <code className="text-[10.5px] block text-gray-800 space-y-0.5">
                     <div>http://localhost:5173</div>
-                    <div>http://localhost:3000</div>
-                    <div>http://127.0.0.1:5173</div>
                     <div>https://fish-t7c0.onrender.com</div>
                   </code>
                 </div>
 
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200">
                   <span className="font-extrabold text-[#0F6236] block mb-1">Authorised redirect URIs:</span>
-                  <code className="text-[11px] block text-gray-800 space-y-0.5">
-                    <div>http://localhost:5173</div>
+                  <code className="text-[10.5px] block text-gray-800 space-y-0.5">
                     <div>http://localhost:5173/login</div>
-                    <div>https://fish-t7c0.onrender.com</div>
                     <div>https://fish-t7c0.onrender.com/login</div>
                   </code>
                 </div>
