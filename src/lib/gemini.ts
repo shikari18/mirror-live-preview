@@ -102,7 +102,6 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     return audioCache.get(cacheKey)!;
   }
 
-  // If local language (Twi, Ga, Ewe, Hausa), translate text to local language in background for speech audio
   if (targetLanguage && targetLanguage !== "English") {
     try {
       const translatedText = await callGroqAI(
@@ -205,15 +204,50 @@ Respond STRICTLY with a valid JSON object formatted EXACTLY as:
 }
 
 export async function evaluateWaterQualityAI(
-  ph: number,
-  doLevel: number,
-  temp: number
+  params: { temp?: number; ph?: number; do?: number; doLevel?: number; ammonia?: number } | number,
+  doLevel?: number,
+  temp?: number
 ): Promise<{ status: string; advice: string }> {
+  let pTH = 7.2;
+  let dO = 5.5;
+  let tP = 28;
+  let aM = 0.02;
+
+  if (typeof params === "object") {
+    pTH = params.ph ?? 7.2;
+    dO = params.do ?? params.doLevel ?? 5.5;
+    tP = params.temp ?? 28;
+    aM = params.ammonia ?? 0.02;
+  } else {
+    pTH = params;
+    dO = doLevel ?? 5.5;
+    tP = temp ?? 28;
+  }
+
+  const farmMemoryPrompt = getUnifiedMemoryPrompt();
+  const prompt = `Water Quality Measurement: Temp ${tP}°C, pH ${pTH}, Dissolved Oxygen ${dO} mg/L, Ammonia ${aM} ppm. Evaluate fish health risk and advice. Return ONLY valid JSON: {"status": "Optimal Conditions OR Warning", "advice": "Practical advice"}`;
+
+  try {
+    const raw = await callGroqAI(prompt, "You are an Aquatic Water Quality Specialist.", [], farmMemoryPrompt);
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) {
+      return JSON.parse(match[0]);
+    }
+  } catch (e) {
+    console.warn("Water quality AI parse fallback", e);
+  }
+
+  const isLowDO = dO < 4.0;
+  const isBadPH = pTH < 6.5 || pTH > 8.5;
+  const isHighAmmonia = aM > 0.05;
+
   return {
-    status: doLevel < 4 ? "Low Oxygen Warning" : "Optimal Conditions",
-    advice: doLevel < 4
-      ? "Turn on aerators immediately and halt feeding for 12 hours."
-      : "Water parameters are within healthy thresholds for catfish and tilapia."
+    status: isLowDO || isBadPH || isHighAmmonia ? "Water Quality Warning" : "Optimal Conditions",
+    advice: isLowDO
+      ? "Turn on paddlewheel aerators immediately and reduce feeding to prevent oxygen depletion."
+      : isHighAmmonia
+      ? "Perform a 30% water exchange to flush toxic ammonia and add aquaculture salt."
+      : "Water parameters are optimal for catfish and tilapia growth."
   };
 }
 
