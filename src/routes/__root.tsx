@@ -89,18 +89,23 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
   return (
     <PhoneFrame>
-      <div className="min-h-[70vh] flex flex-col justify-center items-center px-6 text-center">
-        <div className="w-16 h-16 rounded-3xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center mb-4">
+      <div className="min-h-[75vh] flex flex-col justify-center items-center px-5 text-center my-auto">
+        <div className="w-16 h-16 rounded-3xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center mb-3">
           <RefreshCw className="w-8 h-8 text-[#0F6236]" />
         </div>
+        
         <h1 className="text-xl font-extrabold text-gray-900 leading-tight">
-          Fish Doctor Dashboard Ready
+          System Notice
         </h1>
-        <p className="mt-2 text-xs font-medium text-gray-600 max-w-[280px]">
-          {error?.message ? `Notice: ${error.message.slice(0, 100)}` : "Tap below to return to your dashboard."}
-        </p>
+        
+        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-2xl text-left w-full max-w-[340px] space-y-1">
+          <div className="text-[11px] font-extrabold text-red-700 uppercase tracking-wider">Diagnostic Details</div>
+          <div className="text-xs font-mono font-bold text-red-900 break-words max-h-32 overflow-y-auto">
+            {error?.message || String(error)}
+          </div>
+        </div>
 
-        <div className="mt-6 flex flex-col w-full max-w-[260px] gap-2.5">
+        <div className="mt-5 flex flex-col w-full max-w-[280px] gap-2.5">
           <button
             onClick={handleGoHome}
             className="w-full h-12 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs shadow-lg shadow-[#0F6236]/25 cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2"
