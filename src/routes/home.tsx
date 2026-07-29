@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Bell, MapPin, Volume2, Play, Stethoscope, CloudRain, Zap, Camera, AlertCircle, Building2, ChevronRight } from "lucide-react";
+import { Settings, Bell, MapPin, Volume2, Play, Stethoscope, CloudRain, Zap, Camera, AlertCircle, Building2, ChevronRight, Clock, ShieldCheck } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import feedSacks from "@/assets/feed-sacks.jpg";
@@ -19,6 +19,8 @@ import iconSupport from "@/assets/icons/support.png";
 import { useLanguage } from "@/lib/languageContext";
 import { getGeminiLiveVoiceAudio } from "@/lib/gemini";
 import { getFarmProfile } from "@/lib/farmMemory";
+import { getSubscriptionStatus, SubscriptionStatus, PRO_MONTHLY_PRICE_GHC } from "@/lib/subscription";
+import { PaymentModal } from "@/components/PaymentModal";
 
 export const Route = createFileRoute("/home")({
   component: HomePage,
@@ -48,6 +50,10 @@ export function HomePage() {
   const [totalFish, setTotalFish] = useState<number>(0);
   const [userLocation, setUserLocation] = useState<string>("");
 
+  // Subscription & Payment State
+  const [subStatus, setSubStatus] = useState<SubscriptionStatus>(getSubscriptionStatus());
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
   // Audio Playback State
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioStatusText, setAudioStatusText] = useState("");
@@ -75,6 +81,13 @@ export function HomePage() {
     if (profile.location) {
       setUserLocation(profile.location);
     }
+
+    // Refresh Subscription Status every 1 second for live countdown
+    const subInterval = setInterval(() => {
+      setSubStatus(getSubscriptionStatus());
+    }, 1000);
+
+    return () => clearInterval(subInterval);
   }, []);
 
   const handlePlayDailyVoiceAdvice = async () => {
@@ -166,6 +179,48 @@ export function HomePage() {
           </Link>
         </div>
       </header>
+
+      {/* Subscription / 23-Hour Free Trial Banner */}
+      {subStatus.isPro ? (
+        <div className="mx-5 mt-3 p-3 rounded-2xl bg-gradient-to-r from-[#08301B] to-[#0F6236] text-white flex items-center justify-between text-xs font-extrabold shadow-sm border border-emerald-400/20">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-300 shrink-0" />
+            <span>Pro Member • GH₵ {PRO_MONTHLY_PRICE_GHC.toFixed(2)}/mo Active</span>
+          </div>
+          <span className="px-2.5 py-1 rounded-xl bg-white/20 text-white text-[10.5px] uppercase tracking-wider font-extrabold">
+            Pro Plan
+          </span>
+        </div>
+      ) : subStatus.isTrialActive ? (
+        <div
+          onClick={() => setIsPaymentModalOpen(true)}
+          className="mx-5 mt-3 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between text-xs font-bold shadow-xs cursor-pointer hover:bg-amber-100/80 transition-all"
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+            <div>
+              <span className="font-extrabold text-amber-950">23h Free Access: </span>
+              <span className="font-mono text-amber-900 font-extrabold">{subStatus.formattedTimeLeft}</span>
+            </div>
+          </div>
+          <button className="px-3 py-1 rounded-xl bg-[#0F6236] text-white text-[11px] font-extrabold shrink-0 shadow-xs cursor-pointer">
+            Upgrade GH₵ 99.90
+          </button>
+        </div>
+      ) : (
+        <div
+          onClick={() => setIsPaymentModalOpen(true)}
+          className="mx-5 mt-3 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-900 flex items-center justify-between text-xs font-bold shadow-xs cursor-pointer hover:bg-red-100/80 transition-all animate-pulse"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>23-Hour Free Access Expired</span>
+          </div>
+          <button className="px-3 py-1 rounded-xl bg-red-600 text-white text-[11px] font-extrabold shrink-0 shadow-xs cursor-pointer">
+            Subscribe GH₵ 99.90
+          </button>
+        </div>
+      )}
 
       {/* Rich Emerald Hero Status Card */}
       <section className="mx-5 mt-4 rounded-3xl bg-gradient-to-br from-[#09341D] via-[#0F6236] to-[#082917] text-white p-5 relative overflow-hidden shadow-2xl shadow-[#0F6236]/30 border border-emerald-500/20">
@@ -294,6 +349,7 @@ export function HomePage() {
         <img src={feedSacks} alt="Feed sacks" loading="lazy" className="absolute right-0 bottom-0 w-34 h-34 object-cover rounded-tl-3xl shadow-lg border-t border-l border-white/50" />
       </section>
 
+      <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} />
       <BottomNav />
     </PhoneFrame>
   );

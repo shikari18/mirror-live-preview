@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, MapPin, RefreshCw, BookOpen, ClipboardCheck, ShoppingCart, Lightbulb } from "lucide-react";
 
 import appCss from "../styles.css?url";
@@ -16,6 +16,7 @@ import offlineImg from "@/assets/offline.png";
 import farmerImg from "@/assets/farmer.jpg";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import { LanguageProvider } from "../lib/languageContext";
+import { SplashScreen } from "@/components/SplashScreen";
 
 function NotFoundComponent() {
   const items = [
@@ -174,6 +175,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -195,6 +197,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
         <Outlet />
       </LanguageProvider>
     </QueryClientProvider>

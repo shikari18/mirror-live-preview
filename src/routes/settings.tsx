@@ -1,16 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { ArrowLeft, Globe, Cpu, Volume2, Wifi, LogOut, ChevronRight, MapPin, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Globe, Cpu, Volume2, Wifi, LogOut, ChevronRight, MapPin, ShieldAlert, Zap, Clock, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/lib/languageContext";
 import { LanguageModal } from "@/components/ui/LanguageModal";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
+import { PaymentModal } from "@/components/PaymentModal";
+import { getSubscriptionStatus, SubscriptionStatus, PRO_MONTHLY_PRICE_GHC } from "@/lib/subscription";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
   head: () => ({
     meta: [
-      { title: "App Settings & Voice — Fish Doctor" },
-      { name: "description", content: "Configure voice language translation and offline AI settings." },
+      { title: "App Settings & Subscription — Fish Doctor" },
+      { name: "description", content: "Configure voice language translation, subscription and offline AI settings." },
     ],
   }),
 });
@@ -19,6 +21,8 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [subStatus, setSubStatus] = useState<SubscriptionStatus>(getSubscriptionStatus());
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [offlineMode, setOfflineMode] = useState(false);
   const [farmerName, setFarmerName] = useState("Farmer Kofi");
@@ -30,6 +34,8 @@ export function SettingsPage() {
 
     const savedFarm = localStorage.getItem("user_farm_name");
     if (savedFarm) setFarmName(savedFarm);
+
+    setSubStatus(getSubscriptionStatus());
   }, []);
 
   const handleLogout = () => {
@@ -71,6 +77,32 @@ export function SettingsPage() {
 
       {/* Settings Options */}
       <section className="mx-5 mt-4 space-y-3 mb-6">
+        {/* Subscription & Billing Card */}
+        <button
+          onClick={() => setIsPaymentModalOpen(true)}
+          className="w-full emerald-card p-4 rounded-3xl flex items-center justify-between hover:bg-emerald-50/50 transition-all text-left cursor-pointer shadow-xs border-2 border-[#0F6236]/20"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-[#0F6236] text-white flex items-center justify-center shadow-sm">
+              <Zap className="w-5 h-5 fill-white text-white" />
+            </div>
+            <div>
+              <div className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
+                <span>FishFarm OS Pro</span>
+                {subStatus.isPro ? (
+                  <span className="text-[10px] bg-emerald-100 text-[#0F6236] font-extrabold px-2 py-0.5 rounded-full">ACTIVE</span>
+                ) : (
+                  <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-full">GH₵ 99.90/mo</span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 font-bold">
+                {subStatus.isPro ? "Pro Plan Activated (Unlimited)" : subStatus.formattedTimeLeft}
+              </div>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </button>
+
         {/* Language Selector */}
         <button
           onClick={() => setIsLangModalOpen(true)}
@@ -127,6 +159,7 @@ export function SettingsPage() {
         </button>
       </section>
 
+      <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} />
       <LanguageModal isOpen={isLangModalOpen} onClose={() => setIsLangModalOpen(false)} />
       <BottomNav />
     </PhoneFrame>
