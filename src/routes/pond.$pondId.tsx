@@ -1,39 +1,86 @@
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Bell, MapPin, Fish, Calendar, Droplet, Clock, MoreVertical, TrendingUp, Package, Thermometer, Waves, FlaskConical, StickyNote, ChevronRight, BarChart3, FileEdit } from "lucide-react";
+import { ArrowLeft, Bell, MapPin, Fish, Calendar, Droplet, Clock, MoreVertical, TrendingUp, Package, Thermometer, Waves, FlaskConical, StickyNote, ChevronRight, BarChart3, FileEdit, AlertTriangle, Plus, X, ShieldAlert } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import pondImg from "@/assets/pond.jpg";
+import { getFarmProfile, PondRecord } from "@/lib/farmMemory";
 
 export const Route = createFileRoute("/pond/$pondId")({
   component: PondDetails,
   head: ({ params }) => ({
     meta: [
       { title: `Pond ${params.pondId} — FishFarm OS Ghana` },
-      { name: "description", content: "Pond overview, water quality, growth and tasks." },
+      { name: "description", content: "Pond overview, water quality, mortality logger, growth and tasks." },
       { property: "og:title", content: `Pond ${params.pondId} — FishFarm OS Ghana` },
       { property: "og:description", content: "Pond overview and status." },
     ],
   }),
 });
 
-const tabs = ["Overview", "Water Quality", "Fish Growth", "History", "Settings"];
-
-const overview = [
-  { Icon: Waves, label: "Water Quality", value: "Good", sub: "Score: 85%", tint: "bg-blue-50 text-blue-700" },
-  { Icon: Fish, label: "Fish Growth", value: "15%", sub: "This Week", tint: "bg-secondary/60 text-primary" },
-  { Icon: Package, label: "Feed Used", value: "12 kg", sub: "This Week", tint: "bg-purple-50 text-purple-700" },
-  { Icon: Thermometer, label: "Water Temp.", value: "28°C", sub: "Optimal", tint: "bg-yellow-50 text-yellow-700" },
-];
-
-const activity = [
-  { Icon: Droplet, title: "Water quality checked", sub: "pH: 7.2, DO: 5.8 mg/L", when: "Today, 8:30 AM", tint: "bg-blue-50 text-blue-600" },
-  { Icon: Package, title: "Fish fed", sub: "5 kg of Premium Tilapia Feed", when: "Today, 7:00 AM", tint: "bg-secondary/60 text-primary" },
-  { Icon: FlaskConical, title: "pH test", sub: "pH level: 7.2", when: "Yesterday, 6:00 PM", tint: "bg-purple-50 text-purple-700" },
-  { Icon: StickyNote, title: "Note added", sub: "Added a note about water clarity", when: "Yesterday, 4:30 PM", tint: "bg-yellow-50 text-yellow-700" },
-];
-
-function PondDetails() {
+export function PondDetails() {
   const { pondId } = Route.useParams();
+  const [pond, setPond] = useState<PondRecord | null>(null);
+  const [mortalityLogs, setMortalityLogs] = useState<{ id: string; count: number; reason: string; date: string }[]>([]);
+  const [isMortalityModalOpen, setIsMortalityModalOpen] = useState(false);
+  const [deadCount, setDeadCount] = useState<number>(3);
+  const [mortalityReason, setMortalityReason] = useState<string>("Low Dissolved Oxygen");
+
+  useEffect(() => {
+    const profile = getFarmProfile();
+    const found = profile.ponds?.find((p) => p.id === pondId || p.name.includes(pondId));
+    if (found) {
+      setPond(found);
+    } else {
+      setPond({
+        id: pondId,
+        name: `Pond ${pondId}`,
+        size: "20m x 15m",
+        fishCount: 1200,
+        fishType: "African Catfish",
+        ph: "7.2",
+        do: "5.8",
+        temp: "28°C"
+      });
+    }
+
+    try {
+      const savedLogs = localStorage.getItem(`mortality_logs_${pondId}`);
+      if (savedLogs) {
+        setMortalityLogs(JSON.parse(savedLogs));
+      }
+    } catch (e) {
+      console.warn("Mortality log load error", e);
+    }
+  }, [pondId]);
+
+  const handleLogMortality = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deadCount || deadCount <= 0) return;
+
+    const newLog = {
+      id: Date.now().toString(),
+      count: deadCount,
+      reason: mortalityReason,
+      date: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    const updated = [newLog, ...mortalityLogs];
+    setMortalityLogs(updated);
+    localStorage.setItem(`mortality_logs_${pondId}`, JSON.stringify(updated));
+
+    // Update pond live fish count
+    if (pond) {
+      const updatedCount = Math.max(0, pond.fishCount - deadCount);
+      setPond({ ...pond, fishCount: updatedCount });
+    }
+
+    setIsMortalityModalOpen(false);
+  };
+
+  const totalMortality = mortalityLogs.reduce((acc, log) => acc + log.count, 0);
+  const initialStock = (pond?.fishCount || 1200) + totalMortality;
+  const survivalRatePct = initialStock > 0 ? ((pond?.fishCount || 1200) / initialStock) * 100 : 100;
   return (
     <PhoneFrame>
       <header className="px-5 pt-6 flex items-center justify-between">
@@ -73,6 +120,30 @@ function PondDetails() {
             <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-primary" /> Created: May 12, 2025</div>
           </div>
         </div>
+      </section>
+
+      {/* Mortality & Survival Rate Live Card */}
+      <section className="mx-5 mt-3 p-3.5 rounded-2xl bg-white border border-gray-200 shadow-xs flex items-center justify-between">
+        <div>
+          <div className="text-[10.5px] font-extrabold text-gray-500 uppercase tracking-wider">
+            Live Stock Survival Rate
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xl font-black text-[#0F6236]">
+              {survivalRatePct.toFixed(1)}%
+            </span>
+            <span className="text-xs text-gray-600 font-bold">
+              ({pond?.fishCount || 1200} Live / {totalMortality} Dead)
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setIsMortalityModalOpen(true)}
+          className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-extrabold text-xs border border-red-200/60 shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+        >
+          <Plus className="w-3.5 h-3.5 text-red-600" /> Log Mortality
+        </button>
       </section>
 
       <div className="mt-4 px-5 flex gap-4 overflow-x-auto border-b border-border text-[13px]">
@@ -216,6 +287,62 @@ function PondDetails() {
           </button>
         ))}
       </section>
+
+      {/* Mortality Logging Modal */}
+      {isMortalityModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h2 className="text-base font-extrabold text-gray-900 flex items-center gap-1.5">
+                <ShieldAlert className="w-4.5 h-4.5 text-red-600" /> Log Daily Mortality
+              </h2>
+              <button onClick={() => setIsMortalityModalOpen(false)} className="p-1 rounded-full hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={handleLogMortality} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-extrabold text-gray-800 mb-1">Number of Dead Fish Removed</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={deadCount}
+                  onChange={(e) => setDeadCount(Number(e.target.value) || 0)}
+                  className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold text-sm text-red-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-extrabold text-gray-800 mb-1">Suspected Cause / Observation</label>
+                <select
+                  value={mortalityReason}
+                  onChange={(e) => setMortalityReason(e.target.value)}
+                  className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                >
+                  <option value="Low Dissolved Oxygen">Low Dissolved Oxygen (Night drop)</option>
+                  <option value="Osmotic / Environmental Stress">Osmotic / Water Quality Stress</option>
+                  <option value="Bacterial / Fin Rot">Bacterial Lesion / Fin Rot</option>
+                  <option value="Predator / Bird Attack">Predator / Bird Damage</option>
+                  <option value="Unknown Cause">Unknown / General Mortality</option>
+                </select>
+              </div>
+
+              <div className="p-3 bg-red-50 rounded-2xl border border-red-200/80 text-[11px] text-red-900 font-medium">
+                Logging dead fish automatically adjusts your pond's live stock count and updates the Feed Calculator daily ration.
+              </div>
+
+              <button
+                type="submit"
+                className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-md cursor-pointer mt-2"
+              >
+                Record Mortality Log
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </PhoneFrame>

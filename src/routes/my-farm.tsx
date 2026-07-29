@@ -37,6 +37,21 @@ export function MyFarmPage() {
   const [liveVolumeLiters, setLiveVolumeLiters] = useState<number>(61600);
   const [cameraActive, setCameraActive] = useState<boolean>(false);
 
+  // Feed Inventory State
+  const [feedBagsInStore, setFeedBagsInStore] = useState<number>(2);
+  const [feedBrand, setFeedBrand] = useState<string>("Raanan 3mm Floating Pellets");
+
+  useEffect(() => {
+    const savedBags = localStorage.getItem("feed_inventory_bags");
+    if (savedBags) setFeedBagsInStore(Number(savedBags));
+  }, []);
+
+  const handleUpdateFeedStock = (delta: number) => {
+    const updated = Math.max(0, feedBagsInStore + delta);
+    setFeedBagsInStore(updated);
+    localStorage.setItem("feed_inventory_bags", updated.toString());
+  };
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -249,6 +264,46 @@ export function MyFarmPage() {
             Open Scanner
           </button>
         </div>
+      </section>
+
+      {/* Feed Inventory & Low Stock Alarm Card */}
+      <section className="mx-5 mt-3 p-4 rounded-3xl bg-white border border-gray-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold shrink-0">
+              🌾
+            </div>
+            <div>
+              <div className="text-xs font-extrabold text-gray-900">Feed Bag Store Inventory</div>
+              <div className="text-[11px] text-gray-500 font-medium">{feedBrand}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleUpdateFeedStock(-1)}
+              className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-black text-sm flex items-center justify-center cursor-pointer"
+            >
+              -
+            </button>
+            <span className="text-base font-black text-gray-900 px-1">{feedBagsInStore} Bags</span>
+            <button
+              onClick={() => handleUpdateFeedStock(1)}
+              className="w-8 h-8 rounded-xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-black text-sm flex items-center justify-center cursor-pointer"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {feedBagsInStore < 3 && (
+          <div className="p-3 bg-red-50 rounded-2xl border border-red-200 text-xs text-red-900 font-medium flex items-center justify-between animate-pulse">
+            <span className="font-extrabold text-red-950">⚠️ Low Feed Warning: Only {feedBagsInStore} bags remaining!</span>
+            <Link to="/market" className="px-2.5 py-1 rounded-xl bg-red-600 text-white font-extrabold text-[10.5px]">
+              Reorder
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* Ponds List */}

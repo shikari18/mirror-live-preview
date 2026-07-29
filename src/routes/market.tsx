@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { ShoppingCart, ArrowLeft, Search, Filter, ShoppingBag, ShieldCheck, Tag, Plus, Check, Truck, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShoppingCart, ArrowLeft, Search, Plus, Check, Phone, MessageSquare, Tag, ShieldCheck, X, Store, Sparkles } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
-import feedSacks from "@/assets/feed-sacks.jpg";
 import buyFeedImg from "@/assets/icons/buy-feed.png";
 import sellFishImg from "@/assets/icons/sell-fish.png";
 import marketPricesImg from "@/assets/icons/market-prices.png";
@@ -11,194 +10,389 @@ export const Route = createFileRoute("/market")({
   component: MarketPage,
   head: () => ({
     meta: [
-      { title: "Marketplace & Supplies Store — Fish Doctor" },
-      { name: "description", content: "Buy fish feeds, tools, water test kits, and live fingerlings." },
+      { title: "Farmer Marketplace & Trading Board — Fish Doctor" },
+      { name: "description", content: "Buy and sell fish harvest, feed bags, fingerlings, and aeration tools directly via WhatsApp." },
     ],
   }),
 });
 
 interface MarketItem {
   id: string;
-  category: "feeds" | "equipment" | "supplies" | "fish";
+  category: "feeds" | "equipment" | "supplies" | "fish" | "harvest";
   title: string;
   priceGHS: number;
   unit: string;
-  rating: number;
   seller: string;
+  phone: string;
+  location: string;
   tag?: string;
   image: string;
+  isUserListing?: boolean;
 }
 
-const marketCatalog: MarketItem[] = [
+const DEFAULT_MARKET_ITEMS: MarketItem[] = [
   {
-    id: "f1",
+    id: "m1",
+    category: "harvest",
+    title: "Fresh Harvested Catfish (1.2kg - 1.5kg size)",
+    priceGHS: 38,
+    unit: "per kg",
+    seller: "Kofi Mensah Farm",
+    phone: "0244123456",
+    location: "Kasoa, Central Region",
+    tag: "Fresh Harvest",
+    image: sellFishImg,
+  },
+  {
+    id: "m2",
+    category: "harvest",
+    title: "Live Nile Tilapia (Table Size 400g)",
+    priceGHS: 35,
+    unit: "per kg",
+    seller: "Akosombo Cage Farm",
+    phone: "0209876543",
+    location: "Akosombo, Eastern Region",
+    tag: "High Quality",
+    image: sellFishImg,
+  },
+  {
+    id: "m3",
     category: "feeds",
     title: "Raanan Catfish Feed (45% Protein)",
     priceGHS: 245,
     unit: "15kg Bag",
-    rating: 4.9,
-    seller: "Raanan Official Feed Ghana",
-    tag: "Wholesale Group Buy",
+    seller: "Raanan Feed Depot",
+    phone: "0551122334",
+    location: "Tema Heavy Industrial",
+    tag: "Wholesale",
     image: buyFeedImg,
   },
   {
-    id: "f2",
+    id: "m4",
     category: "feeds",
     title: "Aller Aqua Tilapia Pellets (3mm)",
     priceGHS: 230,
     unit: "15kg Bag",
-    rating: 4.8,
-    seller: "Aller Aqua Ghana Ltd",
-    tag: "15% Off Wholesale",
+    seller: "Aller Aqua Ghana",
+    phone: "0277334455",
+    location: "Kumasi Depot",
+    tag: "Best Seller",
     image: buyFeedImg,
   },
   {
-    id: "e1",
+    id: "m5",
     category: "equipment",
-    title: "Solar Surface Aerator (1.5 HP)",
+    title: "Solar Paddlewheel Aerator (1.5 HP)",
     priceGHS: 3400,
     unit: "Unit",
-    rating: 5.0,
     seller: "AquaTech Solar Ghana",
-    tag: "Top Rated",
+    phone: "0500998877",
+    location: "Accra",
+    tag: "Solar Powered",
     image: marketPricesImg,
   },
   {
-    id: "s1",
-    category: "supplies",
-    title: "Aquaculture Salt (99% Pure)",
-    priceGHS: 65,
-    unit: "25kg Sack",
-    rating: 4.9,
-    seller: "Ghana Salt & Chemicals",
-    tag: "Disease Prevention",
-    image: sellFishImg,
-  },
-  {
-    id: "f3",
+    id: "m6",
     category: "fish",
     title: "High-Growth Catfish Fingerlings",
     priceGHS: 1.8,
     unit: "Piece (Min 500)",
-    rating: 4.9,
-    seller: "Akosombo Hatcheries",
-    tag: "Fast Grower",
+    seller: "Sunrise Hatchery",
+    phone: "0245667788",
+    location: "Sunyani, Bono Region",
+    tag: "Fast Growing",
     image: sellFishImg,
   },
 ];
 
-export function MarketPage() {
-  const [activeCategory, setActiveCategory] = useState<"all" | "feeds" | "equipment" | "supplies" | "fish">("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [cartCount, setCartCount] = useState(0);
+const LOCAL_STORAGE_LISTINGS_KEY = "custom_marketplace_listings_v1";
 
-  const filteredItems = marketCatalog.filter((item) => {
+export function MarketPage() {
+  const [activeCategory, setActiveCategory] = useState<"all" | "harvest" | "feeds" | "equipment" | "fish">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [items, setItems] = useState<MarketItem[]>(DEFAULT_MARKET_ITEMS);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // New Listing Form State
+  const [newTitle, setNewTitle] = useState("");
+  const [newCategory, setNewCategory] = useState<"harvest" | "feeds" | "equipment" | "fish">("harvest");
+  const [newPrice, setNewPrice] = useState<number>(38);
+  const [newUnit, setNewUnit] = useState("per kg");
+  const [newSeller, setNewSeller] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newLocation, setNewLocation] = useState("Kumasi, Ghana");
+
+  useEffect(() => {
+    // Load custom listings
+    const savedName = localStorage.getItem("user_name");
+    const savedPhone = localStorage.getItem("user_phone");
+    if (savedName) setNewSeller(savedName);
+    if (savedPhone) setNewPhone(savedPhone);
+
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_LISTINGS_KEY);
+      if (raw) {
+        const customItems: MarketItem[] = JSON.parse(raw);
+        setItems([...customItems, ...DEFAULT_MARKET_ITEMS]);
+      }
+    } catch (e) {
+      console.warn("Market custom listings error", e);
+    }
+  }, []);
+
+  const handleCreateListing = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newPhone.trim()) {
+      alert("Please enter a title and phone number for your listing!");
+      return;
+    }
+
+    const newItem: MarketItem = {
+      id: "c_" + Date.now().toString(36),
+      category: newCategory,
+      title: newTitle.trim(),
+      priceGHS: Number(newPrice) || 0,
+      unit: newUnit.trim() || "per unit",
+      seller: newSeller.trim() || "Farmer",
+      phone: newPhone.trim(),
+      location: newLocation.trim() || "Ghana",
+      tag: "Verified Farmer",
+      image: newCategory === "feeds" ? buyFeedImg : newCategory === "equipment" ? marketPricesImg : sellFishImg,
+      isUserListing: true,
+    };
+
+    const updated = [newItem, ...items];
+    setItems(updated);
+
+    // Save custom items
+    const customOnly = updated.filter((i) => i.isUserListing);
+    localStorage.setItem(LOCAL_STORAGE_LISTINGS_KEY, JSON.stringify(customOnly));
+
+    setIsModalOpen(false);
+    setNewTitle("");
+    alert("Your harvest listing has been posted successfully to the marketplace!");
+  };
+
+  const filteredItems = items.filter((item) => {
     const matchesCat = activeCategory === "all" || item.category === activeCategory;
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || item.seller.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.seller.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.location.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCat && matchesSearch;
   });
 
   return (
     <PhoneFrame>
       {/* Header */}
-      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-[#0F6236]/10 bg-white/80 backdrop-blur-md sticky top-0 z-30 shadow-xs">
+      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-200 bg-white sticky top-0 z-30 shadow-xs">
         <div className="flex items-center gap-3">
-          <Link to="/home" className="p-1 hover:bg-emerald-50 rounded-full">
+          <Link to="/home" className="p-1 hover:bg-gray-100 rounded-full cursor-pointer">
             <ArrowLeft className="w-5.5 h-5.5 text-gray-900" />
           </Link>
-          <h1 className="text-[19px] font-extrabold text-gray-900 leading-tight">Fish Farm Marketplace</h1>
+          <div>
+            <h1 className="text-[19px] font-extrabold text-gray-900 leading-tight">Farmer Marketplace</h1>
+            <p className="text-[11.5px] text-gray-500 font-medium">Buy & sell harvests, feed, and tools</p>
+          </div>
         </div>
-        <div className="relative p-2 rounded-2xl bg-[#0F6236]/10 text-[#0F6236]">
-          <ShoppingBag className="w-5.5 h-5.5" />
-          {cartCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#0F6236] text-white text-[10px] font-extrabold flex items-center justify-center">
-              {cartCount}
-            </span>
-          )}
-        </div>
+
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="px-3 py-2 rounded-2xl bg-[#0F6236] text-white text-xs font-extrabold shadow-md hover:bg-[#0B4D29] transition-all cursor-pointer flex items-center gap-1.5"
+        >
+          <Plus className="w-4 h-4" /> Post Listing
+        </button>
       </header>
 
-      {/* Hero Banner */}
-      <section className="mx-5 mt-4 rounded-3xl bg-gradient-to-br from-[#09341D] via-[#0F6236] to-[#082917] text-white p-5 shadow-xl shadow-[#0F6236]/30 border border-emerald-500/20 relative overflow-hidden">
-        <div className="max-w-[70%]">
-          <span className="text-[10.5px] font-extrabold bg-amber-400 text-gray-950 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-            Direct Farm Wholesale
-          </span>
-          <h2 className="text-lg font-extrabold mt-1.5 leading-tight">Verified Feeds & Tools Store</h2>
-          <p className="text-xs text-emerald-100 mt-1 font-medium leading-relaxed">Save up to 15% on wholesale feed group buys with free delivery across Ghana.</p>
+      <section className="p-5 space-y-4">
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="w-4.5 h-4.5 text-gray-400 absolute left-3.5 top-3.5" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search catfish, tilapia, feed, aerators, location..."
+            className="w-full h-11 pl-10 pr-4 text-xs font-bold border border-gray-200 rounded-2xl bg-white outline-none focus:ring-2 focus:ring-[#0F6236]/20 shadow-2xs"
+          />
         </div>
-        <img src={feedSacks} alt="Feed sacks" className="absolute right-0 bottom-0 w-28 h-28 object-cover rounded-tl-3xl opacity-90 shadow-lg" />
-      </section>
 
-      {/* Category Tabs */}
-      <section className="px-5 mt-4">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        {/* Category Chips */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {[
             { id: "all", label: "All Items" },
+            { id: "harvest", label: "🐟 Fish Harvest" },
             { id: "feeds", label: "🌾 Feeds" },
+            { id: "fish", label: "🐠 Fingerlings" },
             { id: "equipment", label: "⚙️ Equipment" },
-            { id: "supplies", label: "🧪 Supplies" },
-            { id: "fish", label: "🐟 Live Fish" },
           ].map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id as any)}
-              className={`px-4 py-2 rounded-2xl text-xs font-extrabold shrink-0 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${
                 activeCategory === cat.id
-                  ? "bg-[#0F6236] text-white shadow-md shadow-[#0F6236]/25"
-                  : "bg-white text-gray-700 border border-gray-200 hover:bg-emerald-50/50"
+                  ? "bg-[#0F6236] text-white shadow-sm"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
               {cat.label}
             </button>
           ))}
         </div>
-      </section>
 
-      {/* Search Bar */}
-      <section className="px-5 mt-3">
-        <div className="relative">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search feeds, aerators, salt, fingerlings..."
-            className="w-full h-11 pl-10 pr-4 text-xs font-semibold bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#0F6236]/20 shadow-2xs"
-          />
+        {/* Listings Grid */}
+        <div className="space-y-3">
+          {filteredItems.map((item) => (
+            <div key={item.id} className="bg-white p-4 rounded-3xl border border-gray-200/90 shadow-sm space-y-3 hover:shadow-md transition-shadow">
+              <div className="flex gap-3">
+                <img src={item.image} alt={item.title} className="w-16 h-16 rounded-2xl object-cover border border-gray-100 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase text-[#0F6236] bg-emerald-50 px-2 py-0.5 rounded-md">
+                      {item.tag || "Verified"}
+                    </span>
+                    <span className="text-xs text-gray-500 font-medium">{item.location}</span>
+                  </div>
+                  <h3 className="text-xs font-extrabold text-gray-900 mt-1 leading-snug truncate">{item.title}</h3>
+                  <div className="text-[11px] text-gray-600 font-medium mt-0.5">Seller: {item.seller}</div>
+                  <div className="text-sm font-black text-[#0F6236] mt-1">
+                    GH₵ {item.priceGHS.toLocaleString()} <span className="text-[11px] text-gray-500 font-semibold">{item.unit}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons: WhatsApp & Direct Call */}
+              <div className="flex gap-2 pt-1 border-t border-gray-100">
+                <a
+                  href={`https://api.whatsapp.com/send?phone=233${item.phone.replace(/^0/, "")}&text=${encodeURIComponent(`Hi ${item.seller}, I saw your listing for "${item.title}" on FishFarm OS Marketplace.`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" /> Order WhatsApp
+                </a>
+                <a
+                  href={`tel:${item.phone}`}
+                  className="flex-1 h-10 rounded-xl bg-gray-900 hover:bg-black text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                >
+                  <Phone className="w-3.5 h-3.5" /> Call Seller
+                </a>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Catalog Grid */}
-      <section className="px-5 mt-4 space-y-3 mb-6">
-        {filteredItems.map((item) => (
-          <div key={item.id} className="emerald-card p-4 rounded-3xl flex items-center justify-between gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-[#0F6236]/10 border border-[#0F6236]/20 flex items-center justify-center shrink-0">
-              <img src={item.image} alt="" className="w-10 h-10 object-contain" />
+      {/* Post New Listing Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h2 className="text-base font-extrabold text-gray-900 flex items-center gap-1.5">
+                <Store className="w-4 h-4 text-[#0F6236]" /> Post Harvest or Supplies
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="p-1 rounded-full hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
 
-            <div className="flex-1 min-w-0">
-              {item.tag && (
-                <span className="text-[9.5px] font-extrabold text-[#0F6236] bg-[#0F6236]/10 px-2 py-0.5 rounded-full inline-block mb-1">
-                  {item.tag}
-                </span>
-              )}
-              <h3 className="text-xs font-extrabold text-gray-900 truncate">{item.title}</h3>
-              <div className="text-[11px] text-gray-500 font-semibold">{item.seller}</div>
-              <div className="text-sm font-extrabold text-gray-900 mt-1">
-                GHS {item.priceGHS} <span className="text-[10.5px] text-gray-400 font-medium">/ {item.unit}</span>
+            <form onSubmit={handleCreateListing} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-extrabold text-gray-800 mb-1">Listing Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Fresh Catfish Harvest (1.5kg size)"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                />
               </div>
-            </div>
 
-            <button
-              onClick={() => setCartCount((prev) => prev + 1)}
-              className="px-3.5 py-2.5 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white text-xs font-extrabold shadow-md shrink-0 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
-            >
-              <Plus className="w-4 h-4" /> Order
-            </button>
+              <div>
+                <label className="block font-extrabold text-gray-800 mb-1">Category</label>
+                <select
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value as any)}
+                  className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                >
+                  <option value="harvest">🐟 Fish Harvest</option>
+                  <option value="feeds">🌾 Feed Bags</option>
+                  <option value="fish">🐠 Fingerlings / Seed</option>
+                  <option value="equipment">⚙️ Equipment / Tools</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-extrabold text-gray-800 mb-1">Price (GH₵)</label>
+                  <input
+                    type="number"
+                    required
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(Number(e.target.value) || 0)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-extrabold text-gray-800 mb-1">Unit</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. per kg, per bag"
+                    value={newUnit}
+                    onChange={(e) => setNewUnit(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-extrabold text-gray-800 mb-1">Seller Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newSeller}
+                    onChange={(e) => setNewSeller(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-extrabold text-gray-800 mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="0241234567"
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-extrabold text-gray-800 mb-1">Location</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Kumasi, Ashanti Region"
+                  value={newLocation}
+                  onChange={(e) => setNewLocation(e.target.value)}
+                  className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs rounded-2xl shadow-md cursor-pointer mt-2"
+              >
+                Publish to Marketplace Board
+              </button>
+            </form>
           </div>
-        ))}
-      </section>
+        </div>
+      )}
 
       <BottomNav />
     </PhoneFrame>

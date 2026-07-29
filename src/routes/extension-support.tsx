@@ -4,6 +4,7 @@ import { PhoneCall, ArrowLeft, MapPin, UserCheck, ShieldCheck, Star, Calendar, M
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import supportImg from "@/assets/icons/support.png";
 import farmerImg from "@/assets/farmer.jpg";
+import { VoiceRecorder } from "@/components/VoiceRecorder";
 
 export const Route = createFileRoute("/extension-support")({
   component: ExtensionSupportPage,

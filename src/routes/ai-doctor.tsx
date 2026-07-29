@@ -11,6 +11,7 @@ import farmerImg from "@/assets/farmer.jpg";
 import { diagnoseFishDiseaseAI, MediaAttachment, getGeminiLiveVoiceAudio, DiagnosisResult } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
 import { getFarmProfile, PondRecord } from "@/lib/farmMemory";
+import { VoiceRecorder } from "@/components/VoiceRecorder";
 
 export const Route = createFileRoute("/ai-doctor")({
   component: DiseasePage,
@@ -226,16 +227,21 @@ export function DiseasePage() {
             </select>
           </div>
 
-          {/* Additional Notes */}
+          {/* Additional Notes with Voice Note */}
           <div>
-            <label className="block text-xs font-extrabold text-gray-900 mb-1">
-              3. Visual Symptoms or Notes <span className="text-gray-400 font-normal">(Optional)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-extrabold text-gray-900">
+                3. Visual Symptoms or Notes
+              </label>
+              <VoiceRecorder
+                onTranscript={(text) => setDescription((prev) => (prev ? `${prev} ${text}` : text))}
+              />
+            </div>
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Swimming near surface, mild fin redness, sluggish feeding..."
+              placeholder="Type or tap Voice Note to speak in Twi or English..."
               className="w-full p-3 rounded-2xl border border-gray-200 text-xs font-medium text-gray-900 outline-none focus:ring-2 focus:ring-[#0F6236]/20 bg-gray-50"
             />
           </div>
