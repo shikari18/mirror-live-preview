@@ -11,7 +11,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [isPopped, setIsPopped] = useState(false);
 
   useEffect(() => {
-    // Stage 1: Immediate pop up on mount (50ms)
+    // Stage 1: Immediate pop up (50ms)
     const popTimer = setTimeout(() => {
       setIsPopped(true);
     }, 50);
@@ -21,11 +21,11 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       setIsFadingOut(true);
     }, 1250);
 
-    // Stage 3: Complete & unmount under 2s (1.6s total duration)
+    // Stage 3: Complete & unmount under 2s (1.5s total)
     const endTimer = setTimeout(() => {
       setIsVisible(false);
       if (onComplete) onComplete();
-    }, 1600);
+    }, 1500);
 
     return () => {
       clearTimeout(popTimer);
@@ -38,39 +38,23 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-[#052615] via-[#0F6236] to-[#03180D] transition-opacity duration-350 ease-out ${
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-white transition-opacity duration-300 ease-out ${
         isFadingOut ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
     >
-      {/* Background Subtle Ambient Glow */}
-      <div className="absolute w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl animate-pulse" />
-
-      {/* Main Logo Container with Smooth Pop-Up */}
+      {/* Centered Logo with Pop-Up Animation */}
       <div
-        className={`flex flex-col items-center gap-4 transform transition-all duration-500 ease-out ${
+        className={`transform transition-all duration-400 ease-out flex flex-col items-center justify-center ${
           isPopped
-            ? "scale-100 opacity-100 translate-y-0"
-            : "scale-50 opacity-0 translate-y-6"
+            ? "scale-100 opacity-100"
+            : "scale-75 opacity-0"
         }`}
       >
-        {/* Glossy Logo Badge */}
-        <div className="relative p-4 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl shadow-emerald-950/50 flex items-center justify-center">
-          <img
-            src={logoImg}
-            alt="FishFarm OS Logo"
-            className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-xl"
-          />
-        </div>
-
-        {/* Brand Name & Tagline */}
-        <div className="text-center space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1.5">
-            FishFarm <span className="text-emerald-300">OS</span>
-          </h1>
-          <p className="text-xs font-semibold text-emerald-100/90 tracking-wide uppercase">
-            Ghana's #1 Aquaculture Platform
-          </p>
-        </div>
+        <img
+          src={logoImg}
+          alt="FishFarm OS Logo"
+          className="w-32 h-32 sm:w-40 sm:h-40 object-contain drop-shadow-md"
+        />
       </div>
     </div>
   );
