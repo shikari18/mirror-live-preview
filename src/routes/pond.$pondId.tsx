@@ -26,6 +26,13 @@ export function PondDetails() {
   const [deadCount, setDeadCount] = useState<number>(3);
   const [mortalityReason, setMortalityReason] = useState<string>("Low Dissolved Oxygen");
 
+  // Water Test Logger State
+  const [isWaterModalOpen, setIsWaterModalOpen] = useState(false);
+  const [testPh, setTestPh] = useState<string>("7.2");
+  const [testDo, setTestDo] = useState<string>("5.8");
+  const [testTemp, setTestTemp] = useState<string>("28");
+  const [testAmmonia, setTestAmmonia] = useState<string>("0.02");
+
   useEffect(() => {
     const profile = getFarmProfile();
     const found = profile.ponds?.find((p) => p.id === pondId || p.name.includes(pondId));
@@ -338,6 +345,86 @@ export function PondDetails() {
                 className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-2xl shadow-md cursor-pointer mt-2"
               >
                 Record Mortality Log
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Water Quality Test Logger Modal */}
+      {isWaterModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h2 className="text-base font-extrabold text-gray-900 flex items-center gap-1.5">
+                <FlaskConical className="w-4.5 h-4.5 text-[#0F6236]" /> Log Water Quality Test
+              </h2>
+              <button onClick={() => setIsWaterModalOpen(false)} className="p-1 rounded-full hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (pond) {
+                  setPond({ ...pond, ph: testPh, do: testDo, temp: `${testTemp}°C` });
+                }
+                setIsWaterModalOpen(false);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-extrabold text-gray-800 mb-1">pH Level</label>
+                  <input
+                    type="text"
+                    required
+                    value={testPh}
+                    onChange={(e) => setTestPh(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-extrabold text-gray-800 mb-1">Dissolved O₂ (mg/L)</label>
+                  <input
+                    type="text"
+                    required
+                    value={testDo}
+                    onChange={(e) => setTestDo(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-extrabold text-gray-800 mb-1">Temperature (°C)</label>
+                  <input
+                    type="text"
+                    required
+                    value={testTemp}
+                    onChange={(e) => setTestTemp(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-extrabold text-gray-800 mb-1">Ammonia (mg/L)</label>
+                  <input
+                    type="text"
+                    required
+                    value={testAmmonia}
+                    onChange={(e) => setTestAmmonia(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs rounded-2xl shadow-md cursor-pointer mt-2"
+              >
+                Save Water Test Log
               </button>
             </form>
           </div>

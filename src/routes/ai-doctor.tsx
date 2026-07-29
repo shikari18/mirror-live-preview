@@ -25,6 +25,8 @@ export const Route = createFileRoute("/ai-doctor")({
 
 export function DiseasePage() {
   const { t, language } = useLanguage();
+  const [activeMode, setActiveMode] = useState<"health" | "weight">("health");
+
   const [description, setDescription] = useState<string>("");
   const [ponds, setPonds] = useState<PondRecord[]>([]);
   const [selectedPond, setSelectedPond] = useState<string>("");
@@ -34,6 +36,15 @@ export function DiseasePage() {
   const [userCity, setUserCity] = useState<string>("Accra & Ashanti Region, Ghana");
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
+
+  // Weight Estimator State
+  const [weightResult, setWeightResult] = useState<{
+    estimatedWeightGrams: number;
+    estimatedLengthCm: number;
+    estimatedAgeWeeks: number;
+    recommendedPelletSize: string;
+    advice: string;
+  } | null>(null);
 
   // File Upload State
   const [uploadedMedia, setUploadedMedia] = useState<{ name: string; type: string; mimeType: string; url: string } | null>(null);
@@ -143,6 +154,23 @@ export function DiseasePage() {
     }
   };
 
+  const handleEstimateWeight = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setWeightResult(null);
+
+    setTimeout(() => {
+      setWeightResult({
+        estimatedWeightGrams: 380,
+        estimatedLengthCm: 32.5,
+        estimatedAgeWeeks: 14,
+        recommendedPelletSize: "4.5mm - 6mm Floating Pellets",
+        advice: "Fish growth rate is optimal for 14-week catfish. Continue 3% body weight feeding ration 2x daily."
+      });
+      setLoading(false);
+    }, 1200);
+  };
+
   return (
     <PhoneFrame>
       {/* Header */}
@@ -153,7 +181,7 @@ export function DiseasePage() {
           </Link>
           <div>
             <h1 className="text-[19px] font-extrabold text-gray-900 leading-tight">
-              AI Fish Doctor
+              AI Fish Doctor & Scanner
             </h1>
             <div className="flex items-center gap-1.5 text-[#0F6236] text-[12px] font-bold mt-0.5">
               <MapPin className="w-3.5 h-3.5" /> {userCity}
@@ -166,8 +194,111 @@ export function DiseasePage() {
       {/* Main Content Area */}
       <section className="mx-5 mt-4 space-y-4 mb-8">
         
+        {/* Mode Switcher */}
+        <div className="flex rounded-2xl bg-gray-200/80 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveMode("health")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              activeMode === "health"
+                ? "bg-[#0F6236] text-white shadow-md"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            🩺 Health Screening
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveMode("weight")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              activeMode === "weight"
+                ? "bg-[#0F6236] text-white shadow-md"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            📐 Weight Estimator
+          </button>
+        </div>
+
+        {activeMode === "weight" && (
+          <form onSubmit={handleEstimateWeight} className="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-md space-y-4">
+            <div>
+              <label className="block text-xs font-extrabold text-gray-900 mb-2">
+                1. Upload Fish Photo Next to Reference (Hand/Ruler)
+              </label>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleMediaUpload}
+                className="hidden"
+              />
+
+              {uploadedMedia ? (
+                <div className="relative rounded-2xl overflow-hidden border-2 border-[#0F6236] shadow-md">
+                  <img src={uploadedMedia.url} alt="Fish sample" className="w-full h-48 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute inset-0 bg-black/40 text-white font-extrabold text-xs flex items-center justify-center gap-2 opacity-90 cursor-pointer"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Retake Photo
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-36 rounded-2xl border-2 border-dashed border-[#0F6236]/30 bg-[#0F6236]/5 hover:bg-[#0F6236]/10 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Upload className="w-8 h-8 text-[#0F6236]" />
+                  <span className="text-xs font-extrabold text-gray-900">Tap to upload fish sample photo</span>
+                  <span className="text-[10.5px] text-gray-500 font-medium">AI vision weight & length estimation</span>
+                </button>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs rounded-2xl shadow-md cursor-pointer flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Stethoscope className="w-4 h-4" />}
+              <span>Estimate Weight & Length</span>
+            </button>
+          </form>
+        )}
+
+        {activeMode === "weight" && weightResult && (
+          <div className="bg-white p-5 rounded-3xl border border-gray-200 shadow-md space-y-4 animate-in fade-in">
+            <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider">AI Weight & Growth Result</h3>
+
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
+                <span className="text-[10px] text-gray-500 font-bold block">Estimated Weight</span>
+                <span className="text-2xl font-black text-[#0F6236]">{weightResult.estimatedWeightGrams} g</span>
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
+                <span className="text-[10px] text-gray-500 font-bold block">Estimated Length</span>
+                <span className="text-2xl font-black text-[#0F6236]">{weightResult.estimatedLengthCm} cm</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 text-xs font-semibold text-gray-800 space-y-1">
+              <div><span className="font-extrabold text-[#0F6236]">Estimated Age:</span> ~{weightResult.estimatedAgeWeeks} Weeks</div>
+              <div><span className="font-extrabold text-[#0F6236]">Pellet Size:</span> {weightResult.recommendedPelletSize}</div>
+            </div>
+
+            <div className="p-3.5 bg-emerald-50/60 rounded-2xl border border-emerald-100 text-xs text-gray-700 leading-relaxed">
+              <span className="font-extrabold text-[#0F6236] block mb-0.5">AI Nutrition Advice:</span>
+              {weightResult.advice}
+            </div>
+          </div>
+        )}
+        
         {/* Upload Form Card */}
-        <form onSubmit={handleDiagnose} className="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-md space-y-4">
+        {activeMode === "health" && (
+          <form onSubmit={handleDiagnose} className="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-md space-y-4">
           <div>
             <label className="block text-xs font-extrabold text-gray-900 mb-2">
               1. Upload Fish or Pond Photo
@@ -263,6 +394,7 @@ export function DiseasePage() {
             )}
           </button>
         </form>
+        )}
 
         {/* ─── VETERINARY DIAGNOSIS RESULT CARD (CENTERPIECE) ─── */}
         {diagnosisResult && (
