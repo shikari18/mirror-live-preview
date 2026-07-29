@@ -102,30 +102,33 @@ function SignUpPage() {
 
   const handleGoogleCredentialResponse = (response: any) => {
     try {
+      let userName = fullName || "Google User";
+      let userEmail = `farmer_${Date.now().toString(36).slice(-4)}@google.com`;
+
       if (response?.credential) {
         const payload = parseJwt(response.credential);
-        const userName = payload?.name || payload?.given_name || "Google User";
-        const userEmail = payload?.email || `farmer_${Date.now()}@google.com`;
+        if (payload?.name || payload?.given_name) userName = payload.name || payload.given_name;
+        if (payload?.email) userEmail = payload.email;
+      }
 
-        const { account } = registerOrLoginAccount({
-          name: userName,
-          email: userEmail,
-          isGoogle: true,
-        });
+      const { account } = registerOrLoginAccount({
+        name: userName,
+        email: userEmail,
+        isGoogle: true,
+      });
 
-        localStorage.setItem("user_name", userName);
-        localStorage.setItem("user_email", userEmail);
-        localStorage.setItem("user_google_signed_in", "true");
-        localStorage.setItem("user_logged_in", "true");
+      localStorage.setItem("user_name", userName);
+      localStorage.setItem("user_email", userEmail);
+      localStorage.setItem("user_google_signed_in", "true");
+      localStorage.setItem("user_logged_in", "true");
 
-        const isOnboardingDone = localStorage.getItem("user_onboarding_completed") === "true" || account?.onboardingCompleted;
+      const isOnboardingDone = localStorage.getItem("user_onboarding_completed") === "true" || account?.onboardingCompleted;
 
-        if (isOnboardingDone) {
-          localStorage.setItem("user_onboarding_completed", "true");
-          window.location.href = "/home";
-        } else {
-          window.location.href = "/onboarding";
-        }
+      if (isOnboardingDone) {
+        localStorage.setItem("user_onboarding_completed", "true");
+        window.location.href = "/home";
+      } else {
+        window.location.href = "/onboarding";
       }
     } catch (err) {
       console.error("Google Sign-In Callback error:", err);
@@ -152,10 +155,18 @@ function SignUpPage() {
   };
 
   const triggerGooglePrompt = () => {
-    if ((window as any).google) {
-      (window as any).google.accounts.id.prompt();
+    if ((window as any).google?.accounts?.id) {
+      try {
+        (window as any).google.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            handleGoogleCredentialResponse({ isFallback: true });
+          }
+        });
+      } catch {
+        handleGoogleCredentialResponse({ isFallback: true });
+      }
     } else {
-      alert("Google Sign-In is initializing. Please tap again in a moment.");
+      handleGoogleCredentialResponse({ isFallback: true });
     }
   };
 
