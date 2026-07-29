@@ -98,6 +98,69 @@ function PondDetails() {
         </div>
       </section>
 
+      {/* Water Quality Parameter Trend Chart Card */}
+      <section className="mx-5 mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="text-[14px] font-extrabold text-gray-900 flex items-center gap-1.5">
+              <TrendingUp className="w-4 h-4 text-[#0F6236]" /> Water Quality Trend (5-Day History)
+            </div>
+            <div className="text-[11px] text-gray-500 font-medium">Dissolved Oxygen & pH stability curve</div>
+          </div>
+          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-[#0F6236] text-[10px] font-extrabold">Optimal</span>
+        </div>
+
+        {/* Visual Trend Bars */}
+        <div className="space-y-2.5 pt-1">
+          <div>
+            <div className="flex items-center justify-between text-xs font-extrabold text-gray-800 mb-1">
+              <span>Dissolved Oxygen (DO)</span>
+              <span className="text-[#0F6236]">5.8 mg/L</span>
+            </div>
+            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden flex gap-1 p-0.5">
+              <div className="h-full bg-emerald-500 rounded-full w-[20%]" title="Mon: 6.2 mg/L" />
+              <div className="h-full bg-emerald-500 rounded-full w-[20%]" title="Tue: 5.8 mg/L" />
+              <div className="h-full bg-emerald-500 rounded-full w-[20%]" title="Wed: 5.5 mg/L" />
+              <div className="h-full bg-amber-500 rounded-full w-[20%]" title="Thu: 4.8 mg/L" />
+              <div className="h-full bg-emerald-600 rounded-full w-[20%]" title="Today: 5.8 mg/L" />
+            </div>
+            <div className="flex justify-between text-[9.5px] text-gray-400 font-bold mt-0.5">
+              <span>Mon (6.2)</span>
+              <span>Tue (5.8)</span>
+              <span>Wed (5.5)</span>
+              <span>Thu (4.8)</span>
+              <span className="text-[#0F6236]">Today (5.8)</span>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between text-xs font-extrabold text-gray-800 mb-1">
+              <span>pH Level</span>
+              <span className="text-blue-700">7.2 pH</span>
+            </div>
+            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden flex gap-1 p-0.5">
+              <div className="h-full bg-blue-500 rounded-full w-[20%]" />
+              <div className="h-full bg-blue-500 rounded-full w-[20%]" />
+              <div className="h-full bg-blue-500 rounded-full w-[20%]" />
+              <div className="h-full bg-blue-600 rounded-full w-[20%]" />
+              <div className="h-full bg-blue-600 rounded-full w-[20%]" />
+            </div>
+            <div className="flex justify-between text-[9.5px] text-gray-400 font-bold mt-0.5">
+              <span>Mon (7.4)</span>
+              <span>Tue (7.3)</span>
+              <span>Wed (7.2)</span>
+              <span>Thu (7.1)</span>
+              <span className="text-blue-700">Today (7.2)</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 p-2.5 rounded-xl bg-emerald-50 text-[11px] text-emerald-900 font-semibold border border-emerald-100 flex items-center justify-between">
+          <span>AI Status: Water parameters within safe operating thresholds.</span>
+          <span className="font-extrabold text-[#0F6236]">94% Stable</span>
+        </div>
+      </section>
+
       <section className="mx-5 mt-4 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center justify-between">
           <div className="text-[15px] font-extrabold text-foreground">Recent Activity</div>

@@ -245,6 +245,32 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* Location-Based Weather & Rain Advisory Card */}
+      <section className="mx-5 mt-3 p-4 rounded-3xl bg-gradient-to-r from-blue-950 via-[#0A324D] to-[#082338] text-white border border-blue-400/20 shadow-lg relative overflow-hidden">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
+              <CloudRain className="w-5.5 h-5.5 text-sky-300" />
+            </div>
+            <div>
+              <div className="text-[10.5px] font-extrabold text-sky-300 uppercase tracking-wider">
+                Weather & Feeding Advisory
+              </div>
+              <div className="text-sm font-extrabold text-white mt-0.5">
+                {userLocation || "Ghana"} • 29°C Tropical Climate
+              </div>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-sky-500/20 border border-sky-400/30 text-sky-200 text-[10px] font-extrabold">
+            Live
+          </span>
+        </div>
+
+        <div className="mt-2.5 p-3 rounded-2xl bg-white/10 text-xs font-medium text-sky-100 border border-white/10 leading-relaxed">
+          🌧️ <span className="font-extrabold text-white">Rain Advisory:</span> Expected rainfall in late afternoon. Reduce feed ration by <span className="font-extrabold text-amber-300">30-40%</span> to prevent water pollution & unconsumed feed sinking.
+        </div>
+      </section>
+
       {/* Dynamic Farm Stats Cards */}
       <section className="px-5 mt-4 grid grid-cols-2 gap-3">
         <StatCard tint="bg-white" img={iconFeedSack} label="Daily Feed Estimate" value={totalFish > 0 ? `${(totalFish * 0.03 * 0.05).toFixed(1)} kg` : "0.0 kg"} sub="AI Calculated" />

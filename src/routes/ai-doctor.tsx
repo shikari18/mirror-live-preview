@@ -4,7 +4,7 @@ import {
   ArrowLeft, MapPin, Upload, RefreshCw, Stethoscope, Loader2, 
   Volume2, VolumeX, CheckCircle2, AlertTriangle, ShieldCheck, 
   ChevronDown, ChevronUp, Droplets, Activity, FileText, Pill,
-  Check, AlertCircle, Info
+  Check, AlertCircle, Info, Share2, Printer
 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
@@ -278,24 +278,48 @@ export function DiseasePage() {
                 )}
               </div>
 
-              {/* Voice Playback Button (ONLY PLAYS ON CLICK) */}
-              <button
-                onClick={toggleAudio}
-                className="p-3 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white cursor-pointer shadow-md transition-all active:scale-95 flex items-center gap-1.5"
-                title="Listen to Voice Diagnosis"
-              >
-                {isPlayingAudio ? (
-                  <>
-                    <VolumeX className="w-4 h-4 text-white" />
-                    <span className="text-[11px] font-extrabold">Stop</span>
-                  </>
-                ) : (
-                  <>
-                    <Volume2 className="w-4 h-4 text-white" />
-                    <span className="text-[11px] font-extrabold">Listen</span>
-                  </>
-                )}
-              </button>
+              {/* Actions: Voice, WhatsApp Share, Print PDF */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!diagnosisResult) return;
+                    const text = `🐟 Fish Doctor AI Diagnosis Report\n\nCondition: ${diagnosisResult.diseaseName}\nConfidence: ${diagnosisResult.confidencePercent}%\nStatus: ${diagnosisResult.riskLevel}\n\nSummary: ${diagnosisResult.whyThisDiagnosis}\n\nGenerated via FishFarm OS Ghana`;
+                    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                  }}
+                  className="p-2.5 rounded-2xl bg-emerald-100 hover:bg-emerald-200 text-[#0F6236] cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                  title="Share Report on WhatsApp"
+                >
+                  <Share2 className="w-4 h-4 text-[#0F6236]" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="p-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                  title="Download / Print PDF Report"
+                >
+                  <Printer className="w-4 h-4 text-gray-700" />
+                </button>
+
+                <button
+                  onClick={toggleAudio}
+                  className="p-2.5 px-3 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white cursor-pointer shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+                  title="Listen to Voice Diagnosis"
+                >
+                  {isPlayingAudio ? (
+                    <>
+                      <VolumeX className="w-4 h-4 text-white" />
+                      <span className="text-[11px] font-extrabold">Stop</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-4 h-4 text-white" />
+                      <span className="text-[11px] font-extrabold">Listen</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Confidence Score & Visual Meter */}

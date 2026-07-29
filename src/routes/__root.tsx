@@ -17,6 +17,7 @@ import farmerImg from "@/assets/farmer.jpg";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import { LanguageProvider } from "../lib/languageContext";
 import { SplashScreen } from "@/components/SplashScreen";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 
 function NotFoundComponent() {
   const items = [
@@ -199,6 +200,7 @@ function RootComponent() {
       <LanguageProvider>
         {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
         <Outlet />
+        <PWAInstallBanner />
       </LanguageProvider>
     </QueryClientProvider>
   );
