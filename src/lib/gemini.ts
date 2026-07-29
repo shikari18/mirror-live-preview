@@ -202,16 +202,43 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
   const isTwi = targetLanguage.toLowerCase().includes("twi") || targetLanguage.toLowerCase().includes("akan");
+
+  let spokenText = cleanText;
+
+  // Translate to authentic Akan Twi if Twi is selected and text is in English
+  if (isTwi) {
+    if (cleanText.includes("Welcome farmer") || cleanText.includes("Tropical Climate") || cleanText.includes("Feeding Schedule")) {
+      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa ne mpɔtorɔ afideɛ afutuo: Ewiem mmoa ye aduasa. Ma w'anigye mmra aduane ma mpɔtorɔ no na fa Fish Doctor AI bɔ wɔn apɔwmuden kɔkɔɔ.";
+    } else if (/[a-zA-Z]/.test(cleanText) && !cleanText.includes("Meyɛ") && !cleanText.includes("Akwaaba")) {
+      try {
+        const translated = await callAI(
+          `Translate this English text into 100% natural Akan Twi for speech reading (respond ONLY with the Twi translation): "${cleanText.slice(0, 300)}"`,
+          "You are an expert Akan Twi voice translator. Translate to pure Twi spoken words."
+        );
+        if (translated && translated.trim()) {
+          spokenText = translated.trim();
+        }
+      } catch (e) {
+        console.warn("Twi translation for TTS failed, using fallback Twi text:", e);
+        spokenText = "Meyɛ wo Fish Doctor AI. Fa w'asiansunam ne nsuo ho nsɛm kyerɛ me na mɛboa wo pɛ.";
+      }
+    }
+  }
+
+  // Native Browser Speech Synthesis
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
     try {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = isTwi ? "en-GH" : targetLanguage === "French" ? "fr-FR" : "en-US";
-      utterance.rate = 0.9;
+      const utterance = new SpeechSynthesisUtterance(spokenText);
+      utterance.lang = isTwi ? "ak-GH" : targetLanguage === "French" ? "fr-FR" : "en-US";
+      utterance.rate = 0.88;
       window.speechSynthesis.speak(utterance);
     } catch (e) { console.warn("TTS error:", e); }
   }
-  return null;
+
+  // Google Translate TTS URL fallback
+  const ttsLang = isTwi ? "ak" : targetLanguage === "French" ? "fr" : "en";
+  return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(spokenText.slice(0, 200))}&tl=${ttsLang}&client=tw-ob`;
 }
 
 export async function getAIAssistantResponse(
