@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { X, Check, ShieldCheck, Zap, PhoneCall, CreditCard, Sparkles, AlertCircle, Clock } from "lucide-react";
+import { X, Check, ShieldCheck, Zap, Phone, CreditCard, Sparkles, AlertCircle, Clock, Globe, ArrowRight, CheckCircle2 } from "lucide-react";
 import { PRO_MONTHLY_PRICE_GHC, getSubscriptionStatus, activateProSubscription, SubscriptionStatus } from "@/lib/subscription";
+import { WORLD_COUNTRIES, getCountryPaymentInfo, detectUserCountry, CountryPaymentInfo } from "@/lib/countryPayment";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -10,7 +11,11 @@ interface PaymentModalProps {
 
 export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) {
   const [status, setStatus] = useState<SubscriptionStatus>(getSubscriptionStatus());
-  const [selectedMethod, setSelectedMethod] = useState<"momo_mtn" | "momo_telecel" | "momo_at" | "card">("momo_mtn");
+  const [selectedCountryCode, setSelectedCountryCode] = useState<string>("GH");
+  const [countryInfo, setCountryInfo] = useState<CountryPaymentInfo>(getCountryPaymentInfo("GH"));
+  const [selectedMethodId, setSelectedMethodId] = useState<string>("momo_mtn");
+  
+  // Payment Form States
   const [phoneNumber, setPhoneNumber] = useState("");
   const [cardDetails, setCardDetails] = useState({ number: "", expiry: "", cvc: "" });
   const [isProcessing, setIsProcessing] = useState(false);
@@ -23,34 +28,55 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
       setStatus(sub);
       const userPhone = localStorage.getItem("user_phone") || "";
       if (userPhone) setPhoneNumber(userPhone);
+
+      const detected = detectUserCountry();
+      setSelectedCountryCode(detected);
+      const info = getCountryPaymentInfo(detected);
+      setCountryInfo(info);
+      if (info.paymentMethods.length > 0) {
+        setSelectedMethodId(info.paymentMethods[0].id);
+      }
+
       setPaymentSuccess(false);
       setErrorMsg("");
     }
   }, [isOpen]);
 
+  const handleCountryChange = (code: string) => {
+    setSelectedCountryCode(code);
+    localStorage.setItem("user_selected_country_code", code);
+    const info = getCountryPaymentInfo(code);
+    setCountryInfo(info);
+    if (info.paymentMethods.length > 0) {
+      setSelectedMethodId(info.paymentMethods[0].id);
+    }
+  };
+
   if (!isOpen) return null;
 
-  const handlePayment = (e: React.FormEvent) => {
+  const currentMethod = countryInfo.paymentMethods.find((m) => m.id === selectedMethodId) || countryInfo.paymentMethods[0];
+
+  const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
-    if (selectedMethod.startsWith("momo")) {
-      if (!phoneNumber || phoneNumber.trim().length < 9) {
-        setErrorMsg("Please enter a valid Ghana Mobile Money phone number.");
+    if (currentMethod.inputType === "phone") {
+      if (!phoneNumber || phoneNumber.trim().length < 8) {
+        setErrorMsg(`Please enter a valid phone number for ${currentMethod.name}.`);
         return;
       }
-    } else {
-      if (!cardDetails.number || cardDetails.number.replace(/\s/g, "").length < 16) {
-        setErrorMsg("Please enter a valid 16-digit bank card number.");
+    } else if (currentMethod.inputType === "card") {
+      if (!cardDetails.number || cardDetails.number.replace(/\s/g, "").length < 15) {
+        setErrorMsg("Please enter a valid card number.");
         return;
       }
     }
 
     setIsProcessing(true);
 
-    // Simulate instant payment gateway authorization prompt (1.5s)
+    // Simulate instant multi-gateway authorization (1.2s)
     setTimeout(() => {
-      const res = activateProSubscription(selectedMethod, phoneNumber || cardDetails.number);
+      const res = activateProSubscription(currentMethod.name, phoneNumber || cardDetails.number || "ONLINE_GATEWAY");
       setIsProcessing(false);
 
       if (res.success) {
@@ -60,12 +86,12 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
       } else {
         setErrorMsg(res.message);
       }
-    }, 1500);
+    }, 1200);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-[420px] bg-white rounded-3xl overflow-hidden shadow-2xl border border-emerald-900/10 animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-[430px] bg-white rounded-3xl overflow-hidden shadow-2xl border border-emerald-900/10 animate-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-[#08301B] via-[#0F6236] to-[#08301B] p-5 text-white relative">
@@ -84,9 +110,29 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
             Unlimited AI & Farm Analytics
           </h2>
 
-          <div className="mt-3 flex items-baseline gap-1">
-            <span className="text-2xl font-black text-white">GH₵ {PRO_MONTHLY_PRICE_GHC.toFixed(2)}</span>
-            <span className="text-xs text-emerald-200 font-medium">/ month</span>
+          <div className="mt-3 flex items-baseline justify-between">
+            <div>
+              <span className="text-2xl font-black text-white">
+                {countryInfo.currencySymbol} {countryInfo.monthlyPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </span>
+              <span className="text-xs text-emerald-200 font-medium ml-1">/ month</span>
+            </div>
+
+            {/* Country Selector Switcher */}
+            <div className="relative">
+              <select
+                value={selectedCountryCode}
+                onChange={(e) => handleCountryChange(e.target.value)}
+                className="appearance-none bg-white/15 hover:bg-white/25 text-white font-extrabold text-xs px-3 py-1.5 rounded-full pr-7 outline-none border border-white/20 cursor-pointer"
+              >
+                {WORLD_COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code} className="text-gray-900 font-bold">
+                    {c.flag} {c.name} ({c.currencyCode})
+                  </option>
+                ))}
+              </select>
+              <Globe className="w-3.5 h-3.5 text-emerald-200 absolute right-2 top-2 pointer-events-none" />
+            </div>
           </div>
         </div>
 
@@ -98,213 +144,160 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-[#0F6236] flex items-center justify-center mx-auto shadow-inner">
                 <Check className="w-9 h-9 stroke-[3]" />
               </div>
-              <div>
-                <h3 className="text-lg font-extrabold text-gray-900">Subscription Active!</h3>
-                <p className="text-xs text-gray-600 mt-1">
-                  You now have full Pro Access to AI Fish Doctor, Multi-Pond Analytics, and Market Tools.
-                </p>
-              </div>
+              <h3 className="text-xl font-black text-gray-900">Pro Membership Activated!</h3>
+              <p className="text-xs text-gray-600 font-medium max-w-[260px] mx-auto">
+                Thank you! You now have unlimited access to AI Doctor, AR Camera Pond Measurement, and live weather alerts.
+              </p>
               <button
                 onClick={onClose}
-                className="w-full h-12 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs shadow-lg shadow-[#0F6236]/30 cursor-pointer"
+                className="w-full h-12 rounded-2xl bg-[#0F6236] text-white font-extrabold text-xs shadow-lg cursor-pointer"
               >
-                Return to Dashboard
+                Start Using Pro Access
               </button>
             </div>
           ) : (
-            <>
-              {/* Status Banner */}
-              {status.isPro ? (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2 text-xs font-bold text-emerald-800">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Your Pro Subscription is active.</span>
-                </div>
-              ) : status.isTrialActive ? (
-                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between text-xs font-bold text-amber-900">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-amber-700 shrink-0" />
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wider text-amber-700 font-extrabold">23-Hour Free Trial</div>
-                      <div>{status.formattedTimeLeft}</div>
-                    </div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-[10px] text-amber-900 font-extrabold">Active</span>
-                </div>
-              ) : (
-                <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-2 text-xs font-bold text-red-800">
-                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                  <span>23-Hour Free Trial Expired. Subscribe to continue using Pro features.</span>
-                </div>
-              )}
+            <form onSubmit={handlePaymentSubmit} className="space-y-4">
+              
+              {/* Payment Methods Selection for Selected Country */}
+              <div>
+                <label className="block text-xs font-extrabold text-gray-800 mb-2">
+                  Select Payment Method for {countryInfo.flag} {countryInfo.name}:
+                </label>
 
-              {/* Pro Benefits */}
-              <div className="space-y-2">
-                <div className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider">What's included in Pro:</div>
-                <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-gray-700">
-                  <div className="flex items-center gap-1.5 p-2 bg-gray-50 rounded-xl border border-gray-100">
-                    <Check className="w-3.5 h-3.5 text-[#0F6236]" /> AI Doctor Diagnosis
-                  </div>
-                  <div className="flex items-center gap-1.5 p-2 bg-gray-50 rounded-xl border border-gray-100">
-                    <Check className="w-3.5 h-3.5 text-[#0F6236]" /> Voice Twi Assistance
-                  </div>
-                  <div className="flex items-center gap-1.5 p-2 bg-gray-50 rounded-xl border border-gray-100">
-                    <Check className="w-3.5 h-3.5 text-[#0F6236]" /> Unlimited Ponds
-                  </div>
-                  <div className="flex items-center gap-1.5 p-2 bg-gray-50 rounded-xl border border-gray-100">
-                    <Check className="w-3.5 h-3.5 text-[#0F6236]" /> Daily Feed Calculator
-                  </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {countryInfo.paymentMethods.map((method) => (
+                    <button
+                      type="button"
+                      key={method.id}
+                      onClick={() => {
+                        setSelectedMethodId(method.id);
+                        setErrorMsg("");
+                      }}
+                      className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                        selectedMethodId === method.id
+                          ? "border-2 border-[#0F6236] bg-emerald-50/80 shadow-xs"
+                          : "border-gray-200 bg-gray-50 hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg">{method.icon}</span>
+                        {selectedMethodId === method.id && (
+                          <CheckCircle2 className="w-4 h-4 text-[#0F6236]" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-xs font-extrabold text-gray-900 mt-1 leading-tight">{method.name}</div>
+                        <div className="text-[10px] text-gray-500 font-medium leading-tight mt-0.5 line-clamp-1">
+                          {method.description}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Payment Method Selector */}
-              <form onSubmit={handlePayment} className="space-y-3 pt-2">
-                <div className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider">Select Payment Method:</div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMethod("momo_mtn")}
-                    className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
-                      selectedMethod === "momo_mtn"
-                        ? "border-[#0F6236] bg-emerald-50/80 ring-2 ring-[#0F6236]/20"
-                        : "border-gray-200 bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-amber-900">MTN MoMo</span>
-                      <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
-                    </div>
-                    <span className="text-[10px] text-gray-500 font-medium">Mobile Money</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMethod("momo_telecel")}
-                    className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
-                      selectedMethod === "momo_telecel"
-                        ? "border-[#0F6236] bg-emerald-50/80 ring-2 ring-[#0F6236]/20"
-                        : "border-gray-200 bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-red-900">Telecel Cash</span>
-                      <PhoneCall className="w-3.5 h-3.5 text-red-600" />
-                    </div>
-                    <span className="text-[10px] text-gray-500 font-medium">Vodafone Cash</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMethod("momo_at")}
-                    className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
-                      selectedMethod === "momo_at"
-                        ? "border-[#0F6236] bg-emerald-50/80 ring-2 ring-[#0F6236]/20"
-                        : "border-gray-200 bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-blue-900">AT Money</span>
-                      <PhoneCall className="w-3.5 h-3.5 text-blue-600" />
-                    </div>
-                    <span className="text-[10px] text-gray-500 font-medium">AirtelTigo</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMethod("card")}
-                    className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
-                      selectedMethod === "card"
-                        ? "border-[#0F6236] bg-emerald-50/80 ring-2 ring-[#0F6236]/20"
-                        : "border-gray-200 bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-gray-900">Bank Card</span>
-                      <CreditCard className="w-3.5 h-3.5 text-gray-700" />
-                    </div>
-                    <span className="text-[10px] text-gray-500 font-medium">Visa / Mastercard</span>
-                  </button>
-                </div>
-
-                {/* Account Details Input */}
-                {selectedMethod.startsWith("momo") ? (
-                  <div>
-                    <label className="block text-[11px] font-extrabold text-gray-700 mb-1">
-                      Mobile Money Number
-                    </label>
+              {/* Input Fields according to Payment Method */}
+              {currentMethod.inputType === "phone" && (
+                <div className="space-y-1">
+                  <label className="block text-xs font-extrabold text-gray-800">
+                    {currentMethod.name} Mobile Number
+                  </label>
+                  <div className="relative">
                     <input
                       type="tel"
+                      required
+                      placeholder="e.g. 0244123456"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="e.g. 0244123456"
-                      className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
+                      className="w-full h-11 px-3.5 text-xs font-extrabold border border-gray-300 rounded-2xl bg-gray-50 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
                     />
+                    <Phone className="w-4 h-4 text-gray-400 absolute right-3.5 top-3.5" />
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Card Number</label>
+                  <span className="text-[10.5px] text-gray-500 font-medium block pt-0.5">
+                    An approval prompt will be sent directly to your mobile wallet.
+                  </span>
+                </div>
+              )}
+
+              {currentMethod.inputType === "card" && (
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="block text-xs font-extrabold text-gray-800 mb-1">Card Number</label>
+                    <div className="relative">
                       <input
                         type="text"
+                        required
+                        placeholder="4532 •••• •••• 8912"
+                        maxLength={19}
                         value={cardDetails.number}
                         onChange={(e) => setCardDetails({ ...cardDetails, number: e.target.value })}
-                        placeholder="1234 5678 9012 3456"
-                        className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
+                        className="w-full h-11 px-3.5 text-xs font-extrabold border border-gray-300 rounded-2xl bg-gray-50 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
                       />
+                      <CreditCard className="w-4 h-4 text-gray-400 absolute right-3.5 top-3.5" />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-extrabold text-gray-800 mb-1">Expiry Date</label>
                       <input
                         type="text"
-                        placeholder="MM/YY"
+                        placeholder="MM / YY"
+                        maxLength={5}
                         value={cardDetails.expiry}
                         onChange={(e) => setCardDetails({ ...cardDetails, expiry: e.target.value })}
-                        className="h-10 px-3 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold outline-none"
+                        className="w-full h-11 px-3.5 text-xs font-extrabold border border-gray-300 rounded-2xl bg-gray-50 outline-none"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-extrabold text-gray-800 mb-1">CVC / CVV</label>
                       <input
-                        type="text"
-                        placeholder="CVC"
+                        type="password"
+                        placeholder="•••"
+                        maxLength={4}
                         value={cardDetails.cvc}
                         onChange={(e) => setCardDetails({ ...cardDetails, cvc: e.target.value })}
-                        className="h-10 px-3 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold outline-none"
+                        className="w-full h-11 px-3.5 text-xs font-extrabold border border-gray-300 rounded-2xl bg-gray-50 outline-none"
                       />
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {errorMsg && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-700">
-                    {errorMsg}
-                  </div>
-                )}
+              {(currentMethod.inputType === "qr" || currentMethod.inputType === "bank_transfer" || currentMethod.inputType === "ussd") && (
+                <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl text-center space-y-1.5">
+                  <div className="text-2xl">{currentMethod.icon}</div>
+                  <div className="text-xs font-extrabold text-gray-900">{currentMethod.name} Instant Checkout</div>
+                  <p className="text-[11px] text-gray-600 font-medium">
+                    {currentMethod.description}. Authorize payment to complete Pro activation.
+                  </p>
+                </div>
+              )}
 
-                {/* Submit Action */}
-                <button
-                  type="submit"
-                  disabled={isProcessing}
-                  className="w-full h-12 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0F6236]/30 cursor-pointer transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                  {isProcessing ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Authorizing MoMo Payment...
-                    </span>
-                  ) : (
-                    <span>Pay GH₵ {PRO_MONTHLY_PRICE_GHC.toFixed(2)} / Month</span>
-                  )}
-                </button>
+              {errorMsg && (
+                <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-xs font-extrabold text-red-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
 
-                {/* Continue Free Trial Button if Active */}
-                {status.isTrialActive && !status.isPro && (
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-full py-2.5 rounded-2xl text-xs font-extrabold text-gray-600 hover:text-gray-900 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-all text-center"
-                  >
-                    Continue Free ({status.formattedTimeLeft})
-                  </button>
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="w-full h-13 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-sm shadow-xl shadow-[#0F6236]/25 cursor-pointer flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <>
+                    <Sparkles className="w-4 h-4 animate-spin text-white" /> Authorizing Payment...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-5 h-5 text-emerald-300" /> Pay {countryInfo.currencySymbol} {countryInfo.monthlyPrice.toLocaleString()} Now
+                  </>
                 )}
-              </form>
-            </>
+              </button>
+
+            </form>
           )}
 
         </div>

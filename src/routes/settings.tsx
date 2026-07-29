@@ -92,7 +92,7 @@ export function SettingsPage() {
                 {subStatus.isPro ? (
                   <span className="text-[10px] bg-emerald-100 text-[#0F6236] font-extrabold px-2 py-0.5 rounded-full">ACTIVE</span>
                 ) : (
-                  <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-full">GH₵ 99.90/mo</span>
+                  <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-full">GH₵ 100/mo</span>
                 )}
               </div>
               <div className="text-xs text-gray-500 font-bold">

@@ -246,7 +246,7 @@ export function HomePage() {
         <div className="mx-5 mt-3 p-3 rounded-2xl bg-gradient-to-r from-[#08301B] to-[#0F6236] text-white flex items-center justify-between text-xs font-extrabold shadow-sm border border-emerald-400/20">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-300 shrink-0" />
-            <span>Pro Member • GH₵ {PRO_MONTHLY_PRICE_GHC.toFixed(2)}/mo Active</span>
+            <span>Pro Member • GH₵ {PRO_MONTHLY_PRICE_GHC}/mo Active</span>
           </div>
           <span className="px-2.5 py-1 rounded-xl bg-white/20 text-white text-[10.5px] uppercase tracking-wider font-extrabold">
             Pro Plan
@@ -265,7 +265,7 @@ export function HomePage() {
             </div>
           </div>
           <button className="px-3 py-1 rounded-xl bg-[#0F6236] text-white text-[11px] font-extrabold shrink-0 shadow-xs cursor-pointer">
-            Upgrade GH₵ 99.90
+            Upgrade GH₵ 100
           </button>
         </div>
       ) : (
@@ -278,7 +278,7 @@ export function HomePage() {
             <span>23-Hour Free Access Expired</span>
           </div>
           <button className="px-3 py-1 rounded-xl bg-red-600 text-white text-[11px] font-extrabold shrink-0 shadow-xs cursor-pointer">
-            Subscribe GH₵ 99.90
+            Subscribe GH₵ 100
           </button>
         </div>
       )}

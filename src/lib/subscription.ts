@@ -21,7 +21,7 @@ const STORAGE_KEYS = {
   PAYMENT_DATE: "fish_app_payment_date_v1",
 };
 
-export const PRO_MONTHLY_PRICE_GHC = 99.90;
+export const PRO_MONTHLY_PRICE_GHC = 100; // 100 GHS straight
 export const FREE_TRIAL_HOURS = 23;
 export const FREE_TRIAL_MS = FREE_TRIAL_HOURS * 60 * 60 * 1000; // 23 Hours in milliseconds
 
