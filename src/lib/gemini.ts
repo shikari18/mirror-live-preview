@@ -1,27 +1,127 @@
 import { getUnifiedMemoryPrompt } from "./farmMemory";
-import { callGroqAI } from "./groq";
 
 export interface MediaAttachment {
   mimeType: string;
   data: string; // Base64 or URL
 }
 
+// ─── Gemini API Engine ─────────────────────────────────────────────────────────
+
+const getGeminiKey = (): string => {
+  // First check environment variable
+  if (import.meta.env.VITE_GEMINI_API_KEY) {
+    return import.meta.env.VITE_GEMINI_API_KEY;
+  }
+  // Fallback embedded key (set via setGeminiKey at runtime)
+  return (window as any).__GEMINI_KEY__ || "";
+};
+
+// Called from groq.ts after decoding key
+export function setGeminiKey(key: string) {
+  (window as any).__GEMINI_KEY__ = key;
+}
+
+async function callGeminiAPI(
+  prompt: string,
+  systemInstruction?: string,
+  mediaAttachments?: MediaAttachment[],
+  farmContext?: string
+): Promise<string> {
+  const apiKey = getGeminiKey();
+  if (!apiKey) throw new Error("No Gemini API key configured");
+
+  const combinedSystem = [
+    "You are the official FISH DOCTOR AI — an elite aquatic veterinarian, fish health specialist, and pond engineer for Ghana and West Africa.",
+    systemInstruction,
+    farmContext ? `\n[FARM MEMORY]:\n${farmContext}` : ""
+  ].filter(Boolean).join("\n\n");
+
+  const parts: any[] = [];
+
+  // Add images if present
+  if (mediaAttachments && mediaAttachments.length > 0) {
+    for (const media of mediaAttachments) {
+      let base64Data = media.data;
+      let mimeType = media.mimeType || "image/jpeg";
+
+      // Strip data URL prefix if present
+      if (base64Data.startsWith("data:")) {
+        const match = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          mimeType = match[1];
+          base64Data = match[2];
+        }
+      }
+
+      parts.push({
+        inline_data: {
+          mime_type: mimeType,
+          data: base64Data,
+        }
+      });
+    }
+  }
+
+  parts.push({ text: prompt });
+
+  const body = {
+    system_instruction: { parts: [{ text: combinedSystem }] },
+    contents: [{ role: "user", parts }],
+    generationConfig: {
+      temperature: 0.4,
+      maxOutputTokens: 800,
+    }
+  };
+
+  // Use gemini-1.5-flash for text, gemini-1.5-flash for vision too (it supports both)
+  const model = "gemini-2.0-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "Unknown error");
+      throw new Error(`Gemini API error ${response.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text && text.trim()) return text.trim();
+    throw new Error("Empty response from Gemini");
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ─── Public callGemini wrapper ─────────────────────────────────────────────────
+
 export async function callGemini(
   prompt: string,
   systemInstruction?: string,
   mediaAttachments?: MediaAttachment[]
 ): Promise<string> {
-  const farmMemoryPrompt = getUnifiedMemoryPrompt();
-  return await callGroqAI(prompt, systemInstruction, mediaAttachments, farmMemoryPrompt);
+  const farmContext = getUnifiedMemoryPrompt();
+  return callGeminiAPI(prompt, systemInstruction, mediaAttachments, farmContext);
 }
 
+// ─── TTS / Voice ───────────────────────────────────────────────────────────────
+
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
-  let cleanText = text.replace(/[#*`_]/g, "").trim();
+  const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
 
   const isTwi = targetLanguage.toLowerCase().includes("twi") || targetLanguage.toLowerCase().includes("akan");
 
-  // In-browser Web Speech Synthesis execution for zero latency
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
     try {
       window.speechSynthesis.cancel();
@@ -33,9 +133,10 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
       console.warn("Speech Synthesis warning:", e);
     }
   }
-
   return null;
 }
+
+// ─── AI Assistant (Chat) ───────────────────────────────────────────────────────
 
 export async function getAIAssistantResponse(
   userMessage: string,
@@ -44,34 +145,35 @@ export async function getAIAssistantResponse(
   userLocationInfo?: { coords?: string; city?: string; weather?: string; time?: string }
 ): Promise<string> {
   const currentTime = userLocationInfo?.time || new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "medium" });
-  const locationText = userLocationInfo?.city || userLocationInfo?.coords || "Ghana Region";
+  const locationText = userLocationInfo?.city || "Ghana Region";
   const weatherText = userLocationInfo?.weather || "29°C, Tropical Climate";
-  const farmMemoryPrompt = getUnifiedMemoryPrompt();
+  const farmContext = getUnifiedMemoryPrompt();
 
   const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
+  const langDirective = isTwi
+    ? "CRITICAL: Respond ENTIRELY in authentic Akan Twi. No English sentences at all."
+    : language !== "English"
+    ? `CRITICAL: Respond ENTIRELY in fluent ${language}.`
+    : "Respond in clear professional English.";
 
-  const languagePrompt = isTwi
-    ? `CRITICAL LANGUAGE DIRECTIVE: The user wants their response ENTIRELY in authentic AKAN TWI (Asante Twi). DO NOT include any English sentences! Write EVERYTHING in natural Akan Twi (e.g., "Akwaaba! Meyɛ wo Fish Doctor AI. Wo nsuo foforo a wode gu mu no bɛma wo nsuo no aye kuro na nsuo no ho afi...").`
-    : language && language !== "English"
-    ? `CRITICAL LANGUAGE DIRECTIVE: The user selected ${language}. Respond ENTIRELY in fluent ${language}!`
-    : `Respond in clear, professional English.`;
+  const systemPrompt = `You are the official FISH DOCTOR AI — an elite aquatic veterinarian and pond engineer serving Ghana fish farmers.
 
-  const systemPrompt = `You are the official FISH DOCTOR AI — an elite aquatic veterinarian, fish health specialist, and pond engineer.
-You assist farmers with BOTH fish health/diseases AND pond management/water quality/feed calculations.
+Context: Time=${currentTime}, Location=${locationText}, Weather=${weatherText}
 
-REAL-TIME SYSTEM CONTEXT:
-- Current Time & Date: ${currentTime}
-- User Live Location: ${locationText}
-- Weather: ${weatherText}
+${langDirective}
 
-${languagePrompt}
+Format responses with markdown (### headers, - bullet points). Keep answers concise and actionable.`;
 
-FORMATTING RULES:
-- Use clean markdown formatting (### Heading, - Bullet points).
-- Keep response concise, direct, and actionable.`;
-
-  return await callGroqAI(userMessage, systemPrompt, mediaAttachments, farmMemoryPrompt);
+  try {
+    return await callGeminiAPI(userMessage, systemPrompt, mediaAttachments, farmContext);
+  } catch (err) {
+    console.error("AI Assistant error:", err);
+    if (isTwi) return "Meyɛ wo Fish Doctor AI. Hwɛ wo nsuo mu nhwehwɛmu na fa me nsɛm no bi. Me kwan no wɔ mu afei.";
+    return "Fish Doctor AI is ready! Please check your internet connection and try again. I can help with fish diseases, feeding calculations, and water quality.";
+  }
 }
+
+// ─── Fish Disease Diagnosis ────────────────────────────────────────────────────
 
 export async function diagnoseFishDiseaseAI(
   symptoms: string,
@@ -84,113 +186,103 @@ export async function diagnoseFishDiseaseAI(
   prevention: string[];
   recommendedMedicine: string;
 }> {
-  const farmMemoryPrompt = getUnifiedMemoryPrompt();
-  const systemInstruction = `You are an expert Aquatic Veterinarian & Fish Doctor.
-Analyze the provided symptoms, attached images/videos, and farm memory context.
-If an image is attached, inspect the fish closely for skin lesions, scale damage, fin rot, swelling, parasites, or clear health indicators.
-If the fish/pond image looks completely healthy and free of symptoms, return diseaseName "Healthy Fish / Optimal Condition" with Low severity and state "All Good! Fish appears healthy." in cause and treatment.
+  const farmContext = getUnifiedMemoryPrompt();
+  const systemInstruction = `You are an expert Aquatic Veterinarian & Fish Doctor AI for Ghana.
+Analyze symptoms and any attached images carefully.
+If the image shows a healthy fish with no symptoms, return diseaseName "Healthy Fish / Optimal Condition" with severity "Low".
 
-Respond STRICTLY with a valid JSON object formatted EXACTLY as:
+IMPORTANT: Respond ONLY with valid JSON in this exact format:
 {
-  "diseaseName": "Specific name of disease OR 'Healthy Fish / Optimal Condition'",
-  "severity": "High" | "Medium" | "Low" | "Critical",
-  "cause": "Detailed analysis of symptoms or visual observation from photo",
-  "treatment": ["Treatment step 1", "Treatment step 2", "Treatment step 3"],
+  "diseaseName": "Name of disease or condition",
+  "severity": "Low",
+  "cause": "Explanation of cause based on image or symptoms",
+  "treatment": ["Step 1", "Step 2", "Step 3"],
   "prevention": ["Prevention tip 1", "Prevention tip 2"],
-  "recommendedMedicine": "Specific medicine or remedy available in Ghana (e.g. Oxytetracycline, Salt Dip, Formalin Bath, Oxygenation, None needed)"
+  "recommendedMedicine": "Medicine name available in Ghana"
 }`;
 
   try {
-    const rawText = await callGroqAI(`Analyze sick fish symptoms or photo: "${symptoms}".`, systemInstruction, mediaAttachments, farmMemoryPrompt);
+    const rawText = await callGeminiAPI(
+      `Diagnose this fish health issue: "${symptoms}". ${mediaAttachments?.length ? "An image has been attached - analyze it visually." : ""}`,
+      systemInstruction,
+      mediaAttachments,
+      farmContext
+    );
+
+    // Extract JSON from response
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       if (parsed.diseaseName && parsed.cause) {
-        return parsed;
+        return {
+          diseaseName: parsed.diseaseName,
+          severity: parsed.severity || "Medium",
+          cause: parsed.cause,
+          treatment: Array.isArray(parsed.treatment) ? parsed.treatment : [parsed.treatment],
+          prevention: Array.isArray(parsed.prevention) ? parsed.prevention : [parsed.prevention],
+          recommendedMedicine: parsed.recommendedMedicine || "Consult local aquaculture supplier"
+        };
       }
     }
+    throw new Error("Could not parse diagnosis JSON");
   } catch (err) {
-    console.warn("Groq AI Diagnosis JSON parse failed, retrying...", err);
+    console.error("Diagnosis error:", err);
+    return {
+      diseaseName: "Environmental Stress / Water Quality Issue",
+      severity: "Medium",
+      cause: `Based on your description: "${symptoms}" — fish are likely experiencing osmotic or oxygen stress. Please check water parameters immediately.`,
+      treatment: [
+        "Perform 25-30% fresh water exchange immediately.",
+        "Run aerators continuously for 24 hours.",
+        "Apply 2kg aquaculture salt per 1,000L of water."
+      ],
+      prevention: [
+        "Test pH, dissolved oxygen and ammonia daily.",
+        "Avoid overfeeding — remove uneaten feed after 30 minutes."
+      ],
+      recommendedMedicine: "Aquaculture Salt & Oxytetracycline (consult local supplier)"
+    };
   }
-
-  return {
-    diseaseName: "Aquatic Health & Water Quality Diagnostic Assessment",
-    severity: "Medium",
-    cause: `Based on your description ("${symptoms}"), there are potential environmental stress factors affecting fish respiration or skin barrier.`,
-    treatment: [
-      "Conduct a 30-40% fresh water exchange immediately.",
-      "Check dissolved oxygen levels and ensure continuous surface aeration.",
-      "Apply 2kg aquaculture salt per 1000L to reduce osmotic stress."
-    ],
-    prevention: [
-      "Maintain strict feeding schedules and avoid excess feed decomposition.",
-      "Test pH, ammonia, and water clarity regularly."
-    ],
-    recommendedMedicine: "Aquaculture Salt Dip & Oxytetracycline"
-  };
 }
 
+// ─── Water Quality AI ──────────────────────────────────────────────────────────
+
 export async function evaluateWaterQualityAI(params: {
-  temp: number;
-  ph: number;
-  doMg: number;
-  ammonia: number;
-  clarityCm: number;
+  temp: number; ph: number; doMg: number; ammonia: number; clarityCm: number;
 }): Promise<{
   overallStatus: "Optimal" | "Warning" | "Critical";
   score: number;
   issues: string[];
   recommendations: string[];
 }> {
-  const prompt = `Water Quality Data: Temperature: ${params.temp}°C, pH: ${params.ph}, Dissolved Oxygen: ${params.doMg} mg/L, Ammonia: ${params.ammonia} mg/L, Secchi Clarity: ${params.clarityCm} cm.
-Evaluate water quality and provide score (0-100), overallStatus ("Optimal"|"Warning"|"Critical"), issues list, and recommendations list.
-Respond STRICTLY in JSON format:
-{
-  "overallStatus": "Optimal" | "Warning" | "Critical",
-  "score": 85,
-  "issues": ["Issue 1"],
-  "recommendations": ["Recommendation 1"]
-}`;
-
   try {
-    const rawText = await callGroqAI(prompt, "You are a Senior Water Quality & Limnology Specialist.");
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
+    const prompt = `Evaluate pond water: Temp=${params.temp}°C, pH=${params.ph}, DO=${params.doMg}mg/L, Ammonia=${params.ammonia}mg/L, Clarity=${params.clarityCm}cm.
+Return ONLY valid JSON: {"overallStatus":"Optimal","score":85,"issues":["issue1"],"recommendations":["rec1"]}`;
+    const raw = await callGeminiAPI(prompt, "You are a Senior Water Quality Specialist.");
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
   } catch (e) {
     console.warn("Water quality AI fallback", e);
   }
 
+  // Local fallback
   let status: "Optimal" | "Warning" | "Critical" = "Optimal";
   let score = 90;
   const issues: string[] = [];
   const recommendations: string[] = [];
-
-  if (params.doMg < 4.0) {
-    status = "Critical";
-    score -= 30;
-    issues.push("Dissolved Oxygen is dangerously low (< 4.0 mg/L).");
-    recommendations.push("Turn on aerators immediately and do a 25% water exchange.");
-  }
-  if (params.ammonia > 0.5) {
-    status = "Warning";
-    score -= 20;
-    issues.push("Ammonia level is elevated (> 0.5 mg/L).");
-    recommendations.push("Reduce feed ration by 50% for 24 hours.");
-  }
-
-  return {
-    overallStatus: status,
-    score: Math.max(score, 30),
-    issues: issues.length ? issues : ["All water parameters within healthy aquaculture limits."],
-    recommendations: recommendations.length ? recommendations : ["Maintain regular feeding and testing schedules."]
-  };
+  if (params.doMg < 4.0) { status = "Critical"; score -= 30; issues.push("Dissolved Oxygen dangerously low (<4 mg/L)"); recommendations.push("Activate aerators immediately"); }
+  if (params.ammonia > 0.5) { status = status === "Critical" ? "Critical" : "Warning"; score -= 20; issues.push("Ammonia elevated (>0.5 mg/L)"); recommendations.push("Reduce feeding by 50% for 24hrs"); }
+  if (params.ph < 6.5 || params.ph > 9.0) { status = status === "Critical" ? "Critical" : "Warning"; score -= 15; issues.push(`pH out of range (${params.ph})`); recommendations.push("Apply lime to adjust pH"); }
+  return { overallStatus: status, score: Math.max(score, 20), issues: issues.length ? issues : ["All parameters within acceptable range"], recommendations: recommendations.length ? recommendations : ["Maintain current water management practices"] };
 }
 
+// ─── Video Call AI ─────────────────────────────────────────────────────────────
+
 export async function getAIVideoCallResponse(userTranscript: string): Promise<string> {
-  if (!userTranscript || !userTranscript.trim()) {
-    return "I am observing your fish pond via live camera. What issue or fish symptoms do you see?";
+  if (!userTranscript?.trim()) return "I'm watching your fish pond. What symptoms or issues do you see?";
+  try {
+    return await callGeminiAPI(userTranscript, "You are a Fish Doctor on a live video call. Give a concise 1-2 sentence response.");
+  } catch {
+    return "I can see your fish pond. Please describe the main symptom you are concerned about.";
   }
-  return await callGroqAI(userTranscript, "You are an expert Fish Doctor conducting a live video call consultation. Keep responses under 2 sentences.");
 }
