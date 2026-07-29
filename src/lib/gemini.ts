@@ -225,18 +225,7 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     }
   }
 
-  // Native Browser Speech Synthesis
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(spokenText);
-      utterance.lang = isTwi ? "ak-GH" : targetLanguage === "French" ? "fr-FR" : "en-US";
-      utterance.rate = 0.88;
-      window.speechSynthesis.speak(utterance);
-    } catch (e) { console.warn("TTS error:", e); }
-  }
-
-  // Google Translate TTS URL fallback
+  // Return clean natural audio stream URL
   const ttsLang = isTwi ? "ak" : targetLanguage === "French" ? "fr" : "en";
   return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(spokenText.slice(0, 200))}&tl=${ttsLang}&client=tw-ob`;
 }
@@ -303,33 +292,32 @@ export async function diagnoseFishDiseaseAI(
   const system = `You are an elite Aquatic Veterinarian and Aquaculture Health Specialist for Ghana and West Africa.
 Your task is to analyze fish symptoms and visual images calmly, professionally, and evidence-based.
 
-RULES FOR DIAGNOSIS:
-1. Tone: Calm, professional, evidence-based. Never say "Your fish definitely has...". Use phrases like "Based on visible findings..." or "The image appears consistent with...".
-2. Healthy Fish First: If no clear disease signs are visible, prefer "Healthy Fish Detected" with high confidence (e.g. 92-96%). Do NOT invent problems.
-3. Medication Caution: Never recommend antibiotics unless visible evidence strongly supports bacterial infection. If confidence is low or fish is healthy, set medication to "Medication is not recommended at this stage."
-4. Always acknowledge visual limitations in whyThisDiagnosis.
+RULES FOR VETERINARY DIAGNOSIS:
+1. Tone: Professional, objective, evidence-based aquatic veterinarian.
+2. Image Inspection: Meticulously examine the uploaded photo. Check for skin redness, ulcers, white spots (Ich), eroded/frayed fins, cloudy/popped eyes, fungal cotton growth, tail rot, skin hemorrhages, swollen abdomen, or abnormal posture.
+3. DISEASE DETECTION: If ANY lesion, redness, fin erosion, white spot, or deformity is visible in the image, YOU MUST IDENTIFY THE SPECIFIC DISEASE (e.g. "Likely Fin Rot / Bacterial Erosion", "Possible White Spot Disease (Ich)", "Columnaris Infection", "Fungal Saprolegniasis", "Hemorrhagic Septicemia", "Abdominal Dropsy"). Set riskLevel to "Needs Attention" or "Critical", set confidencePercent (85-96%), list specific abnormal visual findings ({ "isHealthy": false, "text": "Eroded caudal fin margin with redness" }), and provide targeted treatment & medication!
+4. HEALTHY FISH: ONLY classify as "Healthy Fish Detected" if the fish in the photo has 100% clean skin, intact fins, clear eyes, and no visible lesions whatsoever.
 
 RESPOND ONLY WITH VALID JSON matching this exact structure:
 {
-  "diseaseName": "Healthy Fish Detected" or "Likely Fin Rot" or "Possible White Spot Disease",
-  "confidencePercent": 94,
+  "diseaseName": "Likely Fin Rot / Bacterial Erosion" or "Possible White Spot Disease" or "Healthy Fish Detected",
+  "confidencePercent": 92,
   "riskLevel": "Healthy" or "Monitor" or "Needs Attention" or "Critical",
-  "riskDescription": "Short description of condition level",
+  "riskDescription": "Detailed veterinary risk description based on visual findings",
   "visualFindings": [
-    { "isHealthy": true, "text": "Eyes appear clear" },
-    { "isHealthy": true, "text": "Fins are fully extended" },
-    { "isHealthy": true, "text": "No ulcers detected" },
-    { "isHealthy": true, "text": "Scales appear intact" }
+    { "isHealthy": false, "text": "Observed frayed dorsal and caudal fin edges" },
+    { "isHealthy": false, "text": "Mild skin congestion around operculum" },
+    { "isHealthy": true, "text": "Eyes remain clear" }
   ],
   "differentialDiagnosis": [
-    { "condition": "Healthy Fish", "percentage": 94 },
-    { "condition": "Mild environmental stress", "percentage": 4 },
-    { "condition": "Image uncertainty", "percentage": 2 }
+    { "condition": "Fin Rot / Flavobacterium", "percentage": 88 },
+    { "condition": "Water Quality Stress", "percentage": 9 },
+    { "condition": "Image uncertainty", "percentage": 3 }
   ],
   "treatmentPlan": {
-    "immediateActions": ["Verify dissolved oxygen levels (>5mg/L)", "Ensure aerators run during night hours"],
-    "monitoring": ["Observe appetite during morning feed", "Watch swimming behavior for lethargy"],
-    "medication": "Medication is not recommended at this stage."
+    "immediateActions": ["Isolate affected fish if in tank", "Perform immediate 30% fresh water exchange", "Ensure surface aeration DO > 5.5 mg/L"],
+    "monitoring": ["Observe feeding vigor", "Check remaining stock for skin lesions"],
+    "medication": "Apply Oxytetracycline dip (20mg/L for 30 mins) or Aquaculture Salt (3kg / 1000L)."
   },
   "recommendedWaterParameters": {
     "temperature": "26.0 - 29.5 °C",
@@ -339,7 +327,7 @@ RESPOND ONLY WITH VALID JSON matching this exact structure:
     "nitrite": "< 0.1 mg/L",
     "nitrate": "< 50 mg/L"
   },
-  "whyThisDiagnosis": "Concise 1-2 sentence evidence statement of why this conclusion was reached based on visible features.",
+  "whyThisDiagnosis": "Concise 1-2 sentence evidence statement explaining visible features identified in the image.",
   "assessmentSummary": "Single clean 2-sentence veterinary summary for voice reading.",
   "species": "Catfish & Tilapia Aquaculture"
 }`;

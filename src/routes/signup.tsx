@@ -141,16 +141,24 @@ function SignUpPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const formattedPhone = phone ? `+233 ${phone}` : undefined;
-    const { account } = registerOrLoginAccount({
-      name: fullName || "Farmer",
-      phone: formattedPhone,
-    });
+    try {
+      const formattedPhone = phone ? `+233 ${phone}` : undefined;
+      const { account } = registerOrLoginAccount({
+        name: fullName || "Farmer",
+        phone: formattedPhone,
+      });
 
-    if (account.onboardingCompleted) {
-      navigate({ to: "/home" });
-    } else {
-      navigate({ to: "/onboarding" });
+      localStorage.setItem("user_logged_in", "true");
+      if (account.onboardingCompleted || localStorage.getItem("user_onboarding_completed") === "true") {
+        localStorage.setItem("user_onboarding_completed", "true");
+        window.location.href = "/home";
+      } else {
+        window.location.href = "/onboarding";
+      }
+    } catch (err) {
+      console.error("Signup error", err);
+      localStorage.setItem("user_logged_in", "true");
+      window.location.href = "/home";
     }
   };
 

@@ -63,6 +63,19 @@ export function HomePage() {
     summary: "Tropical Climate (29°C) • Feeding Schedule Optimal"
   };
 
+  // Real-Time Open-Meteo Live Weather State
+  const [liveWeather, setLiveWeather] = useState<{
+    isRaining: boolean;
+    temp: number;
+    description: string;
+    adviceText: string;
+  }>({
+    isRaining: false,
+    temp: 28,
+    description: "Tropical Climate (28°C)",
+    adviceText: "Optimal feeding window. Ensure evening aerator runs during peak heat."
+  });
+
   useEffect(() => {
     const savedName = localStorage.getItem("user_name");
     if (savedName) setUserName(savedName);
@@ -80,6 +93,54 @@ export function HomePage() {
     }
     if (profile.location) {
       setUserLocation(profile.location);
+    }
+
+    // Fetch live weather from Open-Meteo API
+    const fetchLiveWeather = async (lat: number, lon: number) => {
+      try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        if (res.ok) {
+          const data = await res.json();
+          const code = data.current_weather?.weathercode ?? 0;
+          const temp = Math.round(data.current_weather?.temperature ?? 28);
+          
+          const isRainingNow = code >= 51; // Codes 51-99 are drizzle/rain/thunderstorm
+          
+          if (isRainingNow) {
+            setLiveWeather({
+              isRaining: true,
+              temp,
+              description: `Rain & Thunderstorm (${temp}°C)`,
+              adviceText: `🌧️ RAINING CURRENTLY (${temp}°C): Stop or delay feeding! Fish feeding activity drops during rainfall, and uneaten pellets pollute water & deplete oxygen.`
+            });
+          } else if (code >= 1 && code <= 3) {
+            setLiveWeather({
+              isRaining: false,
+              temp,
+              description: `Overcast & Overcast (${temp}°C)`,
+              adviceText: `☁️ Overcast Weather (${temp}°C): Reduce feed ration by 20% due to reduced photosynthesis oxygen levels.`
+            });
+          } else {
+            setLiveWeather({
+              isRaining: false,
+              temp,
+              description: `Clear & Sunny (${temp}°C)`,
+              adviceText: `☀️ Clear Climate (${temp}°C): Optimal feeding window. Maintain regular feeding schedule.`
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("Open-Meteo live weather fetch error", e);
+      }
+    };
+
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => fetchLiveWeather(pos.coords.latitude, pos.coords.longitude),
+        () => fetchLiveWeather(5.60, -0.18)
+      );
+    } else {
+      fetchLiveWeather(5.60, -0.18);
     }
 
     // Refresh Subscription Status every 1 second for live countdown
@@ -246,28 +307,36 @@ export function HomePage() {
       </section>
 
       {/* Location-Based Weather & Rain Advisory Card */}
-      <section className="mx-5 mt-3 p-4 rounded-3xl bg-gradient-to-r from-blue-950 via-[#0A324D] to-[#082338] text-white border border-blue-400/20 shadow-lg relative overflow-hidden">
+      <section className={`mx-5 mt-3 p-4 rounded-3xl text-white border shadow-lg relative overflow-hidden transition-all ${
+        liveWeather.isRaining
+          ? "bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 border-blue-400/40 shadow-blue-950/50 animate-pulse"
+          : "bg-gradient-to-r from-blue-950 via-[#0A324D] to-[#082338] border-blue-400/20"
+      }`}>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
-              <CloudRain className="w-5.5 h-5.5 text-sky-300" />
+              <CloudRain className={`w-5.5 h-5.5 ${liveWeather.isRaining ? "text-sky-200 animate-bounce" : "text-sky-300"}`} />
             </div>
             <div>
               <div className="text-[10.5px] font-extrabold text-sky-300 uppercase tracking-wider">
                 Weather & Feeding Advisory
               </div>
               <div className="text-sm font-extrabold text-white mt-0.5">
-                {userLocation || "Ghana"} • 29°C Tropical Climate
+                {userLocation || "Ghana"} • {liveWeather.description}
               </div>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-sky-500/20 border border-sky-400/30 text-sky-200 text-[10px] font-extrabold">
-            Live
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+            liveWeather.isRaining
+              ? "bg-red-500 text-white animate-pulse shadow-md"
+              : "bg-sky-500/20 border border-sky-400/30 text-sky-200"
+          }`}>
+            {liveWeather.isRaining ? "🌧️ Rain Alert" : "Live Weather"}
           </span>
         </div>
 
         <div className="mt-2.5 p-3 rounded-2xl bg-white/10 text-xs font-medium text-sky-100 border border-white/10 leading-relaxed">
-          🌧️ <span className="font-extrabold text-white">Rain Advisory:</span> Expected rainfall in late afternoon. Reduce feed ration by <span className="font-extrabold text-amber-300">30-40%</span> to prevent water pollution & unconsumed feed sinking.
+          {liveWeather.adviceText}
         </div>
       </section>
 

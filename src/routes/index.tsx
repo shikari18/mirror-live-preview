@@ -21,6 +21,17 @@ function Index() {
   const [isLangOpen, setIsLangOpen] = useState(false);
   const { language } = useLanguage();
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("user_logged_in") === "true") {
+      const onboardingDone = localStorage.getItem("user_onboarding_completed") === "true";
+      if (onboardingDone) {
+        window.location.href = "/home";
+      } else {
+        window.location.href = "/onboarding";
+      }
+    }
+  }, []);
+
   return (
     <main className="min-h-screen bg-background flex justify-center">
       <div className="w-full max-w-[430px] flex flex-col bg-background relative overflow-hidden pb-6">

@@ -23,6 +23,17 @@ interface ChatMessage {
   time: string;
 }
 
+function parseInlineBold(text: string) {
+  if (!text) return "";
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={idx} className="font-extrabold text-gray-900">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
 export function AssistantPage() {
   const { t, language } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([
