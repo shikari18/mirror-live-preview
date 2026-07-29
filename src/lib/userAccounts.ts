@@ -53,19 +53,34 @@ export function registerOrLoginAccount(details: {
 }): { account: UserAccount; isExisting: boolean } {
   const accounts = getRegisteredAccounts();
 
+  // Stable email for Google users
+  const cleanEmail = details.email?.toLowerCase().trim();
+
   let existing = accounts.find((acc) => {
-    if (details.email && acc.email && acc.email.toLowerCase() === details.email.toLowerCase()) return true;
+    if (cleanEmail && acc.email && acc.email.toLowerCase() === cleanEmail) return true;
     if (details.phone && acc.phone && acc.phone.replaceAll(" ", "") === details.phone.replaceAll(" ", "")) return true;
+    // Match existing Google user account if Google sign in is used
+    if (details.isGoogle && acc.isGoogleSignedIn) return true;
     return false;
   });
 
   const now = new Date().toISOString();
+
+  // Check if onboarding was completed globally in localStorage or on any existing Google account
+  const isGlobalOnboardingDone = 
+    localStorage.getItem("user_onboarding_completed") === "true" || 
+    (details.isGoogle && accounts.some(a => a.isGoogleSignedIn && a.onboardingCompleted));
 
   if (existing) {
     existing.lastLoginAt = now;
     if (details.name && details.name !== "Google User") existing.name = details.name;
     if (details.farmName) existing.farmName = details.farmName;
     if (details.isGoogle) existing.isGoogleSignedIn = true;
+    
+    // Always preserve onboarding completed status if it was completed before
+    if (isGlobalOnboardingDone || existing.onboardingCompleted) {
+      existing.onboardingCompleted = true;
+    }
     saveRegisteredAccounts(accounts);
 
     // Save Active Session
@@ -76,7 +91,7 @@ export function registerOrLoginAccount(details: {
     if (existing.isGoogleSignedIn) localStorage.setItem("user_google_signed_in", "true");
     localStorage.setItem("user_logged_in", "true");
 
-    if (existing.onboardingCompleted) {
+    if (existing.onboardingCompleted || isGlobalOnboardingDone) {
       localStorage.setItem("user_onboarding_completed", "true");
     }
 
@@ -86,10 +101,11 @@ export function registerOrLoginAccount(details: {
       id: "usr_" + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
       name: details.name || "Farmer",
       phone: details.phone,
-      email: details.email,
+      email: details.email || (details.isGoogle ? "google.farmer@gmail.com" : undefined),
       farmName: details.farmName || "Green Aqua Farm",
       isGoogleSignedIn: !!details.isGoogle,
-      onboardingCompleted: false,
+      // If it's a Google sign in or global onboarding was done, mark completed so they go straight to dashboard
+      onboardingCompleted: !!details.isGoogle || isGlobalOnboardingDone,
       createdAt: now,
       lastLoginAt: now,
     };
@@ -104,6 +120,10 @@ export function registerOrLoginAccount(details: {
     if (newAccount.farmName) localStorage.setItem("user_farm_name", newAccount.farmName);
     if (newAccount.isGoogleSignedIn) localStorage.setItem("user_google_signed_in", "true");
     localStorage.setItem("user_logged_in", "true");
+    
+    if (newAccount.onboardingCompleted) {
+      localStorage.setItem("user_onboarding_completed", "true");
+    }
 
     return { account: newAccount, isExisting: false };
   }

@@ -100,8 +100,8 @@ function LoginPage() {
 
   const handleGoogleCredentialResponse = (response: any) => {
     try {
-      let userName = "Google User";
-      let userEmail = `farmer_${Date.now().toString(36).slice(-4)}@google.com`;
+      let userName = localStorage.getItem("user_name") || "Google User";
+      let userEmail = localStorage.getItem("user_email") || "google.farmer@gmail.com";
 
       if (response?.credential) {
         const payload = parseJwt(response.credential);
