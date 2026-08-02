@@ -199,6 +199,56 @@ export async function callGemini(
   return callAI(prompt, systemInstruction, mediaAttachments, getUnifiedMemoryPrompt());
 }
 
+// ─── Gemini Live Voice & Akan Twi Audio Engine ─────────────────────────────────
+
+function pcmToWavUrl(base64Pcm: string, sampleRate: number = 24000): string {
+  try {
+    const binaryString = atob(base64Pcm);
+    const len = binaryString.length;
+    const pcmData = new Int16Array(len / 2);
+    const dataView = new DataView(new ArrayBuffer(len));
+    for (let i = 0; i < len; i++) {
+      dataView.setUint8(i, binaryString.charCodeAt(i));
+    }
+    for (let i = 0; i < pcmData.length; i++) {
+      pcmData[i] = dataView.getInt16(i * 2, true);
+    }
+
+    const buffer = new ArrayBuffer(44 + pcmData.length * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + pcmData.length * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, pcmData.length * 2, true);
+
+    for (let i = 0; i < pcmData.length; i++) {
+      view.setInt16(44 + i * 2, pcmData[i], true);
+    }
+
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    return URL.createObjectURL(blob);
+  } catch (e) {
+    console.warn("PCM to WAV error:", e);
+    return "";
+  }
+}
+
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
@@ -226,8 +276,56 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     }
   }
 
-  // Return clean natural audio stream URL
-  const ttsLang = isTwi ? "ak" : targetLanguage === "French" ? "fr" : "en";
+  // 1. Try Gemini 2.0 Flash Live Audio Generation API (Neural Voice)
+  const apiKey = getGeminiKey();
+  if (apiKey) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: `Speak this text clearly in a warm, natural human voice: "${spokenText}"` }]
+              }
+            ],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: "Puck"
+                  }
+                }
+              }
+            }
+          })
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const candidate = data?.candidates?.[0]?.content?.parts?.[0];
+        if (candidate?.inlineData?.data) {
+          const mime = candidate.inlineData.mimeType || "audio/pcm;rate=24000";
+          if (mime.includes("pcm")) {
+            const sampleRate = mime.includes("rate=") ? parseInt(mime.split("rate=")[1], 10) : 24000;
+            const wavUrl = pcmToWavUrl(candidate.inlineData.data, sampleRate || 24000);
+            if (wavUrl) return wavUrl;
+          }
+          return `data:${mime};base64,${candidate.inlineData.data}`;
+        }
+      }
+    } catch (e) {
+      console.warn("Gemini Live Audio API failed, using TTS stream fallback:", e);
+    }
+  }
+
+  // 2. Fallback to Google TTS Audio Stream URL (using en/sw for Twi phonetic stability to prevent 404)
+  const ttsLang = isTwi ? "sw" : targetLanguage === "French" ? "fr" : "en";
   return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(spokenText.slice(0, 200))}&tl=${ttsLang}&client=tw-ob`;
 }
 

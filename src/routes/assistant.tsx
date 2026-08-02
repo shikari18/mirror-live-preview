@@ -181,11 +181,26 @@ export function AssistantPage() {
 
         audio.onplay = () => setVoiceProgress("Playing Voice...");
         audio.onended = () => stopAudio();
-        audio.onerror = () => stopAudio();
+        audio.onerror = () => {
+          console.warn("Audio element failed, falling back to speech synth");
+          if (typeof window !== "undefined" && "speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 0.88;
+            window.speechSynthesis.speak(u);
+          }
+          stopAudio();
+        };
         await audio.play();
         return;
       } catch (e) {
         console.warn("Audio play error", e);
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          u.rate = 0.88;
+          window.speechSynthesis.speak(u);
+        }
       }
     }
     stopAudio();
@@ -316,21 +331,6 @@ export function AssistantPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const parseInlineBold = (str: string) => {
-    if (!str) return "";
-    const parts = str.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, i) => {
-      if (part && part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-        return (
-          <strong key={i} className="font-extrabold text-gray-900">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      return part || "";
-    });
   };
 
   return (
