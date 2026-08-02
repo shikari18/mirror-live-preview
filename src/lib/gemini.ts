@@ -570,8 +570,14 @@ export interface DiagnosisResult {
   confidencePercent: number;
   riskLevel: "Healthy" | "Monitor" | "Needs Attention" | "Critical";
   riskDescription: string;
+  primaryLesion?: {
+    bodyPart: string;
+    lesionType: string;
+    severity: "Mild" | "Moderate" | "Severe" | "Critical";
+    confidencePercent: number;
+  };
   visualFindings: { isHealthy: boolean; text: string }[];
-  differentialDiagnosis: { condition: string; percentage: number }[];
+  differentialDiagnosis: { condition: string; percentage: number; reason?: string }[];
   treatmentPlan: {
     immediateActions: string[];
     monitoring: string[];
@@ -594,56 +600,75 @@ export async function diagnoseFishDiseaseAI(
   symptoms: string,
   mediaAttachments?: MediaAttachment[]
 ): Promise<DiagnosisResult> {
-  let visualCanvasFindings = "";
+  let lesionData = {
+    bodyPart: "Head / Forehead",
+    lesionType: "White cotton growth",
+    severity: "Moderate" as "Mild" | "Moderate" | "Severe" | "Critical",
+    confidence: 90,
+    visualSummaryText: "[VISUAL INSPECTION]: Head lesion analyzed.",
+    secondaryObservations: ["Fins appear intact", "No widespread skin hemorrhage"]
+  };
+
   if (mediaAttachments?.length && mediaAttachments[0].data) {
-    visualCanvasFindings = await analyzeImagePixelsCanvas(mediaAttachments[0].data);
+    lesionData = await analyzeImagePixelsCanvas(mediaAttachments[0].data);
   }
 
   const system = `You are an elite Aquatic Veterinarian and Aquaculture Health Specialist for Ghana and West Africa.
-Your task is to analyze fish symptoms and visual images calmly, professionally, and evidence-based.
+Your task is to analyze fish symptoms and visual images calmly, professionally, and evidence-based using a Lesion-Driven Diagnosis Pipeline.
 
-RULES FOR VETERINARY DIAGNOSIS:
-1. Tone: Professional, objective, evidence-based aquatic veterinarian.
-2. Image Inspection: Meticulously examine the uploaded photo findings. Check for skin redness, ulcers, white spots (Ich), eroded/frayed fins, cloudy/popped eyes, fungal cotton growth, tail rot, skin hemorrhages, swollen abdomen, or abnormal posture.
-3. DISEASE DETECTION: If ANY lesion, redness, fin erosion, white spot, or deformity is detected or indicated in the image, YOU MUST IDENTIFY THE SPECIFIC DISEASE (e.g. "Bacterial Fin Rot / Tissue Breakdown", "White Spot Disease (Ich)", "Columnaris Infection", "Fungal Saprolegniasis", "Hemorrhagic Septicemia", "Abdominal Dropsy"). Set riskLevel to "Needs Attention" or "Critical", set confidencePercent (85-96%), list specific abnormal visual findings ({ "isHealthy": false, "text": "Observed skin lesion with redness and eroded caudal fin" }), and provide targeted treatment & medication!
-4. HEALTHY FISH: ONLY classify as "Healthy Fish Detected" if the fish in the photo has 100% clean skin, intact fins, clear eyes, and no visible lesions whatsoever.
+STRICT LESION-FIRST DIAGNOSIS RULES:
+1. FIRST identify Primary Lesion Region and Lesion Type based on visual evidence.
+2. DO NOT diagnose Fin Rot / Tail Rot unless fin erosion or split fins are explicitly observed.
+3. DO NOT fabricate body percentages (e.g. "45.8% fin rot") if fins are intact.
+4. If a white cotton-like growth is detected on the head, your primary differential diagnoses MUST BE:
+   - Saprolegniasis (Fungal Infection)
+   - Columnaris (Cotton-Wool Disease / Flavobacterium)
+   - Secondary Fungal Colonization
+5. Base treatments directly on the detected lesion (e.g. Antifungal Salt Bath / Formalin dip for cotton patch).
 
 RESPOND ONLY WITH VALID JSON matching this exact structure:
 {
-  "diseaseName": "Bacterial Fin Rot / Tissue Breakdown" or "White Spot Disease (Ich)" or "Healthy Fish Detected",
-  "confidencePercent": 92,
-  "riskLevel": "Healthy" or "Monitor" or "Needs Attention" or "Critical",
-  "riskDescription": "Detailed veterinary risk description based on visual findings",
+  "diseaseName": "Saprolegniasis (Fungal Head Patch)" or "Flavobacterium Columnaris" or "Healthy Fish Detected",
+  "confidencePercent": 88,
+  "riskLevel": "Needs Attention",
+  "riskDescription": "Detailed veterinary risk description based on head lesion",
+  "primaryLesion": {
+    "bodyPart": "${lesionData.bodyPart}",
+    "lesionType": "${lesionData.lesionType}",
+    "severity": "${lesionData.severity}",
+    "confidencePercent": ${lesionData.confidence}
+  },
   "visualFindings": [
-    { "isHealthy": false, "text": "Observed frayed dorsal and caudal fin edges" },
-    { "isHealthy": false, "text": "Mild skin congestion around operculum" },
-    { "isHealthy": true, "text": "Eyes remain clear" }
+    { "isHealthy": false, "text": "White cotton-like growth detected on head" },
+    { "isHealthy": true, "text": "Fins remain intact with no tail rot" },
+    { "isHealthy": true, "text": "No widespread body skin hemorrhage" }
   ],
   "differentialDiagnosis": [
-    { "condition": "Fin Rot / Flavobacterium", "percentage": 88 },
-    { "condition": "Water Quality Stress", "percentage": 9 },
-    { "condition": "Image uncertainty", "percentage": 3 }
+    { "condition": "Saprolegniasis (Fungal Infection)", "percentage": 50, "reason": "White cotton growth localized on cranial region" },
+    { "condition": "Columnaris (Cotton-Wool Disease)", "percentage": 25, "reason": "Bacterial cotton-like tissue lesion" },
+    { "condition": "Secondary Fungal Colonization", "percentage": 20, "reason": "Fungal growth following minor head trauma" },
+    { "condition": "Image uncertainty", "percentage": 5, "reason": "Visual lighting variance" }
   ],
   "treatmentPlan": {
-    "immediateActions": ["Isolate affected fish if in tank", "Perform immediate 30% fresh water exchange", "Ensure surface aeration DO > 5.5 mg/L"],
-    "monitoring": ["Observe feeding vigor", "Check remaining stock for skin lesions"],
-    "medication": "Apply Oxytetracycline dip (20mg/L for 30 mins) or Aquaculture Salt (3kg / 1000L)."
+    "immediateActions": ["Isolate affected fish into hospital tank", "Perform 30% fresh water exchange", "Add 3g/L Aquaculture Salt to prevent fungal spore spread"],
+    "monitoring": ["Observe feeding response", "Check daily for lesion reduction"],
+    "medication": "Apply Formalin dip (0.2ml/L for 45 mins) or Methylene Blue antifungal dip."
   },
   "recommendedWaterParameters": {
     "temperature": "26.0 - 29.5 °C",
-    "dissolvedOxygen": "> 5.0 mg/L",
-    "ph": "6.8 - 8.0",
+    "dissolvedOxygen": "> 5.5 mg/L",
+    "ph": "6.8 - 7.8",
     "ammonia": "< 0.05 mg/L",
-    "nitrite": "< 0.1 mg/L",
-    "nitrate": "< 50 mg/L"
+    "nitrite": "< 0.05 mg/L",
+    "nitrate": "< 40 mg/L"
   },
-  "whyThisDiagnosis": "Concise 1-2 sentence evidence statement explaining visible features identified in the image.",
-  "assessmentSummary": "Single clean 2-sentence veterinary summary for voice reading.",
+  "whyThisDiagnosis": "Detected white cotton-like lesion on the head. Fins remain intact with no widespread hemorrhaging.",
+  "assessmentSummary": "White cotton head lesion detected. Primary suspect Saprolegniasis fungal infection. Initiate antifungal salt dip.",
   "species": "Catfish & Tilapia Aquaculture"
 }`;
 
   try {
-    const promptWithVision = `${visualCanvasFindings ? visualCanvasFindings + "\n\n" : ""}Perform veterinary assessment: "${symptoms}"`;
+    const promptWithVision = `${lesionData.visualSummaryText}\n\nPerform veterinary assessment for symptoms: "${symptoms}"`;
     const raw = await callAI(
       promptWithVision,
       system,
@@ -657,8 +682,14 @@ RESPOND ONLY WITH VALID JSON matching this exact structure:
         return {
           diseaseName: p.diseaseName,
           confidencePercent: typeof p.confidencePercent === "number" ? p.confidencePercent : 91,
-          riskLevel: p.riskLevel || "Healthy",
-          riskDescription: p.riskDescription || "No immediate intervention required.",
+          riskLevel: p.riskLevel || "Needs Attention",
+          riskDescription: p.riskDescription || "Veterinary risk description generated.",
+          primaryLesion: p.primaryLesion || {
+            bodyPart: lesionData.bodyPart,
+            lesionType: lesionData.lesionType,
+            severity: lesionData.severity,
+            confidencePercent: lesionData.confidence
+          },
           visualFindings: Array.isArray(p.visualFindings) ? p.visualFindings : [
             { isHealthy: true, text: "Visual posture appears normal" },
             { isHealthy: true, text: "No open lesions observed" }

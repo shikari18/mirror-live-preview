@@ -500,6 +500,32 @@ export function DiseasePage() {
               </p>
             </div>
 
+            {/* Primary Lesion Localization Summary */}
+            {diagnosisResult.primaryLesion && (
+              <div className="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200/80 space-y-2.5 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black text-[#0F6236] uppercase tracking-wider flex items-center gap-1.5">
+                    <Activity className="w-4 h-4 text-[#0F6236]" /> Lesion Localization Summary
+                  </span>
+                  <span className="text-[10.5px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-200 text-[#0F6236]">
+                    Severity: {diagnosisResult.primaryLesion.severity}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs font-medium pt-1">
+                  <div className="p-3 rounded-xl bg-white/90 border border-emerald-100 shadow-2xs">
+                    <span className="text-[10px] font-bold text-gray-500 block uppercase">Primary Affected Region</span>
+                    <span className="font-black text-gray-900 mt-0.5 block">{diagnosisResult.primaryLesion.bodyPart}</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-white/90 border border-emerald-100 shadow-2xs">
+                    <span className="text-[10px] font-bold text-gray-500 block uppercase">Primary Lesion Type</span>
+                    <span className="font-black text-[#0F6236] mt-0.5 block">{diagnosisResult.primaryLesion.lesionType}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Visual Findings Checklist */}
             <div className="space-y-2">
               <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider">
