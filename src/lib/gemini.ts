@@ -435,15 +435,18 @@ export function speakTextInstant(
         const utterance = new SpeechSynthesisUtterance(spokenText);
         utterance.volume = 1.0;
         utterance.rate = 0.90;
-        utterance.pitch = 1.30;
+        utterance.pitch = 1.35; // Pitch tuned for warm feminine voice timbre
 
-        const voices = window.speechSynthesis.getVoices();
+        const allVoices = window.speechSynthesis.getVoices();
+        
+        // Strict female voice selection to prevent any robotic male voice
         const matchedVoice =
-          voices.find((v) => (v.name.includes("Female") || v.name.includes("Woman") || v.name.includes("Zira") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Hazel")) && (v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African"))) ||
-          voices.find((v) => (v.name.includes("Female") || v.name.includes("Woman")) && v.name.includes("Google")) ||
-          voices.find((v) => v.name.includes("Zira") || v.name.includes("Hazel") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Fiona")) ||
-          voices.find((v) => v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")) ||
-          voices.find((v) => v.lang.startsWith("en"));
+          allVoices.find((v) => (v.name.includes("Female") || v.name.includes("Woman") || v.name.includes("Zira") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Hazel") || v.name.includes("Fiona")) && (v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African"))) ||
+          allVoices.find((v) => (v.name.includes("Female") || v.name.includes("Woman")) && v.name.includes("Google")) ||
+          allVoices.find((v) => v.name.includes("Zira") || v.name.includes("Hazel") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Fiona")) ||
+          allVoices.find((v) => v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")) ||
+          allVoices.find((v) => v.name.includes("Female") || v.name.includes("Woman")) ||
+          allVoices.find((v) => v.lang.startsWith("en"));
 
         if (matchedVoice) utterance.voice = matchedVoice;
 
@@ -842,4 +845,15 @@ export async function estimatePondDimensionsAI(imageBase64: string): Promise<{
 export async function getAIVideoCallResponse(userTranscript: string): Promise<string> {
   if (!userTranscript?.trim()) return "I'm watching your pond. What symptoms do you see?";
   try { return await callAI(userTranscript, "You are a Fish Doctor on live video call. 1-2 sentences max."); } catch { return "Please describe the main symptom you are concerned about."; }
+}
+
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  try {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  } catch (e) {
+    // Ignore voice pre-warming error
+  }
 }
