@@ -139,11 +139,38 @@ export function SettingsPage() {
             }`}
           >
             <div
-              className={`w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+              className={`w-6 h-6 rounded-full bg-white shadow-xs transition-transform ${
                 voiceEnabled ? "translate-x-5" : "translate-x-0"
               }`}
             />
           </button>
+        </div>
+
+        {/* Custom Gemini API Key Settings */}
+        <div className="emerald-card p-4 rounded-3xl space-y-2 shadow-xs border border-emerald-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center shrink-0">
+              <Cpu className="w-5 h-5 text-[#0F6236]" />
+            </div>
+            <div>
+              <div className="text-sm font-extrabold text-gray-900">Google Gemini API Key</div>
+              <div className="text-xs text-gray-500 font-medium">Enter your AIzaSy... key for direct Gemini Neural Voice</div>
+            </div>
+          </div>
+          <input
+            type="password"
+            placeholder="Paste your Gemini API key (AIzaSy...)"
+            defaultValue={typeof window !== "undefined" ? localStorage.getItem("user_gemini_api_key") || "" : ""}
+            onChange={(e) => {
+              const val = e.target.value.trim();
+              if (val) {
+                localStorage.setItem("user_gemini_api_key", val);
+              } else {
+                localStorage.removeItem("user_gemini_api_key");
+              }
+            }}
+            className="w-full h-10 px-3.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono text-gray-900 outline-none focus:ring-2 focus:ring-[#0F6236]/20"
+          />
         </div>
 
         {/* Log Out Button */}

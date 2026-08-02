@@ -275,21 +275,39 @@ export function speakTextInstant(
     utterance.rate = 0.90;
     utterance.pitch = 1.0;
 
-    const voices = window.speechSynthesis.getVoices();
-    const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
+    let voices = window.speechSynthesis.getVoices();
 
-    if (!isTwi) {
-      const engFemaleVoice = voices.find(
-        (v) =>
-          (v.name.includes("Samantha") || v.name.includes("Victoria") || v.name.includes("Zira") || v.name.includes("Google US English") || v.name.includes("Female") || v.name.includes("Siri") || v.name.includes("Natural")) &&
-          !v.name.toLowerCase().includes("male") &&
-          !v.name.toLowerCase().includes("daniel") &&
-          !v.name.toLowerCase().includes("david") &&
-          v.lang.startsWith("en")
-      );
-      if (engFemaleVoice) utterance.voice = engFemaleVoice;
-      utterance.lang = "en-US";
-    }
+    const applyFemaleVoice = () => {
+      if (!voices || voices.length === 0) {
+        voices = window.speechSynthesis.getVoices();
+      }
+      if (!isTwi && voices && voices.length > 0) {
+        const engFemaleVoice = voices.find(
+          (v) =>
+            (v.name.includes("Google US English") ||
+              v.name.includes("Samantha") ||
+              v.name.includes("Victoria") ||
+              v.name.includes("Zira") ||
+              v.name.includes("Karen") ||
+              v.name.includes("Siri") ||
+              v.name.includes("Natural") ||
+              v.name.includes("Female")) &&
+            !v.name.toLowerCase().includes("male") &&
+            !v.name.toLowerCase().includes("daniel") &&
+            !v.name.toLowerCase().includes("david") &&
+            !v.name.toLowerCase().includes("george") &&
+            v.lang.startsWith("en")
+        ) || voices.find(v => v.lang.startsWith("en") && !v.name.toLowerCase().includes("male") && !v.name.toLowerCase().includes("david") && !v.name.toLowerCase().includes("daniel"));
+        
+        if (engFemaleVoice) {
+          utterance.voice = engFemaleVoice;
+        }
+        utterance.lang = "en-US";
+      }
+    };
+
+    applyFemaleVoice();
+    utterance.pitch = 1.15; // Natural realistic female vocal pitch
 
     utterance.onstart = () => {
       if (onStart) onStart();
