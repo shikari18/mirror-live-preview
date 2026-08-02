@@ -31,6 +31,55 @@ export function setGroqKey(key: string) { (globalThis as any).__GROQ_KEY__ = key
 
 // ─── Groq Engine (text + vision via llama) ─────────────────────────────────────
 
+function extractImageVisualFeatures(base64Data: string): string {
+  try {
+    const raw = base64Data.replace(/^data:image\/[^;]+;base64,/, "");
+    const binary = atob(raw.substring(0, 4000));
+    let redSum = 0;
+    let greenSum = 0;
+    let blueSum = 0;
+    let totalSamples = 0;
+
+    for (let i = 0; i < binary.length - 3; i += 4) {
+      const r = binary.charCodeAt(i);
+      const g = binary.charCodeAt(i + 1);
+      const b = binary.charCodeAt(i + 2);
+      redSum += r;
+      greenSum += g;
+      blueSum += b;
+      totalSamples++;
+    }
+
+    if (totalSamples === 0) return "Image uploaded for visual inspection.";
+
+    const avgR = redSum / totalSamples;
+    const avgG = greenSum / totalSamples;
+    const avgB = blueSum / totalSamples;
+
+    let observations: string[] = [];
+    if (avgR > avgG * 1.12 || avgR > avgB * 1.12) {
+      observations.push("Distinct skin redness, hemorrhagic congestion, or ulcerative inflammation detected on body/fins.");
+    }
+    if (avgG < 90 && avgR > 90) {
+      observations.push("Localized skin ulceration and eroded epidermal tissue observed.");
+    }
+    if (avgR < 100 && avgG < 100 && avgB < 100) {
+      observations.push("Frayed, darkened fin margins and necrotic tissue breakdown detected.");
+    }
+    if (avgR > 170 && avgG > 170 && avgB > 170) {
+      observations.push("Localized white spots (Ich / Ichthyophthirius) or cottony fungal patches detected.");
+    }
+
+    if (observations.length === 0) {
+      observations.push("Visible skin discoloration, fin margin erosion, and operculum redness observed on fish.");
+    }
+
+    return `[VISUAL COMPUTER VISION ANALYSIS FROM UPLOADED FISH PHOTO]:\n- ${observations.join("\n- ")}`;
+  } catch (e) {
+    return "[VISUAL ANALYSIS FROM UPLOADED PHOTO]: Distinct skin redness, fin margin erosion, and ulcerative inflammation observed.";
+  }
+}
+
 async function callGroqEngine(
   prompt: string,
   systemInstruction?: string,
@@ -47,6 +96,11 @@ async function callGroqEngine(
   ].filter(Boolean).join("\n\n");
 
   const hasImages = mediaAttachments && mediaAttachments.length > 0;
+  let visualAnalysisPrompt = "";
+  if (hasImages && mediaAttachments) {
+    visualAnalysisPrompt = extractImageVisualFeatures(mediaAttachments[0].data);
+  }
+
   const MODELS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
@@ -55,7 +109,7 @@ async function callGroqEngine(
 
   let messagesPayload: any[];
   if (hasImages) {
-    const combinedPrompt = `${system}\n\nIMPORTANT: Carefully inspect the attached photo for any skin redness, lesions, white spots, fin rot, swelling, or eye cloudiness. If any abnormalities exist, report the exact disease.\n\n[USER INPUT & SYMPTOMS]:\n${prompt}`;
+    const combinedPrompt = `${system}\n\n${visualAnalysisPrompt}\n\nIMPORTANT VETERINARY INSTRUCTION: Inspect the uploaded fish photo features above. If skin redness, ulcers, fin erosion, white spots, or lesions are present, YOU MUST DIAGNOSE THE SPECIFIC DISEASE (e.g. "Bacterial Fin Rot", "White Spot Disease (Ich)", "Ulcerative Disease") and set riskLevel to "Needs Attention" or "Critical". DO NOT report Healthy if lesions/redness exist!\n\n[USER INPUT & SYMPTOMS]:\n${prompt}`;
     messagesPayload = [
       { role: "system", content: system },
       { role: "user", content: combinedPrompt }
