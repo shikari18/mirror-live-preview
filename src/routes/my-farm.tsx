@@ -400,77 +400,134 @@ export function MyFarmPage() {
 
           {/* Video Stream & Reticle Overlay */}
           <div className="relative w-full flex-1 max-w-sm flex items-center justify-center overflow-hidden my-2">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover rounded-3xl border-2 border-white/20" />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover rounded-3xl border-2 border-emerald-500/30" />
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Target Reticle */}
-            <div className="absolute inset-10 border-2 border-dashed border-emerald-400 rounded-3xl pointer-events-none flex items-center justify-center">
-              <div className="w-12 h-12 rounded-full border-2 border-white/80 animate-ping" />
+            {/* Target Reticle & Measurement Guides */}
+            <div className="absolute inset-8 border-2 border-dashed border-emerald-400 rounded-3xl pointer-events-none flex flex-col items-center justify-between p-3">
+              <div className="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full shadow-md">
+                LENGTH: {targetLength.toFixed(1)} m
+              </div>
+              <div className="w-10 h-10 rounded-full border-2 border-white/90 animate-ping" />
+              <div className="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full shadow-md">
+                WIDTH: {targetWidth.toFixed(1)} m
+              </div>
             </div>
 
             {/* Live Volume Counter Overlay */}
-            <div className="absolute top-4 bg-black/75 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-full text-xs font-extrabold flex items-center gap-2 shadow-2xl z-20">
+            <div className="absolute top-3 bg-black/80 backdrop-blur-md border border-emerald-400/40 text-white px-4 py-2 rounded-full text-xs font-extrabold flex items-center gap-2 shadow-2xl z-20">
               <Waves className="w-4 h-4 text-emerald-400 animate-pulse" />
-              <span>Live Volume: {liveVolumeLiters.toLocaleString()} Liters ({(liveVolumeLiters/1000).toFixed(1)} m³)</span>
+              <span>Pond Volume: {(liveVolumeLiters / 1000).toFixed(1)} m³ ({liveVolumeLiters.toLocaleString()} L)</span>
             </div>
           </div>
 
           {/* AR Controls Box */}
           <div className="w-full max-w-sm bg-white p-5 rounded-t-3xl space-y-3.5 z-20 shadow-2xl">
             <div className="text-xs font-extrabold text-gray-900 border-b border-gray-100 pb-2 flex items-center justify-between">
-              <span>Adjust Target Dimensions</span>
-              <span className="text-[#0F6236] font-bold">Est. Capacity: ~{estimatedFishCapacity} Fish</span>
+              <span>Pond Dimensions & Stocking Capacity</span>
+              <span className="text-[#0F6236] font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md">
+                Max Stock: ~{estimatedFishCapacity.toLocaleString()} Fish
+              </span>
             </div>
 
+            {/* Dimension Sliders & Direct Inputs */}
             <div className="grid grid-cols-3 gap-2 text-xs">
-              <div>
-                <label className="text-[10.5px] font-bold text-gray-500 block">Width (m)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={targetWidth}
-                  onChange={(e) => setTargetWidth(Number(e.target.value) || 1)}
-                  className="w-full h-10 px-2 font-extrabold text-center border border-gray-200 rounded-xl bg-gray-50"
-                />
+              <div className="bg-gray-50 p-2 rounded-2xl border border-gray-200 text-center">
+                <label className="text-[10px] font-bold text-gray-500 block mb-1">Width (m)</label>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setTargetWidth((prev) => Math.max(0.5, Number((prev - 0.5).toFixed(1))))}
+                    className="w-7 h-7 rounded-lg bg-gray-200 font-bold text-gray-800"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={targetWidth}
+                    onChange={(e) => setTargetWidth(Math.max(0.1, Number(e.target.value) || 1))}
+                    className="w-full text-center font-black text-xs text-gray-900 bg-transparent outline-none"
+                  />
+                  <button
+                    onClick={() => setTargetWidth((prev) => Number((prev + 0.5).toFixed(1)))}
+                    className="w-7 h-7 rounded-lg bg-[#0F6236] font-bold text-white"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label className="text-[10.5px] font-bold text-gray-500 block">Length (m)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={targetLength}
-                  onChange={(e) => setTargetLength(Number(e.target.value) || 1)}
-                  className="w-full h-10 px-2 font-extrabold text-center border border-gray-200 rounded-xl bg-gray-50"
-                />
+              <div className="bg-gray-50 p-2 rounded-2xl border border-gray-200 text-center">
+                <label className="text-[10px] font-bold text-gray-500 block mb-1">Length (m)</label>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setTargetLength((prev) => Math.max(0.5, Number((prev - 0.5).toFixed(1))))}
+                    className="w-7 h-7 rounded-lg bg-gray-200 font-bold text-gray-800"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={targetLength}
+                    onChange={(e) => setTargetLength(Math.max(0.1, Number(e.target.value) || 1))}
+                    className="w-full text-center font-black text-xs text-gray-900 bg-transparent outline-none"
+                  />
+                  <button
+                    onClick={() => setTargetLength((prev) => Number((prev + 0.5).toFixed(1)))}
+                    className="w-7 h-7 rounded-lg bg-[#0F6236] font-bold text-white"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label className="text-[10.5px] font-bold text-gray-500 block">Depth (m)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={targetDepth}
-                  onChange={(e) => setTargetDepth(Number(e.target.value) || 0.5)}
-                  className="w-full h-10 px-2 font-extrabold text-center border border-gray-200 rounded-xl bg-gray-50"
-                />
+              <div className="bg-gray-50 p-2 rounded-2xl border border-gray-200 text-center">
+                <label className="text-[10px] font-bold text-gray-500 block mb-1">Depth (m)</label>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setTargetDepth((prev) => Math.max(0.2, Number((prev - 0.1).toFixed(1))))}
+                    className="w-7 h-7 rounded-lg bg-gray-200 font-bold text-gray-800"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={targetDepth}
+                    onChange={(e) => setTargetDepth(Math.max(0.1, Number(e.target.value) || 0.5))}
+                    className="w-full text-center font-black text-xs text-gray-900 bg-transparent outline-none"
+                  />
+                  <button
+                    onClick={() => setTargetDepth((prev) => Number((prev + 0.1).toFixed(1)))}
+                    className="w-7 h-7 rounded-lg bg-[#0F6236] font-bold text-white"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
+            </div>
+
+            {/* Calculated Metrics Summary */}
+            <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-[#0F6236] font-bold">
+              <span>Surface Area: {(targetWidth * targetLength).toFixed(1)} m²</span>
+              <span>Water Volume: {(targetWidth * targetLength * targetDepth).toFixed(1)} m³</span>
             </div>
 
             <div>
-              <label className="text-[10.5px] font-bold text-gray-500 block mb-1">Pond Name</label>
+              <label className="text-[10.5px] font-extrabold text-gray-700 block mb-1">Pond Name</label>
               <input
                 type="text"
                 value={pondName}
                 onChange={(e) => setPondName(e.target.value)}
-                placeholder="e.g. Concrete Pond 1"
-                className="w-full h-10 px-3 text-xs font-bold border border-gray-200 rounded-xl bg-gray-50"
+                placeholder="e.g. Earth Pond 1"
+                className="w-full h-11 px-3 text-xs font-bold border border-gray-300 rounded-xl bg-gray-50 outline-none"
               />
             </div>
 
             <button
               onClick={handleSaveCameraPond}
-              className="w-full h-12 rounded-2xl bg-[#0F6236] text-white font-extrabold text-xs shadow-lg shadow-[#0F6236]/30 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+              className="w-full h-12 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs shadow-lg shadow-[#0F6236]/30 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
             >
               <Check className="w-4 h-4 text-white" /> Save Measured Pond to Memory
             </button>
