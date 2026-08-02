@@ -11,9 +11,7 @@ const getGeminiKey = (): string => {
   if ((globalThis as any).__GEMINI_KEY__) return (globalThis as any).__GEMINI_KEY__;
   if (typeof window !== "undefined" && localStorage.getItem("user_gemini_api_key")) return localStorage.getItem("user_gemini_api_key")!;
   if (import.meta.env.VITE_GEMINI_API_KEY) return import.meta.env.VITE_GEMINI_API_KEY;
-  // Key split into fragments for secure deployment
-  const g = ["QUl6YVN5", "Q2Y0bm84", "aE1jTXNE", "M2hSMFF5", "d2JrcUtq", "a3p0SGQx", "c0Fv"];
-  try { return atob(g.join("")); } catch { return ""; }
+  try { return atob("QVEuQWI4Uk42Sk5WdDZVREVGdGowYzVtay1GdU9LeHJZLVdyaXo1Ui14YmpMRndqdDhWVEE="); } catch { return ""; }
 };
 
 const getGroqKey = (): string => {
