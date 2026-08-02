@@ -103,7 +103,20 @@ export function AssistantPage() {
 
   useEffect(() => {
     if (isVideoCallOpen) {
-      startSpeechRecognition();
+      // 1. Immediately play AI Doctor voice greeting in selected language
+      const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
+      const isEwe = language.toLowerCase().includes("ewe") || language.toLowerCase().includes("eʋe");
+      
+      const greetingText = isTwi
+        ? "Akwaaba! Meyɛ wo Fish Doctor AI. Ɛdeɛn na meboa wo ma wo nsinesinam ne mpɔtorɔ afideɛ ma wo egbe?"
+        : isEwe
+        ? "Woezɔ! Nyemɛe nye Fish Doctor AI. Aleke mate ŋu akpe ɖe ŋuwò egbe le wò agble ŋu?"
+        : "Hello! I am Fish Doctor AI. I am listening. How can I help with your fish farm today?";
+
+      playVoice(greetingText).then(() => {
+        startSpeechRecognition();
+      });
+
       if (callMode === "video" && !isCameraOff) {
         startWebcam(cameraFacing);
       } else {

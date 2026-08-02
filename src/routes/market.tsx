@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { ShoppingCart, ArrowLeft, Search, Plus, Check, Phone, MessageSquare, Tag, ShieldCheck, X, Store, Sparkles } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Search, Plus, Check, Phone, MessageSquare, Tag, ShieldCheck, X, Store, Sparkles, Trash2, Upload } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import buyFeedImg from "@/assets/icons/buy-feed.png";
 import sellFishImg from "@/assets/icons/sell-fish.png";
 import marketPricesImg from "@/assets/icons/market-prices.png";
+import { fetchGlobalMarketItems, publishMarketItem, deleteMarketItem, MarketItem } from "@/lib/sharedMarket";
 
 export const Route = createFileRoute("/market")({
   component: MarketPage,
@@ -16,14 +17,12 @@ export const Route = createFileRoute("/market")({
   }),
 });
 
-import { fetchGlobalMarketItems, publishMarketItem, MarketItem } from "@/lib/sharedMarket";
-
 export function MarketPage() {
   const [activeCategory, setActiveCategory] = useState<"all" | "harvest" | "feeds" | "equipment" | "fish">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<MarketItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);  // New Listing Form State
+  const [isSyncing, setIsSyncing] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<"harvest" | "feeds" | "equipment" | "fish">("harvest");
   const [newPrice, setNewPrice] = useState<string>("");
@@ -32,6 +31,7 @@ export function MarketPage() {
   const [newPhone, setNewPhone] = useState("");
   const [newWhatsappPhone, setNewWhatsappPhone] = useState("");
   const [newLocation, setNewLocation] = useState("Kumasi, Ghana");
+  const [newImage, setNewImage] = useState<string | undefined>(undefined);
 
   const loadSharedItems = async () => {
     try {
@@ -53,7 +53,6 @@ export function MarketPage() {
 
     loadSharedItems();
 
-    // Poll every 3 seconds for real-time cloud sync across devices
     const interval = setInterval(loadSharedItems, 3000);
     window.addEventListener("storage", loadSharedItems);
 
@@ -62,6 +61,25 @@ export function MarketPage() {
       window.removeEventListener("storage", loadSharedItems);
     };
   }, []);
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this listing from the marketplace?")) {
+      const updated = await deleteMarketItem(id);
+      setItems(updated);
+      alert("Listing deleted successfully!");
+    }
+  };
 
   const handleCreateListing = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,13 +102,14 @@ export function MarketPage() {
         whatsappPhone: newWhatsappPhone.trim() || newPhone.trim(),
         location: newLocation.trim() || "Ghana",
         tag: "Verified Farmer",
-        image: newCategory === "feeds" ? buyFeedImg : newCategory === "equipment" ? marketPricesImg : sellFishImg,
+        image: newImage || (newCategory === "feeds" ? buyFeedImg : newCategory === "equipment" ? marketPricesImg : sellFishImg),
       });
 
       setItems(updated);
       setIsModalOpen(false);
       setNewTitle("");
       setNewPrice("");
+      setNewImage(undefined);
       alert("🎉 Your item has been published globally to the shared marketplace!");
     } catch (err) {
       console.error("Listing publish error:", err);
@@ -193,7 +212,7 @@ export function MarketPage() {
                   </div>
                 </div>
 
-                {/* Action Buttons: WhatsApp & Direct Call */}
+                {/* Location & Delete Action Bar */}
                 <div className="flex gap-2 pt-1 border-t border-gray-100">
                   <a
                     href={`https://wa.me/${waNumber}?text=${encodeURIComponent(autoMsg)}`}
@@ -209,6 +228,13 @@ export function MarketPage() {
                   >
                     <Phone className="w-3.5 h-3.5" /> Call Seller
                   </a>
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="px-3 h-10 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-extrabold text-xs flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
+                    title="Delete Listing"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             );
@@ -230,6 +256,19 @@ export function MarketPage() {
             </div>
 
             <form onSubmit={handleCreateListing} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-extrabold text-gray-800 mb-1">Upload Product Photo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileChange}
+                  className="w-full text-xs font-medium text-gray-700"
+                />
+                {newImage && (
+                  <img src={newImage} alt="Preview" className="w-16 h-16 rounded-xl object-cover mt-2 border border-gray-200" />
+                )}
+              </div>
+
               <div>
                 <label className="block font-extrabold text-gray-800 mb-1">Listing Title</label>
                 <input

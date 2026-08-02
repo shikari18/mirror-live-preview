@@ -334,6 +334,19 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     } else if (isHausa) {
       spokenText = "Barka da zuwa manoma! Kula da abincin kifi da lafiyar ruwa da amfani da Fish Doctor AI.";
     }
+  } else if (isEwe && /[a-zA-Z]/.test(cleanText) && !cleanText.includes("Woezɔ") && !cleanText.includes("agbledela")) {
+    try {
+      const translated = await callAI(
+        `Translate this English text into 100% natural Ewe (Eʋegbe) language for speech reading (respond ONLY with the Ewe translation): "${cleanText.slice(0, 300)}"`,
+        "You are an expert Ewe (Eʋegbe) translator from Volta Region, Ghana. Translate to pure Ewe spoken words."
+      );
+      if (translated && translated.trim()) {
+        spokenText = translated.trim();
+      }
+    } catch (e) {
+      console.warn("Ewe translation for TTS failed", e);
+      spokenText = "Woezɔ agbledela! Nyemɛe nye Fish Doctor AI. Kpɔ wò agble ŋu eye zã Fish Doctor AI.";
+    }
   }
 
   const sanitizedSpokenText = sanitizeAfricanPhonetics(spokenText);

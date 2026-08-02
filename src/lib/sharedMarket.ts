@@ -85,3 +85,32 @@ export async function publishMarketItem(newItem: Omit<MarketItem, "id" | "create
 
   return updated;
 }
+
+export async function deleteMarketItem(id: string): Promise<MarketItem[]> {
+  let existingItems: MarketItem[] = [];
+  try {
+    existingItems = await fetchGlobalMarketItems();
+  } catch (e) {
+    console.warn("Fetch before delete error", e);
+  }
+
+  const updated = existingItems.filter((item) => item.id !== id);
+
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+  window.dispatchEvent(new Event("storage"));
+
+  try {
+    await fetch(SHARED_BLOB_URL, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(updated)
+    });
+  } catch (e) {
+    console.warn("Cloud delete sync warning:", e);
+  }
+
+  return updated;
+}
