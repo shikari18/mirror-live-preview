@@ -43,20 +43,19 @@ async function callGroqEngine(
     farmContext ? `[FARM MEMORY]:\n${farmContext}` : ""
   ].filter(Boolean).join("\n\n");
 
-  const hasImages = mediaAttachments && mediaAttachments.length > 0;
-  const MODELS = hasImages
-    ? ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
-    : ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768"];
+  const MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "openai/gpt-oss-120b"
+  ];
 
   let messagesPayload: any[];
   if (hasImages) {
     const combinedPrompt = `${system}\n\nIMPORTANT: Carefully inspect the attached photo for any skin redness, lesions, white spots, fin rot, swelling, or eye cloudiness. If any abnormalities exist, report the exact disease.\n\n[USER INPUT & SYMPTOMS]:\n${prompt}`;
-    const parts: any[] = [{ type: "text", text: combinedPrompt }];
-    for (const m of mediaAttachments!) {
-      const dataUrl = m.data.startsWith("data:") ? m.data : `data:${m.mimeType || "image/jpeg"};base64,${m.data}`;
-      parts.push({ type: "image_url", image_url: { url: dataUrl } });
-    }
-    messagesPayload = [{ role: "user", content: parts }];
+    messagesPayload = [
+      { role: "system", content: system },
+      { role: "user", content: combinedPrompt }
+    ];
   } else {
     messagesPayload = [
       { role: "system", content: system },
