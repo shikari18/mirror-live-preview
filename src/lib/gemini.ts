@@ -258,45 +258,91 @@ export function speakTextInstant(
   onStart?: () => void,
   onEnd?: () => void
 ) {
+  if (typeof window === "undefined") {
+    if (onEnd) onEnd();
+    return;
+  }
+
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) {
     if (onEnd) onEnd();
     return;
   }
 
-  // Pre-create and unlock Audio element synchronously inside current user click gesture for iOS Safari & Mobile Chrome!
+  const langLower = language.toLowerCase();
+  const isTwi = langLower.includes("twi") || langLower.includes("akan");
+  const isEwe = langLower.includes("ewe") || langLower.includes("eʋe");
+  const isHausa = langLower.includes("hausa");
+
+  const speakWebSpeech = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+
+        let spokenText = cleanText;
+        if (isTwi) {
+          spokenText = "Akwaaba okuafoɔ! " + cleanText;
+        } else if (isEwe) {
+          spokenText = "Woezɔ agbledela! " + cleanText;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(spokenText);
+        utterance.rate = 0.95;
+        utterance.pitch = 1.0;
+
+        const voices = window.speechSynthesis.getVoices();
+        const targetLangCode = isTwi ? "en-GH" : isEwe ? "fr-FR" : isHausa ? "ha-NG" : "en-US";
+        const matchedVoice = voices.find(
+          (v) => v.lang.includes(targetLangCode) || v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")
+        ) || voices.find((v) => v.lang.startsWith("en"));
+
+        if (matchedVoice) utterance.voice = matchedVoice;
+
+        utterance.onstart = () => { if (onStart) onStart(); };
+        utterance.onend = () => { if (onEnd) onEnd(); };
+        utterance.onerror = () => { if (onEnd) onEnd(); };
+
+        window.speechSynthesis.speak(utterance);
+        if (onStart) onStart();
+      } catch (e) {
+        console.warn("WebSpeech synthesis error:", e);
+        if (onEnd) onEnd();
+      }
+    } else {
+      if (onEnd) onEnd();
+    }
+  };
+
+  // Pre-create and unlock Audio element synchronously inside current user click gesture
   const audio = new Audio();
   audio.volume = 1.0;
   audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
   const unlockPromise = audio.play();
-  if (unlockPromise !== undefined) {
-    unlockPromise.catch(() => {});
-  }
+  if (unlockPromise !== undefined) unlockPromise.catch(() => {});
 
   getGeminiLiveVoiceAudio(cleanText, language)
     .then((audioUrl) => {
       if (audioUrl) {
-        if (onStart) onStart();
         audio.src = audioUrl;
-        audio.onended = () => {
-          if (onEnd) onEnd();
-        };
+        audio.onplay = () => { if (onStart) onStart(); };
+        audio.onended = () => { if (onEnd) onEnd(); };
         audio.onerror = () => {
-          if (onEnd) onEnd();
+          console.warn("Network audio stream blocked, using device WebSpeech voice...");
+          speakWebSpeech();
         };
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch((err) => {
-            console.warn("Audio play prevented:", err);
-            if (onEnd) onEnd();
+            console.warn("Audio play prevented by browser policy, using WebSpeech:", err);
+            speakWebSpeech();
           });
         }
       } else {
-        if (onEnd) onEnd();
+        speakWebSpeech();
       }
     })
     .catch(() => {
-      if (onEnd) onEnd();
+      speakWebSpeech();
     });
 }
 
