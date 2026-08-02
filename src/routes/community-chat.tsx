@@ -168,7 +168,7 @@ export function CommunityChatPage() {
 
         <div className="flex items-center gap-2">
           <a
-            href="https://chat.whatsapp.com/GOVXg6hC7g5DJ9h6IsLJ87?s=cl&p=i&mlu=4"
+            href="https://chat.whatsapp.com/GOVXg6hC7g5DJ9h6lsLJ87?s=cl&p=i&mlu=4"
             target="_blank"
             rel="noopener noreferrer"
             className="px-2.5 py-1 rounded-xl bg-white text-[#075E54] text-[11px] font-black shadow-xs flex items-center gap-1 hover:bg-emerald-50 transition-all cursor-pointer"

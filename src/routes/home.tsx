@@ -318,7 +318,7 @@ export function HomePage() {
       {/* Big Prominent Live Farmers Chat Card (WhatsApp Style) */}
       <section className="mx-5 mt-4">
         <a
-          href="https://chat.whatsapp.com/GOVXg6hC7g5DJ9h6IsLJ87?s=cl&p=i&mlu=4"
+          href="https://chat.whatsapp.com/GOVXg6hC7g5DJ9h6lsLJ87?s=cl&p=i&mlu=4"
           target="_blank"
           rel="noopener noreferrer"
           className="block p-5 rounded-3xl bg-gradient-to-r from-[#075E54] via-[#128C7E] to-[#075E54] text-white shadow-xl shadow-[#075E54]/30 border border-emerald-400/30 relative overflow-hidden transition-all hover:scale-[1.01] active:scale-95 cursor-pointer"
