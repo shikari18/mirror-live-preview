@@ -75,23 +75,30 @@ export function OnboardingPage() {
   );
 
   const handleFinish = () => {
-    const finalFishType = fishType === "Other" && customFishName.trim() ? customFishName.trim() : fishType;
-    const finalFarmName = farmName.trim() || "Green Aqua Farm";
-    
-    const profile = getFarmProfile();
-    profile.farmName = finalFarmName;
-    profile.primaryGoal = primaryGoal;
-    profile.experienceLevel = primaryGoal;
-    saveFarmProfile(profile);
+    try {
+      const finalFishType = fishType === "Other" && customFishName.trim() ? customFishName.trim() : fishType;
+      const finalFarmName = farmName.trim() || "Green Aqua Farm";
+      
+      const profile = getFarmProfile();
+      profile.farmName = finalFarmName;
+      profile.primaryGoal = primaryGoal;
+      profile.experienceLevel = primaryGoal;
+      saveFarmProfile(profile);
 
-    localStorage.setItem("user_farm_name", finalFarmName);
-    localStorage.setItem("user_primary_goal", primaryGoal);
-    localStorage.setItem("user_fish_species", finalFishType);
-    localStorage.setItem("user_onboarding_completed", "true");
-    localStorage.setItem("user_logged_in", "true");
-    markCurrentAccountOnboardingComplete(finalFarmName);
-    setLanguage(selectedLang);
-    navigate({ to: "/home" });
+      localStorage.setItem("user_farm_name", finalFarmName);
+      localStorage.setItem("user_primary_goal", primaryGoal);
+      localStorage.setItem("user_fish_species", finalFishType);
+      localStorage.setItem("user_onboarding_completed", "true");
+      localStorage.setItem("user_logged_in", "true");
+      try { markCurrentAccountOnboardingComplete(finalFarmName); } catch (e) { console.warn(e); }
+      setLanguage(selectedLang);
+      window.location.href = "/home";
+    } catch (err) {
+      console.error("Onboarding finish error", err);
+      localStorage.setItem("user_onboarding_completed", "true");
+      localStorage.setItem("user_logged_in", "true");
+      window.location.href = "/home";
+    }
   };
 
   const handleNext = () => {

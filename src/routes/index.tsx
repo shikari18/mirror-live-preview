@@ -20,15 +20,11 @@ const features = [
 function Index() {
   const [isLangOpen, setIsLangOpen] = useState(false);
   const { language } = useLanguage();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem("user_logged_in") === "true") {
-      const onboardingDone = localStorage.getItem("user_onboarding_completed") === "true";
-      if (onboardingDone) {
-        window.location.href = "/home";
-      } else {
-        window.location.href = "/onboarding";
-      }
+      setIsLoggedIn(true);
     }
   }, []);
 
@@ -46,6 +42,16 @@ function Index() {
             </div>
           </div>
         </header>
+
+        {/* Active Logged In Session Banner */}
+        {isLoggedIn && (
+          <div className="mx-5 mb-3 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-[#0F6236] flex items-center justify-between text-xs font-bold shadow-xs">
+            <span>Welcome back! You have an active session.</span>
+            <Link to="/home" className="px-3 py-1.5 rounded-xl bg-[#0F6236] text-white text-[11px] font-extrabold shrink-0 shadow-xs">
+              Go to Dashboard
+            </Link>
+          </div>
+        )}
 
         {/* Hero Section */}
         <section className="px-6 text-center">

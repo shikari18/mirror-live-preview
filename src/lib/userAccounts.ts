@@ -138,7 +138,7 @@ export function markCurrentAccountOnboardingComplete(farmName?: string): void {
   let acc = accounts.find(
     (a) =>
       (currentEmail && a.email && a.email.toLowerCase() === currentEmail.toLowerCase()) ||
-      (currentPhone && a.phone && a.phone.replaceAll(" ", "") === currentPhone.replaceAll(" ", "")) ||
+      (currentPhone && a.phone && (a.phone || "").replace(/\s+/g, "") === (currentPhone || "").replace(/\s+/g, "")) ||
       (currentName && a.name === currentName)
   );
 
