@@ -48,6 +48,7 @@ export function MyFarmPage() {
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [isAnalyzingPond, setIsAnalyzingPond] = useState<boolean>(false);
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
+  const [capturedSnapshot, setCapturedSnapshot] = useState<string | null>(null);
 
   // Feed Inventory State
   const [feedBagsInStore, setFeedBagsInStore] = useState<number>(2);
