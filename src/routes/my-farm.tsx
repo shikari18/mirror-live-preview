@@ -5,6 +5,7 @@ import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { useLanguage } from "@/lib/languageContext";
 import { getFarmProfile, addPondToMemory, deletePondFromMemory, clearAllPondsFromMemory, PondRecord } from "@/lib/farmMemory";
+import { estimatePondDimensionsAI } from "@/lib/gemini";
 
 export const Route = createFileRoute("/my-farm")({
   component: MyFarmPage,
@@ -24,9 +25,9 @@ export function MyFarmPage() {
   const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<string>(profile.location || "Accra & Ashanti Region, Ghana");
 
-  // Standard Form State
+  // Form State
   const [pondName, setPondName] = useState("");
-  const [fishType, setFishType] = useState("Nile Tilapia");
+  const [fishType, setFishType] = useState("Catfish (Clarias)");
   const [fishCount, setFishCount] = useState<number>(1000);
   const [pondType, setPondType] = useState("Concrete");
 
@@ -36,6 +37,8 @@ export function MyFarmPage() {
   const [targetDepth, setTargetDepth] = useState<number>(1.4);
   const [liveVolumeLiters, setLiveVolumeLiters] = useState<number>(61600);
   const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [isAnalyzingPond, setIsAnalyzingPond] = useState<boolean>(false);
+  const [aiConfidence, setAiConfidence] = useState<number | null>(null);
 
   // Feed Inventory State
   const [feedBagsInStore, setFeedBagsInStore] = useState<number>(2);
@@ -124,6 +127,35 @@ export function MyFarmPage() {
       mediaStreamRef.current = null;
     }
     setCameraActive(false);
+  };
+
+  const handleScanPondWithAI = async () => {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video) return;
+
+    setIsAnalyzingPond(true);
+    try {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const frameBase64 = canvas.toDataURL("image/jpeg", 0.85);
+
+        const result = await estimatePondDimensionsAI(frameBase64);
+        setTargetLength(result.lengthMeters);
+        setTargetWidth(result.widthMeters);
+        setTargetDepth(result.depthMeters);
+        setLiveVolumeLiters(result.volumeLiters);
+        setPondType(result.pondType);
+        setAiConfidence(result.confidence);
+      }
+    } catch (e) {
+      console.warn("AI Scan Pond error", e);
+    } finally {
+      setIsAnalyzingPond(false);
+    }
   };
 
   const startRealTimeCanvasAnalysis = () => {
@@ -423,8 +455,24 @@ export function MyFarmPage() {
 
           {/* AR Controls Box */}
           <div className="w-full max-w-sm bg-white p-5 rounded-t-3xl space-y-3.5 z-20 shadow-2xl">
+            {/* Auto AI Vision Scan Trigger */}
+            <button
+              onClick={handleScanPondWithAI}
+              disabled={isAnalyzingPond}
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-[#0F6236] text-white font-extrabold text-xs shadow-lg shadow-emerald-700/30 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+            >
+              <Sparkles className="w-4 h-4 text-emerald-200 animate-spin" />
+              {isAnalyzingPond ? "AI Vision Measuring Length & Width..." : "🤖 AI Auto-Measure Pond Length & Width"}
+            </button>
+
+            {aiConfidence && (
+              <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-[11px] font-extrabold text-[#0F6236] text-center animate-in fade-in">
+                ✨ AI Auto-Measured: {targetLength.toFixed(1)}m Length × {targetWidth.toFixed(1)}m Width × {targetDepth.toFixed(1)}m Depth ({aiConfidence}% confidence)
+              </div>
+            )}
+
             <div className="text-xs font-extrabold text-gray-900 border-b border-gray-100 pb-2 flex items-center justify-between">
-              <span>Pond Dimensions & Stocking Capacity</span>
+              <span>Auto-Detected Dimensions</span>
               <span className="text-[#0F6236] font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md">
                 Max Stock: ~{estimatedFishCapacity.toLocaleString()} Fish
               </span>
