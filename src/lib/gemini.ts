@@ -256,61 +256,45 @@ export function speakTextInstant(
   onStart?: () => void,
   onEnd?: () => void
 ): void {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+  if (typeof window === "undefined") {
     if (onEnd) onEnd();
     return;
   }
 
-  try {
-    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-      window.speechSynthesis.cancel();
-    }
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
+  const cleanText = text
+    .replace(/###/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/[*`_]/g, "")
+    .replace(/https?:\/\/\S+/g, "")
+    .trim();
 
-    const cleanText = text
-      .replace(/###/g, "")
-      .replace(/\*\*/g, "")
-      .replace(/[*`_]/g, "")
-      .replace(/https?:\/\/\S+/g, "")
-      .trim();
-
-    if (!cleanText) {
-      if (onEnd) onEnd();
-      return;
-    }
-
-    // Split long text into short 150-char sentences so SpeechSynthesis never times out
-    const sentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
-    const spokenSlice = sentences.slice(0, 3).join(" ");
-
-    const utterance = new SpeechSynthesisUtterance(spokenSlice);
-    utterance.rate = 0.92;
-    utterance.pitch = 1.1; // Warm female pitch
-    utterance.volume = 1.0;
-
-    const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
-    utterance.lang = isTwi ? "en-GB" : "en-US";
-
-    utterance.onstart = () => {
-      if (onStart) onStart();
-    };
-
-    utterance.onend = () => {
-      if (onEnd) onEnd();
-    };
-
-    utterance.onerror = (e) => {
-      console.warn("SpeechSynthesis error:", e);
-      if (onEnd) onEnd();
-    };
-
-    window.speechSynthesis.speak(utterance);
-  } catch (e) {
-    console.warn("Speech error:", e);
+  if (!cleanText) {
     if (onEnd) onEnd();
+    return;
   }
+
+  // Fetch and play Gemini 2.5 / 3.1 Neural Voice audio (Aoede)
+  getGeminiLiveVoiceAudio(cleanText, language)
+    .then((audioUrl) => {
+      if (audioUrl) {
+        if (onStart) onStart();
+        const audio = new Audio(audioUrl);
+        audio.onended = () => {
+          if (onEnd) onEnd();
+        };
+        audio.onerror = () => {
+          if (onEnd) onEnd();
+        };
+        audio.play().catch(() => {
+          if (onEnd) onEnd();
+        });
+      } else {
+        if (onEnd) onEnd();
+      }
+    })
+    .catch(() => {
+      if (onEnd) onEnd();
+    });
 }
 
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
