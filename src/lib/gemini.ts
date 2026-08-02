@@ -340,51 +340,52 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     }
   }
 
-  // 1. Try Gemini 2.0 Flash Live Audio Generation API (Neural Voice)
+  // 1. Try Gemini 2.5 & 3.1 Flash Live Audio Generation API (Neural Voice)
   const apiKey = getGeminiKey();
   if (apiKey) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: `Speak this text clearly in a warm, natural female human voice: "${spokenText}"` }]
-              }
-            ],
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: {
-                    voiceName: "Aoede" // Realistic Gemini Female Neural Voice
+    const AUDIO_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
+    for (const model of AUDIO_MODELS) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: [{ text: spokenText }]
+                }
+              ],
+              generationConfig: {
+                responseModalities: ["AUDIO"],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: {
+                      voiceName: "Aoede" // Realistic Gemini Female Neural Voice
+                    }
                   }
                 }
               }
-            }
-          })
-        }
-      );
+            })
+          }
+        );
 
-      if (response.ok) {
-        const data = await response.json();
-        const candidate = data?.candidates?.[0]?.content?.parts?.[0];
-        if (candidate?.inlineData?.data) {
-          const mime = candidate.inlineData.mimeType || "audio/pcm;rate=24000";
-          if (mime.includes("pcm")) {
+        if (response.ok) {
+          const data = await response.json();
+          const candidate = data?.candidates?.[0]?.content?.parts?.[0];
+          if (candidate?.inlineData?.data) {
+            const mime = candidate.inlineData.mimeType || "audio/pcm;rate=24000";
             const sampleRate = mime.includes("rate=") ? parseInt(mime.split("rate=")[1], 10) : 24000;
             const wavUrl = pcmToWavUrl(candidate.inlineData.data, sampleRate || 24000);
             if (wavUrl) return wavUrl;
+            return `data:${mime};base64,${candidate.inlineData.data}`;
           }
-          return `data:${mime};base64,${candidate.inlineData.data}`;
         }
+      } catch (e) {
+        console.warn(`Gemini Live Audio ${model} failed:`, e);
       }
-    } catch (e) {
-      console.warn("Gemini Live Audio API failed, using TTS stream fallback:", e);
     }
   }
 
