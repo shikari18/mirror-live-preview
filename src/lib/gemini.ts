@@ -331,10 +331,27 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   const isEwe = langLower.includes("ewe") || langLower.includes("eʋe");
   const isGa = langLower.includes("ga");
   const isHausa = langLower.includes("hausa");
+  const isPidgin = langLower.includes("pidgin");
 
   const sanitizedSpokenText = sanitizeAfricanPhonetics(cleanText);
 
-  // 1. Primary Zero-API-Key Reliable Google Speech MP3 Engine (100% Mobile & CORS Compatible)
+  // 1. Primary Priority: Abena AI Ultra-Realistic Native Ghanaian Neural Voice Engine
+  let abenaVoice: string | null = null;
+  if (isTwi) abenaVoice = "abena_twi_high";
+  else if (isEwe) abenaVoice = "mawuli_ewe";
+  else if (isPidgin) abenaVoice = "kobby_gpe";
+  else if (isHausa) abenaVoice = "abubakar_hau";
+  else abenaVoice = "akua_eng"; // Default Ghanaian Accent English
+
+  if (abenaVoice) {
+    const abenaAudioUrl = await synthesizeAbenaAI(sanitizedSpokenText, abenaVoice);
+    if (abenaAudioUrl) {
+      CLIENT_AUDIO_CACHE.set(cacheKey, abenaAudioUrl);
+      return abenaAudioUrl;
+    }
+  }
+
+  // 2. High-Speed 100% Reliable Fallback Engine (Google Speech MP3 Stream)
   const ttsLang = isTwi ? "sw" : isEwe ? "fr" : isGa ? "sw" : isHausa ? "ha" : "en";
   const googleAudioStreamUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(sanitizedSpokenText.slice(0, 250))}&tl=${ttsLang}&client=tw-ob`;
 
