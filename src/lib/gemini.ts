@@ -345,7 +345,7 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   if (apiKey) {
     const AUDIO_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
     const promptText = isTwi
-      ? `Speak this text in fluent Akan Twi (Asante Twi) with natural human pronunciation: "${spokenText}"`
+      ? `Speak this text clearly in fluent Akan Twi (Asante Twi) with warm natural female voice: "${spokenText}"`
       : spokenText;
 
     for (const model of AUDIO_MODELS) {
