@@ -664,7 +664,7 @@ RESPOND ONLY WITH VALID JSON matching this exact structure:
   },
   "whyThisDiagnosis": "Detected white cotton-like lesion on the head. Fins remain intact with no widespread hemorrhaging.",
   "assessmentSummary": "White cotton head lesion detected. Primary suspect Saprolegniasis fungal infection. Initiate antifungal salt dip.",
-  "species": "Catfish & Tilapia Aquaculture"
+  "species": "African Catfish (Clarias gariepinus)" or "Nile Tilapia (Oreochromis niloticus)" or "Heterobranchus longifilis"
 }`;
 
   try {

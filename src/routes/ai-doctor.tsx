@@ -408,12 +408,20 @@ export function DiseasePage() {
         {diagnosisResult && (
           <div className="bg-white rounded-3xl border border-gray-200/90 p-5 space-y-5 shadow-2xl animate-in fade-in duration-300">
             
-            {/* Header: Disease Name & Actions */}
+            {/* Header: Identified Species & Disease Name */}
             <div className="flex items-start justify-between border-b border-gray-100 pb-4">
               <div>
-                <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#0F6236] flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#0F6236]" /> AI Health Assessment
-                </span>
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#0F6236] flex items-center gap-1 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#0F6236]" /> AI Health Assessment
+                  </span>
+                  {diagnosisResult.species && (
+                    <span className="text-[11px] font-black text-amber-950 bg-amber-100 px-3 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 shadow-2xs">
+                      🐟 Identified Species: {diagnosisResult.species}
+                    </span>
+                  )}
+                </div>
+
                 <h2 className="text-xl font-black text-gray-900 mt-1 leading-tight">
                   {diagnosisResult.diseaseName}
                 </h2>
