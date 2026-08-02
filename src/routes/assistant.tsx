@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Send, Mic, ArrowLeft, Stethoscope, Loader2, MapPin, Video, PhoneOff, MicOff, RefreshCw, Volume2, Download, Paperclip, FileText, Camera, Check, VideoOff, SwitchCamera, UserCheck, Plus } from "lucide-react";
+import { Send, Mic, ArrowLeft, Stethoscope, Loader2, MapPin, Video, PhoneCall, PhoneOff, MicOff, RefreshCw, Volume2, Download, Paperclip, FileText, Camera, Check, VideoOff, SwitchCamera, UserCheck, Plus } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, speakTextInstant, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
@@ -323,22 +323,14 @@ export function AssistantPage() {
           </div>
         </div>
 
-        {/* Extension Link & Video Call */}
-        <div className="flex items-center gap-2">
-          <Link
-            to="/extension-support"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-[#0F6236]/10 text-[#0F6236] border border-[#0F6236]/20 text-[11px] font-extrabold cursor-pointer hover:bg-[#0F6236]/20 transition-all"
-          >
-            <UserCheck className="w-3.5 h-3.5" /> Extension
-          </Link>
-
-          <button
-            onClick={() => setIsVideoCallOpen(true)}
-            className="flex items-center gap-1 px-3.5 py-1.5 rounded-2xl bg-[#0F6236] hover:bg-[#0B4A28] text-white text-[11px] font-extrabold shadow-md shadow-[#0F6236]/25 transition-all cursor-pointer active:scale-95"
-          >
-            <Video className="w-3.5 h-3.5" /> Video Call
-          </button>
-        </div>
+        {/* Call Button SVG (Top Right) */}
+        <button
+          onClick={() => setIsVideoCallOpen(true)}
+          className="px-3.5 py-2 rounded-2xl bg-[#0F6236] hover:bg-[#0B4A28] text-white font-extrabold text-xs shadow-md shadow-[#0F6236]/25 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
+        >
+          <PhoneCall className="w-4 h-4 text-white" />
+          <span>Call</span>
+        </button>
       </header>
 
       {/* AI Chat Messages UI */}
