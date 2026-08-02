@@ -163,37 +163,50 @@ export function HomePage() {
     }
 
     setIsPlayingAudio(true);
-    setAudioStatusText("Downloading Voice 30%...");
+    setAudioStatusText("Playing Voice...");
 
     const adviceText = `Welcome farmer! Live Weather & Farm Advisory: ${weatherAlert.summary}. Maintain optimal feeding schedules and use Fish Doctor AI for instant photo diagnosis.`;
 
-    const audioUrl = await getGeminiLiveVoiceAudio(adviceText, language);
+    try {
+      const audioUrl = await getGeminiLiveVoiceAudio(adviceText, language);
 
-    if (audioUrl) {
-      setAudioStatusText("Downloading Voice 100%!");
-      try {
+      if (audioUrl) {
         const audio = new Audio(audioUrl);
         currentAudioRef.current = audio;
-        audio.onplay = () => setAudioStatusText("Playing Voice Advice...");
         audio.onended = () => {
           setIsPlayingAudio(false);
           setAudioStatusText("");
           currentAudioRef.current = null;
         };
         audio.onerror = () => {
-          setIsPlayingAudio(false);
-          setAudioStatusText("");
-          currentAudioRef.current = null;
+          speakTextInstant(
+            adviceText,
+            language,
+            () => setAudioStatusText("Playing Voice..."),
+            () => {
+              setIsPlayingAudio(false);
+              setAudioStatusText("");
+              currentAudioRef.current = null;
+            }
+          );
         };
         await audio.play();
         return;
-      } catch (e) {
-        console.warn("Audio play error", e);
       }
+    } catch (e) {
+      console.warn("Audio play error", e);
     }
 
-    setIsPlayingAudio(false);
-    setAudioStatusText("");
+    speakTextInstant(
+      adviceText,
+      language,
+      () => setAudioStatusText("Playing Voice..."),
+      () => {
+        setIsPlayingAudio(false);
+        setAudioStatusText("");
+        currentAudioRef.current = null;
+      }
+    );
   };
 
   return (
@@ -309,13 +322,13 @@ export function HomePage() {
       {/* Location-Based Weather & Rain Advisory Card */}
       <section className={`mx-5 mt-3 p-4 rounded-3xl text-white border shadow-lg relative overflow-hidden transition-all ${
         liveWeather.isRaining
-          ? "bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 border-blue-400/40 shadow-blue-950/50 animate-pulse"
+          ? "bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 border-blue-400/40 shadow-blue-950/50"
           : "bg-gradient-to-r from-blue-950 via-[#0A324D] to-[#082338] border-blue-400/20"
       }`}>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
-              <CloudRain className={`w-5.5 h-5.5 ${liveWeather.isRaining ? "text-sky-200 animate-bounce" : "text-sky-300"}`} />
+              <CloudRain className="w-5.5 h-5.5 text-sky-300" />
             </div>
             <div>
               <div className="text-[10.5px] font-extrabold text-sky-300 uppercase tracking-wider">
@@ -328,15 +341,21 @@ export function HomePage() {
           </div>
           <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
             liveWeather.isRaining
-              ? "bg-red-500 text-white animate-pulse shadow-md"
+              ? "bg-red-500 text-white shadow-md"
               : "bg-sky-500/20 border border-sky-400/30 text-sky-200"
           }`}>
             {liveWeather.isRaining ? "🌧️ Rain Alert" : "Live Weather"}
           </span>
         </div>
 
-        <div className="mt-2.5 p-3 rounded-2xl bg-white/10 text-xs font-medium text-sky-100 border border-white/10 leading-relaxed">
-          {liveWeather.adviceText}
+        <div className="mt-2.5 p-3 rounded-2xl bg-white/10 text-xs font-medium text-sky-100 border border-white/10 leading-relaxed flex items-center justify-between gap-3">
+          <span>{liveWeather.adviceText}</span>
+          <button
+            onClick={handlePlayDailyVoiceAdvice}
+            className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-[11px] shrink-0 flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+          >
+            <Volume2 className="w-3.5 h-3.5 text-sky-200" /> Listen
+          </button>
         </div>
       </section>
 
@@ -353,7 +372,7 @@ export function HomePage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="p-2 bg-white/15 rounded-xl backdrop-blur-md">
-              <CloudRain className="w-4 h-4 text-yellow-300 animate-bounce" />
+              <CloudRain className="w-4 h-4 text-yellow-300" />
             </span>
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-200">
               Live Weather & Advisory
@@ -377,7 +396,7 @@ export function HomePage() {
         <div className="mt-3.5 flex items-center justify-between pt-3 border-t border-white/15">
           <div className="flex items-center gap-1.5">
             {audioStatusText && (
-              <span className="text-[10.5px] font-bold text-yellow-300 animate-pulse truncate max-w-[150px]">
+              <span className="text-[10.5px] font-bold text-yellow-300 truncate max-w-[150px]">
                 {audioStatusText}
               </span>
             )}
