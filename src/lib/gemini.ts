@@ -257,27 +257,21 @@ export function speakTextInstant(
   language: string = "English",
   onStart?: () => void,
   onEnd?: () => void
-): void {
-  if (typeof window === "undefined") {
-    if (onEnd) onEnd();
-    return;
-  }
-
-  const cleanText = text
-    .replace(/###/g, "")
-    .replace(/\*\*/g, "")
-    .replace(/[*`_]/g, "")
-    .replace(/https?:\/\/\S+/g, "")
-    .trim();
-
+) {
+  const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) {
     if (onEnd) onEnd();
     return;
   }
 
-  // Pre-create and unlock Audio element synchronously inside current user click gesture!
+  // Pre-create and unlock Audio element synchronously inside current user click gesture for iOS Safari & Mobile Chrome!
   const audio = new Audio();
   audio.volume = 1.0;
+  audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+  const unlockPromise = audio.play();
+  if (unlockPromise !== undefined) {
+    unlockPromise.catch(() => {});
+  }
 
   getGeminiLiveVoiceAudio(cleanText, language)
     .then((audioUrl) => {
@@ -293,7 +287,7 @@ export function speakTextInstant(
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch((err) => {
-            console.warn("Audio play prevented, triggering WebSpeech fallback:", err);
+            console.warn("Audio play prevented:", err);
             if (onEnd) onEnd();
           });
         }
@@ -337,6 +331,7 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   const isEwe = langLower.includes("ewe") || langLower.includes("eʋe");
   const isGa = langLower.includes("ga");
   const isHausa = langLower.includes("hausa");
+  const isPidgin = langLower.includes("pidgin");
 
   const sanitizedSpokenText = sanitizeAfricanPhonetics(cleanText);
 
