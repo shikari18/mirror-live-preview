@@ -255,7 +255,62 @@ function pcmToWavUrl(base64Pcm: string, sampleRate: number = 24000): string {
   }
 }
 
-const CLIENT_AUDIO_CACHE = new Map<string, string>();
+// ─── Khaya AI (Ghana NLP) Translation & TTS Integration ───────────────────────
+
+const getGhanaNLPKey = (): string => {
+  if ((globalThis as any).__GHANA_NLP_KEY__) return (globalThis as any).__GHANA_NLP_KEY__;
+  if (typeof window !== "undefined" && localStorage.getItem("user_ghana_nlp_api_key")) return localStorage.getItem("user_ghana_nlp_api_key")!;
+  const envKey = (typeof import.meta !== "undefined" && import.meta.env?.VITE_GHANA_NLP_API_KEY) || (typeof process !== "undefined" && process.env?.VITE_GHANA_NLP_API_KEY);
+  return envKey || "";
+};
+
+export async function translateTextKhayaAI(text: string, languagePair: string = "en-tw"): Promise<string> {
+  const apiKey = getGhanaNLPKey();
+  if (!apiKey) return "";
+
+  try {
+    const res = await fetch("https://translation-api.ghananlp.org/v1/translate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Ocp-Apim-Subscription-Key": apiKey
+      },
+      body: JSON.stringify({ text, lang: languagePair })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (typeof data === "string") return data;
+      if (data?.result) return data.result;
+      if (data?.translatedText) return data.translatedText;
+    }
+  } catch (e) {
+    console.warn("Khaya AI Translation error:", e);
+  }
+  return "";
+}
+
+export async function synthesizeSpeechKhayaAI(text: string, lang: string = "tw"): Promise<string> {
+  const apiKey = getGhanaNLPKey();
+  if (!apiKey) return "";
+
+  try {
+    const res = await fetch("https://translation-api.ghananlp.org/tts/v1/tts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Ocp-Apim-Subscription-Key": apiKey
+      },
+      body: JSON.stringify({ text, language: lang })
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    }
+  } catch (e) {
+    console.warn("Khaya AI TTS error:", e);
+  }
+  return "";
+}
 
 export function speakTextInstant(
   text: string,
@@ -279,11 +334,23 @@ export function speakTextInstant(
   const isEwe = langLower.includes("ewe") || langLower.includes("eʋe");
   const isHausa = langLower.includes("hausa");
 
+  // Try Khaya AI (Ghana NLP) audio if API key is present
+  synthesizeSpeechKhayaAI(cleanText, isTwi ? "tw" : isEwe ? "ee" : "en").then((khayaAudioUrl) => {
+    if (khayaAudioUrl) {
+      const audio = new Audio(khayaAudioUrl);
+      audio.onplay = () => { if (onStart) onStart(); };
+      audio.onended = () => { if (onEnd) onEnd(); };
+      audio.play().catch(() => speakWebSpeech());
+      return;
+    }
+    speakWebSpeech();
+  }).catch(() => speakWebSpeech());
+
   // Format spoken text for Twi & English
   let spokenText = cleanText;
   if (isTwi) {
-    if (cleanText.includes("Welcome farmer") || cleanText.includes("Live Weather") || cleanText.includes("Fish Doctor")) {
-      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa afutuo: Enneɔɔma nsuo mu nam no ho ye. Fa Fish Doctor AI yɛ adwuma pa bɔ wo nsuo mu nam no apɔwmuden kɔkɔɔ.";
+    if (cleanText.includes("Welcome farmer") || cleanText.includes("Live Weather") || cleanText.includes("Fish Doctor") || cleanText.includes("Part Cloud") || cleanText.includes("Reduce feed")) {
+      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa afutuo: Enneɔɔma nsuo mu nam no ho ye. Nsuo mu afutuo pa: Te aduane no so ketewa bi na mframa pa mmra nsuo no mu pa.";
     } else if (!cleanText.includes("Akwaaba")) {
       spokenText = "Akwaaba okuafoɔ! " + cleanText;
     }
@@ -328,9 +395,6 @@ export function speakTextInstant(
       if (onEnd) onEnd();
     }
   };
-
-  // Synchronously execute WebSpeech for 100% instant audible sound
-  speakWebSpeech();
 }
 
 function sanitizeAfricanPhonetics(text: string): string {

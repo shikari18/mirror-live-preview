@@ -191,18 +191,8 @@ export function HomePage() {
     setIsPlayingAudio(true);
     setAudioStatusText("Playing Voice...");
 
-    const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
-    const isEwe = language.toLowerCase().includes("ewe");
-    
-    let adviceText = `Welcome farmer! Live Weather & Farm Advisory: ${liveWeather.description}. Maintain optimal feeding schedules and use Fish Doctor AI for instant photo diagnosis.`;
-    if (isTwi) {
-      adviceText = "Akwaaba okuafoɔ! Ewiem mmoa afutuo: Enneɔɔma nsuo mu nam no ho ye. Fa Fish Doctor AI yɛ adwuma pa bɔ wo nsuo mu nam no apɔwmuden kɔkɔɔ.";
-    } else if (isEwe) {
-      adviceText = "Woezɔ agbledela! Yame ƒe nɔnɔme gblɔ be dzoxɔxɔ le 29°C. Kpɔ nuɖuɖu na tɔmelãwo nyuie eye zã Fish Doctor AI.";
-    }
-
     speakTextInstant(
-      adviceText,
+      liveWeather.adviceText,
       language,
       () => {
         setIsPlayingAudio(true);
@@ -420,62 +410,6 @@ export function HomePage() {
         <StatCard tint="bg-white" img={iconGrowth} label="Active Ponds" value={`${pondsCount} Ponds`} sub="In Production" />
         <StatCard tint="bg-white" img={iconCalendar} label="Total Fish Stock" value={`${totalFish.toLocaleString()} Fish`} sub="Live Count" />
         <StatCard tint="bg-white" img={iconAiDoctor} label="AI Doctor Status" value="Online" sub="AI Vision Ready" />
-      </section>
-
-      {/* Daily Voice Advisory Card */}
-      <section className="mx-5 mt-4 rounded-3xl bg-gradient-to-r from-[#0F6236] via-[#12723F] to-[#0A4827] p-4.5 text-white shadow-xl shadow-[#0F6236]/25 relative overflow-hidden border border-white/10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-white/15 rounded-xl backdrop-blur-md">
-              <CloudRain className="w-4 h-4 text-yellow-300" />
-            </span>
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-200">
-              Live Weather & Advisory
-            </span>
-          </div>
-          <span className="text-[10px] font-extrabold bg-amber-400 text-gray-950 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
-            <Zap className="w-3 h-3 fill-gray-950" /> Weather Sync
-          </span>
-        </div>
-
-        <div className="mt-3">
-          <h3 className="text-sm font-extrabold leading-tight text-white">
-            🌊 {weatherAlert.summary}
-          </h3>
-          <p className="text-[11.5px] text-emerald-100 mt-1 leading-normal font-medium">
-            Tap below to listen to Fish Doctor AI voice advisory in {language}.
-          </p>
-        </div>
-
-        {/* Voice Play Button */}
-        <div className="mt-3.5 flex items-center justify-between pt-3 border-t border-white/15">
-          <div className="flex items-center gap-1.5">
-            {audioStatusText && (
-              <span className="text-[10.5px] font-bold text-yellow-300 truncate max-w-[150px]">
-                {audioStatusText}
-              </span>
-            )}
-          </div>
-
-          <button
-            onClick={handlePlayDailyVoiceAdvice}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold flex items-center gap-2 shadow-lg transition-all cursor-pointer ${
-              isPlayingAudio
-                ? "bg-amber-400 text-gray-950"
-                : "bg-white text-[#0F6236] hover:bg-emerald-50"
-            }`}
-          >
-            {isPlayingAudio ? (
-              <>
-                <Volume2 className="w-4 h-4 animate-spin" /> Stop Voice
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 fill-[#0F6236]" /> Listen Voice ({language})
-              </>
-            )}
-          </button>
-        </div>
       </section>
 
       {/* Features Grid */}
