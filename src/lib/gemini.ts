@@ -297,6 +297,23 @@ export function speakTextInstant(
     });
 }
 
+function sanitizeAfricanPhonetics(text: string): string {
+  return text
+    .replace(/ɔ/g, "o")
+    .replace(/Ɔ/g, "O")
+    .replace(/ɛ/g, "e")
+    .replace(/Ɛ/g, "E")
+    .replace(/ƒ/g, "f")
+    .replace(/Ƒ/g, "F")
+    .replace(/ʋ/g, "v")
+    .replace(/Ʋ/g, "V")
+    .replace(/ŋ/g, "ng")
+    .replace(/Ŋ/g, "Ng")
+    .replace(/ɖ/g, "d")
+    .replace(/Ɖ/g, "D")
+    .trim();
+}
+
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
@@ -319,19 +336,21 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     }
   }
 
+  const sanitizedSpokenText = sanitizeAfricanPhonetics(spokenText);
+
   // 1. Try Gemini 2.5 & 3.1 Flash Live Audio Generation API (Ghanaian Neural Voice)
   const apiKey = getGeminiKey();
   if (apiKey) {
     const AUDIO_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
-    let promptText = spokenText;
+    let promptText = sanitizedSpokenText;
     if (isTwi) {
-      promptText = `You are an authentic native speaker born and raised in Kumasi, Ghana. Speak fluent Asante Twi at a lively, energetic pace with a 100% authentic, typical local Ghanaian accent and native vocal inflection: "${spokenText}"`;
+      promptText = `You are an authentic native speaker born and raised in Kumasi, Ghana. Speak fluent Asante Twi at a lively, energetic pace with a 100% authentic, typical local Ghanaian accent and native vocal inflection: "${sanitizedSpokenText}"`;
     } else if (isEwe) {
-      promptText = `You are a native Ewe speaker born in Ho, Volta Region, Ghana. Speak this in authentic native Ewe (Eʋegbe) language with a warm local Volta Ghanaian accent and natural cadence: "${spokenText}"`;
+      promptText = `You are a native Ewe speaker born in Ho, Volta Region, Ghana. Speak this in authentic native Ewe language with a warm local Volta Ghanaian accent and natural cadence: "${sanitizedSpokenText}"`;
     } else if (isGa) {
-      promptText = `You are a native Ga speaker born in Greater Accra, Ghana. Speak this in authentic native Ga language with a local Accra Ghanaian accent and natural cadence: "${spokenText}"`;
+      promptText = `You are a native Ga speaker born in Greater Accra, Ghana. Speak this in authentic native Ga language with a local Accra Ghanaian accent and natural cadence: "${sanitizedSpokenText}"`;
     } else if (isHausa) {
-      promptText = `You are a native Hausa speaker. Speak this in authentic native Hausa language with a warm African accent and natural cadence: "${spokenText}"`;
+      promptText = `You are a native Hausa speaker. Speak this in authentic native Hausa language with a warm African accent and natural cadence: "${sanitizedSpokenText}"`;
     }
 
     for (const model of AUDIO_MODELS) {
