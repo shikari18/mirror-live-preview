@@ -250,6 +250,8 @@ function pcmToWavUrl(base64Pcm: string, sampleRate: number = 24000): string {
   }
 }
 
+const CLIENT_AUDIO_CACHE = new Map<string, string>();
+
 export function speakTextInstant(
   text: string,
   language: string = "English",
@@ -273,21 +275,28 @@ export function speakTextInstant(
     return;
   }
 
-  // Fetch and play Gemini 2.5 / 3.1 Neural Voice audio (Aoede)
+  // Pre-create and unlock Audio element synchronously inside current user click gesture!
+  const audio = new Audio();
+  audio.volume = 1.0;
+
   getGeminiLiveVoiceAudio(cleanText, language)
     .then((audioUrl) => {
       if (audioUrl) {
         if (onStart) onStart();
-        const audio = new Audio(audioUrl);
+        audio.src = audioUrl;
         audio.onended = () => {
           if (onEnd) onEnd();
         };
         audio.onerror = () => {
           if (onEnd) onEnd();
         };
-        audio.play().catch(() => {
-          if (onEnd) onEnd();
-        });
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn("Audio play prevented, triggering WebSpeech fallback:", err);
+            if (onEnd) onEnd();
+          });
+        }
       } else {
         if (onEnd) onEnd();
       }
@@ -317,6 +326,12 @@ function sanitizeAfricanPhonetics(text: string): string {
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
+
+  const cacheKey = `${targetLanguage.toLowerCase()}_${cleanText.slice(0, 60)}`;
+  if (CLIENT_AUDIO_CACHE.has(cacheKey)) {
+    return CLIENT_AUDIO_CACHE.get(cacheKey) || null;
+  }
+
   const langLower = targetLanguage.toLowerCase();
   const isTwi = langLower.includes("twi") || langLower.includes("akan");
   const isEwe = langLower.includes("ewe") || langLower.includes("eʋe");
@@ -389,8 +404,10 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
             const mime = audioPart.inlineData.mimeType || "audio/pcm;rate=24000";
             const sampleRate = mime.includes("rate=") ? parseInt(mime.split("rate=")[1], 10) : 24000;
             const wavUrl = pcmToWavUrl(audioPart.inlineData.data, sampleRate || 24000);
-            if (wavUrl) return wavUrl;
-            return `data:${mime};base64,${audioPart.inlineData.data}`;
+            if (wavUrl) {
+              CLIENT_AUDIO_CACHE.set(cacheKey, wavUrl);
+              return wavUrl;
+            }
           }
         }
       } catch (e) {
@@ -399,9 +416,11 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     }
   }
 
-  // 2. Fallback to Google TTS Audio Stream URL (using en/sw for Twi phonetic stability to prevent 404)
-  const ttsLang = isTwi ? "sw" : targetLanguage === "French" ? "fr" : "en";
-  return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(spokenText.slice(0, 200))}&tl=${ttsLang}&client=tw-ob`;
+  // 2. High-Speed Fallback to Google TTS Audio Stream URL
+  const ttsLang = isTwi ? "sw" : isEwe ? "fr" : isGa ? "sw" : isHausa ? "ha" : "en";
+  const fallbackUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(sanitizedSpokenText.slice(0, 200))}&tl=${ttsLang}&client=tw-ob`;
+  CLIENT_AUDIO_CACHE.set(cacheKey, fallbackUrl);
+  return fallbackUrl;
 }
 
 export async function getAIAssistantResponse(
