@@ -261,58 +261,47 @@ export function speakTextInstant(
   }
 
   try {
-    window.speechSynthesis.cancel();
-    const cleanText = text.replace(/[#*`_]/g, "").trim();
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      window.speechSynthesis.cancel();
+    }
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
+    const cleanText = text
+      .replace(/###/g, "")
+      .replace(/\*\*/g, "")
+      .replace(/[*`_]/g, "")
+      .replace(/https?:\/\/\S+/g, "")
+      .trim();
+
     if (!cleanText) {
       if (onEnd) onEnd();
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.90;
-    utterance.pitch = 1.0;
+    // Split long text into short 150-char sentences so SpeechSynthesis never times out
+    const sentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
+    const spokenSlice = sentences.slice(0, 3).join(" ");
 
-    let voices = window.speechSynthesis.getVoices();
+    const utterance = new SpeechSynthesisUtterance(spokenSlice);
+    utterance.rate = 0.92;
+    utterance.pitch = 1.1; // Warm female pitch
+    utterance.volume = 1.0;
 
-    const applyFemaleVoice = () => {
-      if (!voices || voices.length === 0) {
-        voices = window.speechSynthesis.getVoices();
-      }
-      if (!isTwi && voices && voices.length > 0) {
-        const engFemaleVoice = voices.find(
-          (v) =>
-            (v.name.includes("Google US English") ||
-              v.name.includes("Samantha") ||
-              v.name.includes("Victoria") ||
-              v.name.includes("Zira") ||
-              v.name.includes("Karen") ||
-              v.name.includes("Siri") ||
-              v.name.includes("Natural") ||
-              v.name.includes("Female")) &&
-            !v.name.toLowerCase().includes("male") &&
-            !v.name.toLowerCase().includes("daniel") &&
-            !v.name.toLowerCase().includes("david") &&
-            !v.name.toLowerCase().includes("george") &&
-            v.lang.startsWith("en")
-        ) || voices.find(v => v.lang.startsWith("en") && !v.name.toLowerCase().includes("male") && !v.name.toLowerCase().includes("david") && !v.name.toLowerCase().includes("daniel"));
-        
-        if (engFemaleVoice) {
-          utterance.voice = engFemaleVoice;
-        }
-        utterance.lang = "en-US";
-      }
-    };
-
-    applyFemaleVoice();
-    utterance.pitch = 1.15; // Natural realistic female vocal pitch
+    const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
+    utterance.lang = isTwi ? "en-GB" : "en-US";
 
     utterance.onstart = () => {
       if (onStart) onStart();
     };
+
     utterance.onend = () => {
       if (onEnd) onEnd();
     };
-    utterance.onerror = () => {
+
+    utterance.onerror = (e) => {
+      console.warn("SpeechSynthesis error:", e);
       if (onEnd) onEnd();
     };
 
