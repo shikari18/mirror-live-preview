@@ -10,8 +10,9 @@ export interface MediaAttachment {
 const getGeminiKey = (): string => {
   if ((globalThis as any).__GEMINI_KEY__) return (globalThis as any).__GEMINI_KEY__;
   if (typeof window !== "undefined" && localStorage.getItem("user_gemini_api_key")) return localStorage.getItem("user_gemini_api_key")!;
-  if (import.meta.env.VITE_GEMINI_API_KEY) return import.meta.env.VITE_GEMINI_API_KEY;
-  try { return atob("QVEuQWI4Uk42Sk5WdDZVREVGdGowYzVtay1GdU9LeHJZLVdyaXo1Ui14YmpMRndqdDhWVEE="); } catch { return ""; }
+  const envKey = (typeof import.meta !== "undefined" && import.meta.env?.VITE_GEMINI_API_KEY) || (typeof process !== "undefined" && process.env?.VITE_GEMINI_API_KEY);
+  if (envKey && envKey.startsWith("AIzaSy")) return envKey;
+  return "";
 };
 
 const getGroqKey = (): string => {
