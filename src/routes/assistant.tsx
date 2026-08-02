@@ -178,7 +178,7 @@ export function AssistantPage() {
     );
   };
 
-  const speechTimeoutRef = useRef<any>(null);
+  const lastSpokenRef = useRef<string>("");
 
   const startSpeechRecognition = () => {
     if (typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
@@ -197,19 +197,19 @@ export function AssistantPage() {
       };
 
       recognition.onresult = (event: any) => {
-        let transcript = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
+          const result = event.results[i];
+          const spokenText = result[0]?.transcript?.trim();
 
-        if (transcript && transcript.trim()) {
-          const finalSpeech = transcript.trim();
-          if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
-          
-          // Ultra-fast 40ms dispatch for under 0.1 sec instant response
-          speechTimeoutRef.current = setTimeout(() => {
-            handleUserVoiceInCall(finalSpeech);
-          }, 40);
+          if (spokenText && spokenText.length >= 2) {
+            // Trigger immediately when phrase is finalized or continuous speech is received
+            if (result.isFinal || event.results.length === i + 1) {
+              if (lastSpokenRef.current !== spokenText) {
+                lastSpokenRef.current = spokenText;
+                handleUserVoiceInCall(spokenText);
+              }
+            }
+          }
         }
       };
 
@@ -221,7 +221,7 @@ export function AssistantPage() {
   };
 
   const stopSpeechRecognition = () => {
-    if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+    lastSpokenRef.current = "";
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch (e) {}
       recognitionRef.current = null;
@@ -229,17 +229,13 @@ export function AssistantPage() {
   };
 
   const handleUserVoiceInCall = async (userSpeech: string) => {
-    if (isCallMuted || videoLoading || !userSpeech.trim()) return;
-    setVideoLoading(true);
+    if (isCallMuted || !userSpeech.trim()) return;
 
     try {
-      // 1. Instant speech playback launch
       const response = await getAIVideoCallResponse(userSpeech, language);
       playVoice(response);
     } catch (err) {
       console.error(err);
-    } finally {
-      setVideoLoading(false);
     }
   };
 
@@ -505,10 +501,10 @@ export function AssistantPage() {
 
       {/* FULLSCREEN VOICE / VIDEO CALL MODAL */}
       {isVideoCallOpen && (
-        <div className="fixed inset-0 z-50 bg-gradient-to-b from-gray-950 via-emerald-950 to-gray-950 flex flex-col justify-between items-center animate-in fade-in">
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
           
           {/* Background Video Preview (Only active when callMode === "video" and camera is ON) */}
-          {callMode === "video" && !isCameraOff ? (
+          {callMode === "video" && !isCameraOff && (
             <div className="absolute inset-0 w-full h-full overflow-hidden z-0">
               <video
                 ref={webcamVideoRef}
@@ -517,88 +513,63 @@ export function AssistantPage() {
                 muted
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-black/40" />
-            </div>
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center z-0">
-              <div className="w-36 h-36 rounded-full bg-emerald-500/20 border-2 border-emerald-400/40 flex items-center justify-center animate-pulse">
-                <div className="w-28 h-28 rounded-full bg-emerald-500/30 border border-emerald-300/50 flex items-center justify-center">
-                  <div className="w-20 h-20 rounded-full bg-[#0F6236] text-white flex items-center justify-center shadow-2xl">
-                    <Stethoscope className="w-10 h-10 text-emerald-300 animate-bounce" />
-                  </div>
-                </div>
-              </div>
+              <div className="absolute inset-0 bg-black/50" />
             </div>
           )}
 
-          {/* Modal Header Bar */}
-          <div className="w-full flex items-center justify-between text-white z-20 pt-6 px-5 bg-gradient-to-b from-black/80 to-transparent pb-4">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h3 className="font-extrabold text-sm text-white">
-                {callMode === "video" ? "Live Video Call" : "Live Speech-to-Speech Call"} — Fish Doctor AI
-              </h3>
-            </div>
+          {/* Minimal Header Bar */}
+          <div className="w-full flex items-center justify-between text-white z-20 pt-6 px-5 bg-gradient-to-b from-black to-transparent pb-4">
+            <h3 className="font-extrabold text-sm text-white">
+              {callMode === "video" ? "Live Video Call" : "Live Speech Call"} — Fish Doctor AI
+            </h3>
             <button
               onClick={() => setIsVideoCallOpen(false)}
-              className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 cursor-pointer"
+              className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 cursor-pointer"
             >
               ✕
             </button>
           </div>
 
-          {/* Call Controls Panel */}
-          <div className="w-full max-w-sm bg-black/80 backdrop-blur-md rounded-3xl p-5 m-5 z-20 space-y-4 border border-white/20 text-center shadow-2xl">
-            <div className="flex items-center justify-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-sm font-extrabold text-white">
-                {videoLoading ? "AI Doctor Thinking..." : "AI Doctor Listening..."}
-              </span>
-            </div>
+          {/* Minimal Bottom Control Bar */}
+          <div className="w-full max-w-sm p-6 m-5 z-20 flex items-center justify-center gap-5">
+            <button
+              onClick={() => setIsCallMuted((prev) => !prev)}
+              className={`p-4 rounded-full transition-all cursor-pointer shadow-lg ${
+                isCallMuted ? "bg-red-600 text-white" : "bg-white/15 text-white hover:bg-white/25"
+              }`}
+              title={isCallMuted ? "Unmute Mic" : "Mute Mic"}
+            >
+              {isCallMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6 text-white" />}
+            </button>
 
-            <p className="text-xs text-gray-300 font-medium">
-              Speak in English or Akan Twi. AI Doctor auto-detects your language and responds in live spoken audio!
-            </p>
+            <button
+              onClick={() => setIsVideoCallOpen(false)}
+              className="p-5 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold shadow-xl cursor-pointer transition-all active:scale-95"
+              title="End Call"
+            >
+              <PhoneOff className="w-7 h-7" />
+            </button>
 
-            <div className="flex items-center justify-center gap-3 pt-2">
+            {callMode === "voice" ? (
               <button
-                onClick={() => setIsCallMuted((prev) => !prev)}
-                className={`p-3.5 rounded-full transition-all cursor-pointer ${
-                  isCallMuted ? "bg-red-600 text-white" : "bg-white/20 text-white hover:bg-white/30"
-                }`}
-                title={isCallMuted ? "Unmute Mic" : "Mute Mic"}
+                onClick={() => {
+                  setCallMode("video");
+                  setIsCameraOff(false);
+                }}
+                className="p-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center"
+                title="Switch to Video Call"
               >
-                {isCallMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5 text-white" />}
+                <Video className="w-6 h-6" />
               </button>
-
+            ) : (
               <button
-                onClick={() => setIsVideoCallOpen(false)}
-                className="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg cursor-pointer transition-all active:scale-95"
-                title="End Call"
+                onClick={toggleCameraFacing}
+                className="p-4 rounded-full bg-white/15 text-white hover:bg-white/25 transition-all cursor-pointer shadow-lg"
+                title="Switch Camera"
               >
-                <PhoneOff className="w-6 h-6" />
+                <SwitchCamera className="w-6 h-6" />
               </button>
-
-              {callMode === "voice" ? (
-                <button
-                  onClick={() => {
-                    setCallMode("video");
-                    setIsCameraOff(false);
-                  }}
-                  className="px-3.5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
-                >
-                  <Video className="w-4 h-4" /> Video Call
-                </button>
-              ) : (
-                <button
-                  onClick={toggleCameraFacing}
-                  className="p-3.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all cursor-pointer"
-                  title="Switch Camera"
-                >
-                  <SwitchCamera className="w-5 h-5" />
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       )}
