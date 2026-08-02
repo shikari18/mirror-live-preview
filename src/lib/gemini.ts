@@ -303,33 +303,16 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   const isTwi = targetLanguage.toLowerCase().includes("twi") || targetLanguage.toLowerCase().includes("akan");
 
   let spokenText = cleanText;
-
-  // Translate to authentic Akan Twi if Twi is selected and text is in English
-  if (isTwi) {
-    if (cleanText.includes("Welcome farmer") || cleanText.includes("Tropical Climate") || cleanText.includes("Feeding Schedule")) {
-      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa ne mpɔtorɔ afideɛ afutuo: Ewiem mmoa ye aduasa. Ma w'anigye mmra aduane ma mpɔtorɔ no na fa Fish Doctor AI bɔ wɔn apɔwmuden kɔkɔɔ.";
-    } else if (/[a-zA-Z]/.test(cleanText) && !cleanText.includes("Meyɛ") && !cleanText.includes("Akwaaba")) {
-      try {
-        const translated = await callAI(
-          `Translate this English text into 100% natural Akan Twi for speech reading (respond ONLY with the Twi translation): "${cleanText.slice(0, 300)}"`,
-          "You are an expert Akan Twi voice translator. Translate to pure Twi spoken words."
-        );
-        if (translated && translated.trim()) {
-          spokenText = translated.trim();
-        }
-      } catch (e) {
-        console.warn("Twi translation for TTS failed, using fallback Twi text:", e);
-        spokenText = "Meyɛ wo Fish Doctor AI. Fa w'asiansunam ne nsuo ho nsɛm kyerɛ me na mɛboa wo pɛ.";
-      }
-    }
+  if (isTwi && (cleanText.includes("Welcome farmer") || cleanText.includes("Tropical Climate") || cleanText.includes("Feeding Schedule"))) {
+    spokenText = "Akwaaba okuafoɔ! Ewiem mmoa ne mpɔtorɔ afideɛ afutuo: Ewiem mmoa ye aduasa. Ma w'anigye mmra aduane ma mpɔtorɔ no na fa Fish Doctor AI bɔ wɔn apɔwmuden kɔkɔɔ.";
   }
 
-  // 1. Try Gemini 2.5 & 3.1 Flash Live Audio Generation API (Neural Voice)
+  // 1. Try Gemini 2.5 & 3.1 Flash Live Audio Generation API (Ghanaian Neural Voice)
   const apiKey = getGeminiKey();
   if (apiKey) {
     const AUDIO_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
     const promptText = isTwi
-      ? `Speak this text clearly in fluent Akan Twi (Asante Twi) with warm natural female voice: "${spokenText}"`
+      ? `You are a native Ghanaian speaker from Kumasi, Ghana. Speak this in an authentic local Ghanaian Akan Twi accent and natural intonation: "${spokenText}"`
       : spokenText;
 
     for (const model of AUDIO_MODELS) {
@@ -351,7 +334,7 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
                 speechConfig: {
                   voiceConfig: {
                     prebuiltVoiceConfig: {
-                      voiceName: "Aoede" // Realistic Gemini Female Neural Voice
+                      voiceName: "Kore" // Expressive warm voice
                     }
                   }
                 }
