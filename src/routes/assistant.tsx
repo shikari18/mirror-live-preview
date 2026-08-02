@@ -178,13 +178,15 @@ export function AssistantPage() {
     );
   };
 
+  const speechTimeoutRef = useRef<any>(null);
+
   const startSpeechRecognition = () => {
     if (typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.lang = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan") ? "ak-GH" : "en-US";
 
       recognition.onstart = () => setIsListeningSpeech(true);
       recognition.onend = () => {
@@ -194,11 +196,20 @@ export function AssistantPage() {
         }
       };
 
-      recognition.onresult = async (event: any) => {
-        const lastIndex = event.results.length - 1;
-        const spokenText = event.results[lastIndex][0].transcript;
-        if (spokenText && spokenText.trim()) {
-          handleUserVoiceInCall(spokenText.trim());
+      recognition.onresult = (event: any) => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+
+        if (transcript && transcript.trim()) {
+          const finalSpeech = transcript.trim();
+          if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+          
+          // Ultra-fast 40ms dispatch for under 0.1 sec instant response
+          speechTimeoutRef.current = setTimeout(() => {
+            handleUserVoiceInCall(finalSpeech);
+          }, 40);
         }
       };
 
@@ -210,6 +221,7 @@ export function AssistantPage() {
   };
 
   const stopSpeechRecognition = () => {
+    if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch (e) {}
       recognitionRef.current = null;
@@ -217,10 +229,11 @@ export function AssistantPage() {
   };
 
   const handleUserVoiceInCall = async (userSpeech: string) => {
-    if (isCallMuted || videoLoading) return;
+    if (isCallMuted || videoLoading || !userSpeech.trim()) return;
     setVideoLoading(true);
 
     try {
+      // 1. Instant speech playback launch
       const response = await getAIVideoCallResponse(userSpeech, language);
       playVoice(response);
     } catch (err) {
