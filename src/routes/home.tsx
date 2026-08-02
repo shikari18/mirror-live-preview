@@ -327,14 +327,16 @@ export function HomePage() {
 
       {/* Big Prominent Live Farmers Chat Card (WhatsApp Style) */}
       <section className="mx-5 mt-4">
-        <Link
-          to="/community-chat"
-          className="block p-5 rounded-3xl bg-gradient-to-r from-[#075E54] via-[#128C7E] to-[#075E54] text-white shadow-xl shadow-[#075E54]/30 border border-emerald-400/30 relative overflow-hidden transition-all hover:scale-[1.01] active:scale-95"
+        <a
+          href="https://chat.whatsapp.com/GOVXg6hC7g5DJ9h6IsLJ87?s=cl&p=i&mlu=4"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block p-5 rounded-3xl bg-gradient-to-r from-[#075E54] via-[#128C7E] to-[#075E54] text-white shadow-xl shadow-[#075E54]/30 border border-emerald-400/30 relative overflow-hidden transition-all hover:scale-[1.01] active:scale-95 cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="bg-emerald-400/20 text-emerald-100 font-extrabold text-[11px] px-3 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 border border-emerald-300/30">
               <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
-              Live WhatsApp Chat
+              Official WhatsApp Group
             </span>
             <span className="text-[11px] font-extrabold text-white/90 bg-white/20 px-2.5 py-0.5 rounded-full">
               {getRealActiveFarmersCount()} {getRealActiveFarmersCount() === 1 ? "Farmer Active" : "Farmers Active"}
@@ -369,7 +371,7 @@ export function HomePage() {
               Open Chat <ChevronRight className="w-4 h-4 text-[#075E54]" />
             </span>
           </div>
-        </Link>
+        </a>
       </section>
 
       {/* Location-Based Weather & Rain Advisory Card */}
