@@ -22,17 +22,17 @@ export function FeedCalculatorPage() {
 
   // Daily Feed State
   const [fishType, setFishType] = useState("African Catfish");
-  const [fishCount, setFishCount] = useState<number>(1000);
-  const [avgWeightGrams, setAvgWeightGrams] = useState<number>(250);
-  const [feedingRatePct, setFeedingRatePct] = useState<number>(3);
+  const [fishCount, setFishCount] = useState<number | "">(1000);
+  const [avgWeightGrams, setAvgWeightGrams] = useState<number | "">(250);
+  const [feedingRatePct, setFeedingRatePct] = useState<number | "">(3);
   const [result, setResult] = useState<{ dailyFeedKg: number; bagCount15kg: number; recommendedPelletSize: string; aiAdvice: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
   // FCR & Profitability State
-  const [totalFeedConsumedKg, setTotalFeedConsumedKg] = useState<number>(1200);
-  const [harvestWeightKg, setHarvestWeightKg] = useState<number>(1000);
-  const [feedCostPerKgGhc, setFeedCostPerKgGhc] = useState<number>(18);
-  const [fishPricePerKgGhc, setFishPricePerKgGhc] = useState<number>(38);
+  const [totalFeedConsumedKg, setTotalFeedConsumedKg] = useState<number | "">(1200);
+  const [harvestWeightKg, setHarvestWeightKg] = useState<number | "">(1000);
+  const [feedCostPerKgGhc, setFeedCostPerKgGhc] = useState<number | "">(18);
+  const [fishPricePerKgGhc, setFishPricePerKgGhc] = useState<number | "">(38);
   const [fcrResult, setFcrResult] = useState<{
     fcr: number;
     fcrRating: string;
@@ -60,19 +60,23 @@ export function FeedCalculatorPage() {
     e.preventDefault();
     setLoading(true);
 
-    const totalBiomassKg = (fishCount * avgWeightGrams) / 1000;
-    const dailyFeedKg = Number(((totalBiomassKg * feedingRatePct) / 100).toFixed(2));
+    const count = Number(fishCount) || 0;
+    const weight = Number(avgWeightGrams) || 0;
+    const rate = Number(feedingRatePct) || 0;
+
+    const totalBiomassKg = (count * weight) / 1000;
+    const dailyFeedKg = Number(((totalBiomassKg * rate) / 100).toFixed(2));
     const bagCount15kg = Math.ceil((dailyFeedKg * 30) / 15);
 
     let recommendedPelletSize = "3mm - 4mm Floating Pellets";
-    if (avgWeightGrams <= 10) recommendedPelletSize = "1.5mm - 2mm Starter Crumble";
-    else if (avgWeightGrams <= 50) recommendedPelletSize = "2mm Floating Pellets";
-    else if (avgWeightGrams <= 150) recommendedPelletSize = "3mm Floating Pellets";
-    else if (avgWeightGrams <= 400) recommendedPelletSize = "4.5mm - 6mm Pellets";
+    if (weight <= 10) recommendedPelletSize = "1.5mm - 2mm Starter Crumble";
+    else if (weight <= 50) recommendedPelletSize = "2mm Floating Pellets";
+    else if (weight <= 150) recommendedPelletSize = "3mm Floating Pellets";
+    else if (weight <= 400) recommendedPelletSize = "4.5mm - 6mm Pellets";
     else recommendedPelletSize = "6mm - 9mm Finisher Pellets";
 
     const farmMemory = getUnifiedMemoryPrompt();
-    const prompt = `Fish species: ${fishType}, Total count: ${fishCount}, Average weight: ${avgWeightGrams}g, Feeding rate: ${feedingRatePct}%.
+    const prompt = `Fish species: ${fishType}, Total count: ${count}, Average weight: ${weight}g, Feeding rate: ${rate}%.
 Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or 4mm). Keep advice concise under 3 sentences.`;
 
     let aiAdvice = `Feed 2 times daily (morning 8:30am, evening 5:00pm). Recommended pellet size: ${recommendedPelletSize}. Ensure dissolved oxygen remains above 5.0 mg/L.`;
@@ -96,11 +100,16 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
 
   const handleCalculateFcr = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!harvestWeightKg || harvestWeightKg <= 0) return;
+    const feedKg = Number(totalFeedConsumedKg) || 0;
+    const harvestKg = Number(harvestWeightKg) || 0;
+    const costGhc = Number(feedCostPerKgGhc) || 0;
+    const priceGhc = Number(fishPricePerKgGhc) || 0;
 
-    const fcr = Number((totalFeedConsumedKg / harvestWeightKg).toFixed(2));
-    const totalFeedCost = totalFeedConsumedKg * feedCostPerKgGhc;
-    const totalRevenue = harvestWeightKg * fishPricePerKgGhc;
+    if (!harvestKg || harvestKg <= 0) return;
+
+    const fcr = Number((feedKg / harvestKg).toFixed(2));
+    const totalFeedCost = feedKg * costGhc;
+    const totalRevenue = harvestKg * priceGhc;
     const netProfit = totalRevenue - totalFeedCost;
     const profitMarginPct = Number(((netProfit / totalRevenue) * 100).toFixed(1));
 
@@ -178,7 +187,7 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
                   type="number"
                   required
                   value={fishCount}
-                  onChange={(e) => setFishCount(Number(e.target.value) || 0)}
+                  onChange={(e) => setFishCount(e.target.value === "" ? "" : Number(e.target.value))}
                   className="w-full h-11 px-3 text-xs font-bold border border-gray-300 rounded-xl bg-gray-50 outline-none text-gray-900"
                 />
               </div>
@@ -190,7 +199,7 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
                     type="number"
                     required
                     value={avgWeightGrams}
-                    onChange={(e) => setAvgWeightGrams(Number(e.target.value) || 0)}
+                    onChange={(e) => setAvgWeightGrams(e.target.value === "" ? "" : Number(e.target.value))}
                     className="w-full h-11 px-3 text-xs font-bold border border-gray-300 rounded-xl bg-gray-50 outline-none text-gray-900"
                   />
                 </div>
@@ -198,10 +207,10 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
                   <label className="block text-xs font-bold text-gray-800 mb-1">Feeding Rate (%)</label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.1"
                     required
                     value={feedingRatePct}
-                    onChange={(e) => setFeedingRatePct(Number(e.target.value) || 0)}
+                    onChange={(e) => setFeedingRatePct(e.target.value === "" ? "" : Number(e.target.value))}
                     className="w-full h-11 px-3 text-xs font-bold border border-gray-300 rounded-xl bg-gray-50 outline-none text-gray-900"
                   />
                 </div>
@@ -254,7 +263,7 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
                     type="number"
                     required
                     value={totalFeedConsumedKg}
-                    onChange={(e) => setTotalFeedConsumedKg(Number(e.target.value) || 0)}
+                    onChange={(e) => setTotalFeedConsumedKg(e.target.value === "" ? "" : Number(e.target.value))}
                     className="w-full h-11 px-3 text-xs font-bold border border-gray-300 rounded-xl bg-gray-50 outline-none"
                   />
                 </div>
@@ -264,7 +273,7 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
                     type="number"
                     required
                     value={harvestWeightKg}
-                    onChange={(e) => setHarvestWeightKg(Number(e.target.value) || 0)}
+                    onChange={(e) => setHarvestWeightKg(e.target.value === "" ? "" : Number(e.target.value))}
                     className="w-full h-11 px-3 text-xs font-bold border border-gray-300 rounded-xl bg-gray-50 outline-none"
                   />
                 </div>
@@ -277,7 +286,7 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
                     type="number"
                     required
                     value={feedCostPerKgGhc}
-                    onChange={(e) => setFeedCostPerKgGhc(Number(e.target.value) || 0)}
+                    onChange={(e) => setFeedCostPerKgGhc(e.target.value === "" ? "" : Number(e.target.value))}
                     className="w-full h-11 px-3 text-xs font-bold border border-gray-300 rounded-xl bg-gray-50 outline-none"
                   />
                 </div>
@@ -287,7 +296,7 @@ Calculate feeding advice and feed pellet size recommendations (e.g. 2mm, 3mm, or
                     type="number"
                     required
                     value={fishPricePerKgGhc}
-                    onChange={(e) => setFishPricePerKgGhc(Number(e.target.value) || 0)}
+                    onChange={(e) => setFishPricePerKgGhc(e.target.value === "" ? "" : Number(e.target.value))}
                     className="w-full h-11 px-3 text-xs font-bold border border-gray-300 rounded-xl bg-gray-50 outline-none"
                   />
                 </div>
