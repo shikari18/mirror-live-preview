@@ -240,13 +240,13 @@ export function AssistantPage() {
         };
 
         recognition.onresult = (event: any) => {
-          let fullTranscript = "";
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            fullTranscript += event.results[i][0].transcript + " ";
+          let latestSpeech = "";
+          const lastIdx = event.results.length - 1;
+          if (lastIdx >= 0 && event.results[lastIdx]?.[0]?.transcript) {
+            latestSpeech = event.results[lastIdx][0].transcript.trim();
           }
-          const trimmed = fullTranscript.trim();
           
-          if (trimmed && trimmed.length >= 2) {
+          if (latestSpeech && latestSpeech.length >= 2) {
             // User Interruption: If AI is speaking or processing, IMMEDIATELY stop AI audio & unlock processing
             if (isAISpeakingRef.current || isProcessingCallRef.current) {
               if (currentAudioRef.current) {
@@ -261,22 +261,23 @@ export function AssistantPage() {
               isProcessingCallRef.current = false;
             }
 
-            pendingSpeechTextRef.current = trimmed;
+            pendingSpeechTextRef.current = latestSpeech;
 
             if (speechDebounceTimerRef.current) {
               clearTimeout(speechDebounceTimerRef.current);
             }
 
-            // Trigger AI call response after 350ms pause
+            // Trigger AI call response after 300ms pause
             speechDebounceTimerRef.current = setTimeout(() => {
               const textToProcess = pendingSpeechTextRef.current;
               pendingSpeechTextRef.current = "";
 
-              if (textToProcess && textToProcess !== lastProcessedTextRef.current) {
-                lastProcessedTextRef.current = textToProcess;
+              if (textToProcess && textToProcess.length >= 2) {
+                // Stop current recognition so next phrase starts with 100% fresh transcript
+                try { recognition.stop(); } catch (e) {}
                 handleUserVoiceInCall(textToProcess);
               }
-            }, 350);
+            }, 300);
           }
         };
 
@@ -319,6 +320,11 @@ export function AssistantPage() {
       setVideoLoading(false);
       isAISpeakingRef.current = false;
       isProcessingCallRef.current = false;
+      if (isVideoCallOpen && !isCallMuted) {
+        setTimeout(() => {
+          startSpeechRecognition();
+        }, 150);
+      }
     }
   };
 
