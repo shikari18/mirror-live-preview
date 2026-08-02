@@ -1,12 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { 
-  ArrowLeft, Send, Phone, Video, MoreVertical, Paperclip, 
-  Smile, CheckCheck, Users, Volume2, ShieldCheck, Image as ImageIcon,
-  Sparkles, MessageSquare
+  ArrowLeft, Send, Phone, MoreVertical, ShieldCheck, CheckCheck, Users, Loader2
 } from "lucide-react";
 import { useLanguage } from "@/lib/languageContext";
-import farmerImg from "@/assets/farmer.jpg";
+import { 
+  CommunityChatMessage, 
+  fetchLiveCommunityMessages, 
+  postLiveCommunityMessage, 
+  getRealActiveFarmersCount 
+} from "@/lib/sharedCommunity";
 
 export const Route = createFileRoute("/community-chat")({
   component: CommunityChatPage,
@@ -18,123 +21,65 @@ export const Route = createFileRoute("/community-chat")({
   }),
 });
 
-interface ChatMsg {
-  id: string;
-  senderName: string;
-  senderRegion: string;
-  avatarBg: string;
-  text: string;
-  time: string;
-  isSelf: boolean;
-  role?: string;
-  mediaUrl?: string;
-}
-
-const INITIAL_MESSAGES: ChatMsg[] = [
-  {
-    id: "m1",
-    senderName: "Dimples (Extension Officer)",
-    senderRegion: "Kumasi, Ashanti",
-    avatarBg: "bg-emerald-600",
-    text: "Akwaaba akuafoɔ! 👋 Catfish fingerlings (High-grade Dutch Clarias) are available in Kumasi today at GH¢0.30 each. Contact me for pickup!",
-    time: "11:42 AM",
-    isSelf: false,
-    role: "Officer",
-  },
-  {
-    id: "m2",
-    senderName: "Papa Quandoh",
-    senderRegion: "Accra, Greater Accra",
-    avatarBg: "bg-blue-600",
-    text: "Good afternoon farmers. Please monitor your dissolved oxygen levels tonight. High humidity around Accra may cause surface piping.",
-    time: "12:05 PM",
-    isSelf: false,
-    role: "Senior Farmer",
-  },
-  {
-    id: "m3",
-    senderName: "Madam Abena",
-    senderRegion: "Sunyani, Bono Region",
-    avatarBg: "bg-purple-600",
-    text: "What is the current wholesale market price for 1kg fresh Tilapia in Techiman today?",
-    time: "12:18 PM",
-    isSelf: false,
-  },
-  {
-    id: "m4",
-    senderName: "Brother Kofi",
-    senderRegion: "Kpandu, Volta Region",
-    avatarBg: "bg-amber-600",
-    text: "We are selling 1kg+ fresh Tilapia for GH¢34.00 per kg at the farm gate in Volta! Demand is very high.",
-    time: "12:30 PM",
-    isSelf: false,
-  },
-];
-
-const FARMER_BOT_RESPONSES = [
-  {
-    name: "Dimples (Extension Officer)",
-    region: "Kumasi, Ashanti",
-    bg: "bg-emerald-600",
-    role: "Officer",
-    texts: [
-      "Great point! Always ensure your water pH stays between 6.8 and 8.0 for optimum feed conversion ratio.",
-      "If you notice any fin rot or skin redness, treat immediately with 3kg salt per 1000L water bath.",
-      "Don't forget to record your daily feeding logs in the Fish Doctor app to track growth rates!"
-    ]
-  },
-  {
-    name: "Papa Quandoh",
-    region: "Accra, Greater Accra",
-    bg: "bg-blue-600",
-    role: "Senior Farmer",
-    texts: [
-      "I just completed a 30% water exchange on my 5000L tank. Fish appetite increased immediately!",
-      "Pro-tip: Feed 2mm floating pellets for fingerlings under 15g to avoid water pollution.",
-      "Anyone buying Coppens feed in bulk? Let's pool orders together to get wholesale prices!"
-    ]
-  },
-  {
-    name: "Farmer Mensah",
-    region: "Tamale, Northern Region",
-    bg: "bg-teal-600",
-    texts: [
-      "Solar aerators are performing excellently during afternoon heat in Northern region!",
-      "Make sure to shade your earthen ponds during peak sunshine to prevent temperature spikes above 31°C."
-    ]
-  }
-];
-
 export function CommunityChatPage() {
   const { language } = useLanguage();
-  const [messages, setMessages] = useState<ChatMsg[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("community_farmer_chat_history");
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return INITIAL_MESSAGES;
-  });
-
+  const [messages, setMessages] = useState<CommunityChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
-  const [activeOnlineCount, setActiveOnlineCount] = useState(342);
+  const [activeOnlineCount, setActiveOnlineCount] = useState(1);
+  const [currentFarmerName, setCurrentFarmerName] = useState("");
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
-  // Auto Scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Load real user profile & messages on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const farmProfile = JSON.parse(localStorage.getItem("fish_farm_profile") || "{}");
+        const activeUser = JSON.parse(localStorage.getItem("active_user") || "{}");
+        const name = farmProfile.farmerName || activeUser.fullName || activeUser.phone || "Farmer";
+        setCurrentFarmerName(name);
+      } catch (e) {}
+
+      fetchLiveCommunityMessages().then((data) => {
+        setMessages(data);
+        setLoading(false);
+        setActiveOnlineCount(getRealActiveFarmersCount());
+      });
+    }
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
-    if (typeof window !== "undefined") {
-      localStorage.setItem("community_farmer_chat_history", JSON.stringify(messages));
-    }
   }, [messages]);
 
-  // Real-Time Cross-Tab Synchronization via BroadcastChannel
+  // Live Real-Time Polling & Storage Sync
+  useEffect(() => {
+    const refreshData = async () => {
+      const liveData = await fetchLiveCommunityMessages();
+      setMessages(liveData);
+      setActiveOnlineCount(getRealActiveFarmersCount());
+    };
+
+    const interval = setInterval(refreshData, 3500);
+
+    const handleStorageChange = () => {
+      refreshData();
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
+  // BroadcastChannel for instant tab sync
   useEffect(() => {
     if (typeof window !== "undefined" && "BroadcastChannel" in window) {
       const bc = new BroadcastChannel("ghana_farmers_community_chat");
@@ -153,60 +98,20 @@ export function CommunityChatPage() {
     }
   }, []);
 
-  // Fluctuate live online counter dynamically for realistic community feel
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveOnlineCount((prev) => prev + (Math.random() > 0.5 ? 1 : -1));
-    }, 8000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleSendMessage = (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim()) return;
 
     const userMsgText = input.trim();
     setInput("");
 
-    const newMsg: ChatMsg = {
-      id: "usr_" + Date.now(),
-      senderName: "You (Farmer)",
-      senderRegion: "Ghana",
-      avatarBg: "bg-[#0F6236]",
-      text: userMsgText,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      isSelf: true,
-    };
-
-    setMessages((prev) => [...prev, newMsg]);
-
-    // Broadcast message to other open windows/tabs
-    if (broadcastChannelRef.current) {
-      broadcastChannelRef.current.postMessage(newMsg);
+    try {
+      const updatedMessages = await postLiveCommunityMessage(userMsgText);
+      setMessages(updatedMessages);
+      setActiveOnlineCount(getRealActiveFarmersCount());
+    } catch (err) {
+      console.warn("Send message error", err);
     }
-
-    // Simulate Live Community Farmer Reply after 1.5 - 3 seconds
-    setTimeout(() => {
-      const bot = FARMER_BOT_RESPONSES[Math.floor(Math.random() * FARMER_BOT_RESPONSES.length)];
-      const botText = bot.texts[Math.floor(Math.random() * bot.texts.length)];
-
-      const botReplyMsg: ChatMsg = {
-        id: "bot_" + Date.now(),
-        senderName: bot.name,
-        senderRegion: bot.region,
-        avatarBg: bot.bg,
-        role: bot.role,
-        text: botText,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        isSelf: false,
-      };
-
-      setMessages((prev) => [...prev, botReplyMsg]);
-
-      if (broadcastChannelRef.current) {
-        broadcastChannelRef.current.postMessage(botReplyMsg);
-      }
-    }, 2000);
   };
 
   return (

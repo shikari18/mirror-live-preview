@@ -20,6 +20,7 @@ import { useLanguage } from "@/lib/languageContext";
 import { getGeminiLiveVoiceAudio } from "@/lib/gemini";
 import { getFarmProfile } from "@/lib/farmMemory";
 import { getSubscriptionStatus, SubscriptionStatus, PRO_MONTHLY_PRICE_GHC } from "@/lib/subscription";
+import { getRealActiveFarmersCount } from "@/lib/sharedCommunity";
 import { PaymentModal } from "@/components/PaymentModal";
 
 export const Route = createFileRoute("/home")({
@@ -336,7 +337,7 @@ export function HomePage() {
               Live WhatsApp Chat
             </span>
             <span className="text-[11px] font-extrabold text-white/90 bg-white/20 px-2.5 py-0.5 rounded-full">
-              342 Farmers Online
+              {getRealActiveFarmersCount()} {getRealActiveFarmersCount() === 1 ? "Farmer Active" : "Farmers Active"}
             </span>
           </div>
 
@@ -361,7 +362,7 @@ export function HomePage() {
                 <div className="w-7 h-7 rounded-full bg-purple-600 border-2 border-white flex items-center justify-center text-[10px] font-black text-white">A</div>
                 <div className="w-7 h-7 rounded-full bg-amber-600 border-2 border-white flex items-center justify-center text-[10px] font-black text-white">K</div>
               </div>
-              <span className="text-[11px] font-bold text-emerald-100">Dimples, Papa & 340+ active</span>
+              <span className="text-[11px] font-bold text-emerald-100">Live Ghana Aquaculture Network</span>
             </div>
 
             <span className="px-4 py-2 rounded-2xl bg-white text-[#075E54] font-black text-xs shadow-md flex items-center gap-1.5">
