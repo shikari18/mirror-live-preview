@@ -9,6 +9,11 @@ import { estimatePondDimensionsAI } from "@/lib/gemini";
 
 export const Route = createFileRoute("/my-farm")({
   component: MyFarmPage,
+  validateSearch: (search: Record<string, unknown>): { scanner?: string } => {
+    return {
+      scanner: (search.scanner as string) || undefined,
+    };
+  },
   head: () => ({
     meta: [
       { title: "My Farm & Camera Pond Calculator — Fish Doctor" },
@@ -19,11 +24,18 @@ export const Route = createFileRoute("/my-farm")({
 
 export function MyFarmPage() {
   const { t } = useLanguage();
+  const search = Route.useSearch();
   const [profile, setProfile] = useState(getFarmProfile());
   const [ponds, setPonds] = useState<PondRecord[]>(profile.ponds || []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<string>(profile.location || "Accra & Ashanti Region, Ghana");
+
+  useEffect(() => {
+    if (search.scanner === "true") {
+      setIsCameraScannerOpen(true);
+    }
+  }, [search.scanner]);
 
   // Form State
   const [pondName, setPondName] = useState("");

@@ -52,11 +52,15 @@ export function getFarmProfile(): UserFarmProfile {
         name: storedName || DEFAULT_PROFILE.name,
         farmName: storedFarmName || DEFAULT_PROFILE.farmName,
         primaryGoal: storedGoal || DEFAULT_PROFILE.primaryGoal,
+        ponds: [],
+        notes: [],
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
       return init;
     }
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw) || {};
+    if (!Array.isArray(parsed.ponds)) parsed.ponds = [];
+    if (!Array.isArray(parsed.notes)) parsed.notes = [];
     if (storedFarmName) parsed.farmName = storedFarmName;
     if (storedGoal) parsed.primaryGoal = storedGoal;
     if (storedName) parsed.name = storedName;

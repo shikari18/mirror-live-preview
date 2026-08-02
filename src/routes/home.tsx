@@ -334,7 +334,7 @@ export function HomePage() {
           </div>
 
           <div className="mt-4 flex gap-2.5">
-            <Link to="/my-farm" className="px-4 py-2.5 rounded-2xl bg-white text-[#0F6236] hover:bg-emerald-50 font-extrabold text-xs shadow-lg shadow-black/20 flex items-center gap-2 transition-all active:scale-95">
+            <Link to="/my-farm" search={{ scanner: "true" }} className="px-4 py-2.5 rounded-2xl bg-white text-[#0F6236] hover:bg-emerald-50 font-extrabold text-xs shadow-lg shadow-black/20 flex items-center gap-2 transition-all active:scale-95">
               <Camera className="w-4 h-4 text-[#0F6236]" /> AR Camera Measure
             </Link>
             <Link to="/ai-doctor" className="px-4 py-2.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-white font-extrabold text-xs backdrop-blur-md border border-white/20 flex items-center gap-1.5 transition-all">
