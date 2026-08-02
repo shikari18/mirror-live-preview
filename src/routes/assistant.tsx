@@ -212,6 +212,7 @@ export function AssistantPage() {
   const isProcessingCallRef = useRef(false);
   const speechDebounceTimerRef = useRef<any>(null);
   const pendingSpeechTextRef = useRef<string>("");
+  const isAISpeakingRef = useRef<boolean>(false);
 
   const startSpeechRecognition = () => {
     if (typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
@@ -228,8 +229,13 @@ export function AssistantPage() {
         recognition.onstart = () => setIsListeningSpeech(true);
         recognition.onend = () => {
           setIsListeningSpeech(false);
-          if (isVideoCallOpen && !isCallMuted && !isProcessingCallRef.current) {
-            try { recognition.start(); } catch (e) {}
+          // Always keep listening during call so user can interrupt anytime
+          if (isVideoCallOpen && !isCallMuted) {
+            setTimeout(() => {
+              if (isVideoCallOpen && !isCallMuted) {
+                try { recognition.start(); } catch (e) {}
+              }
+            }, 150);
           }
         };
 
@@ -240,21 +246,34 @@ export function AssistantPage() {
           }
           const trimmed = latestTranscript.trim();
           if (trimmed && trimmed.length >= 2) {
+            // User Interruption: If AI is currently speaking, cut off AI audio instantly!
+            if (isAISpeakingRef.current) {
+              if (currentAudioRef.current) {
+                try { currentAudioRef.current.pause(); } catch (e) {}
+                currentAudioRef.current = null;
+              }
+              if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+              }
+              stopAudio();
+              isAISpeakingRef.current = false;
+              isProcessingCallRef.current = false;
+            }
+
             pendingSpeechTextRef.current = trimmed;
 
             if (speechDebounceTimerRef.current) {
               clearTimeout(speechDebounceTimerRef.current);
             }
 
-            // Trigger response after ultra-fast 350ms pause!
+            // Trigger response after fast 300ms pause
             speechDebounceTimerRef.current = setTimeout(() => {
               const textToProcess = pendingSpeechTextRef.current;
               pendingSpeechTextRef.current = "";
               if (textToProcess && !isProcessingCallRef.current) {
-                try { recognition.stop(); } catch (e) {}
                 handleUserVoiceInCall(textToProcess);
               }
-            }, 350);
+            }, 300);
           }
         };
 
@@ -268,6 +287,7 @@ export function AssistantPage() {
 
   const stopSpeechRecognition = () => {
     isProcessingCallRef.current = false;
+    isAISpeakingRef.current = false;
     pendingSpeechTextRef.current = "";
     if (speechDebounceTimerRef.current) {
       clearTimeout(speechDebounceTimerRef.current);
@@ -280,23 +300,22 @@ export function AssistantPage() {
   };
 
   const handleUserVoiceInCall = async (userSpeech: string) => {
-    if (isCallMuted || isProcessingCallRef.current || !userSpeech.trim()) return;
+    if (isCallMuted || !userSpeech.trim()) return;
     isProcessingCallRef.current = true;
+    isAISpeakingRef.current = true;
     setVideoLoading(true);
 
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
-      await playVoice(response);
+      if (isProcessingCallRef.current) {
+        await playVoice(response);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setVideoLoading(false);
+      isAISpeakingRef.current = false;
       isProcessingCallRef.current = false;
-      if (isVideoCallOpen && !isCallMuted) {
-        setTimeout(() => {
-          startSpeechRecognition();
-        }, 200);
-      }
     }
   };
 
