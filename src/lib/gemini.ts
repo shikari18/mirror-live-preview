@@ -331,83 +331,15 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   const isEwe = langLower.includes("ewe") || langLower.includes("eʋe");
   const isGa = langLower.includes("ga");
   const isHausa = langLower.includes("hausa");
-  const isPidgin = langLower.includes("pidgin");
 
   const sanitizedSpokenText = sanitizeAfricanPhonetics(cleanText);
 
-  // 1. Primary Priority: Abena AI Authentic Voice Engine
-  let abenaVoice: string | null = null;
-  if (isTwi) abenaVoice = "abena_twi_high";
-  else if (isEwe) abenaVoice = "mawuli_ewe";
-  else if (isPidgin) abenaVoice = "kobby_gpe";
-  else if (isHausa) abenaVoice = "abubakar_hau";
-  else abenaVoice = "akua_eng"; // Default Ghanaian Accent English
-
-  if (abenaVoice) {
-    const abenaAudioUrl = await synthesizeAbenaAI(sanitizedSpokenText, abenaVoice);
-    if (abenaAudioUrl) {
-      CLIENT_AUDIO_CACHE.set(cacheKey, abenaAudioUrl);
-      return abenaAudioUrl;
-    }
-  }
-
-  // 2. Gemini Multi-Model Failover
-  const apiKey = getGeminiKey();
-  if (apiKey) {
-    const AUDIO_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
-    let promptText = sanitizedSpokenText;
-    if (isTwi) {
-      promptText = `You are an authentic native speaker born in Kumasi, Ghana. Speak fluent Asante Twi with authentic Ghanaian accent: "${sanitizedSpokenText}"`;
-    } else if (isEwe) {
-      promptText = `You are a native Ewe speaker born in Ho, Volta Region, Ghana. Speak in native Ewe with Volta Ghanaian accent: "${sanitizedSpokenText}"`;
-    } else if (isGa) {
-      promptText = `You are a native Ga speaker. Speak in native Ga with Accra Ghanaian accent: "${sanitizedSpokenText}"`;
-    }
-
-    for (const model of AUDIO_MODELS) {
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: promptText }] }],
-              generationConfig: {
-                responseModalities: ["AUDIO"],
-                speechConfig: {
-                  voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } },
-                },
-              },
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          const parts = data?.candidates?.[0]?.content?.parts || [];
-          const audioPart = parts.find((p: any) => p?.inlineData?.data);
-          if (audioPart?.inlineData?.data) {
-            const mime = audioPart.inlineData.mimeType || "audio/pcm;rate=24000";
-            const sampleRate = mime.includes("rate=") ? parseInt(mime.split("rate=")[1], 10) : 24000;
-            const wavUrl = pcmToWavUrl(audioPart.inlineData.data, sampleRate || 24000);
-            if (wavUrl) {
-              CLIENT_AUDIO_CACHE.set(cacheKey, wavUrl);
-              return wavUrl;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn(`Gemini Live Audio ${model} failed:`, e);
-      }
-    }
-  }
-
-  // 3. Google TTS Fallback
+  // 1. Primary Zero-API-Key Reliable Google Speech MP3 Engine (100% Mobile & CORS Compatible)
   const ttsLang = isTwi ? "sw" : isEwe ? "fr" : isGa ? "sw" : isHausa ? "ha" : "en";
-  const fallbackUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(sanitizedSpokenText.slice(0, 200))}&tl=${ttsLang}&client=tw-ob`;
-  CLIENT_AUDIO_CACHE.set(cacheKey, fallbackUrl);
-  return fallbackUrl;
+  const googleAudioStreamUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(sanitizedSpokenText.slice(0, 250))}&tl=${ttsLang}&client=tw-ob`;
+
+  CLIENT_AUDIO_CACHE.set(cacheKey, googleAudioStreamUrl);
+  return googleAudioStreamUrl;
 }
 
 export async function getAIAssistantResponse(

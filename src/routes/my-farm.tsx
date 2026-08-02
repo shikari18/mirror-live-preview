@@ -473,7 +473,19 @@ export function MyFarmPage() {
 
           {/* Full Camera Viewfinder */}
           <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            <video
+              ref={(el) => {
+                videoRef.current = el;
+                if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
+                  el.srcObject = mediaStreamRef.current;
+                  el.play().catch(() => {});
+                }
+              }}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
             <canvas ref={canvasRef} className="hidden" />
           </div>
 
