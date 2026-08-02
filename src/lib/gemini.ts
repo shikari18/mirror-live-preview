@@ -348,41 +348,65 @@ export function speakTextInstant(
     }
   }
 
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    try {
-      window.speechSynthesis.cancel();
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
+  // 1. Primary Player: Real Human Audio Stream with Authentic Ghanaian Accent
+  const audio = new Audio();
+  audio.volume = 1.0;
+
+  const ttsLang = isTwi ? "en-GH" : isEwe ? "fr" : isHausa ? "ha" : "en-GH";
+  const mp3Url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(spokenText.substring(0, 200))}&tl=${ttsLang}&client=tw-ob`;
+  audio.src = mp3Url;
+
+  audio.onplay = () => { if (onStart) onStart(); };
+  audio.onended = () => { if (onEnd) onEnd(); };
+  audio.onerror = () => {
+    speakWebSpeech();
+  };
+
+  const playPromise = audio.play();
+  if (playPromise !== undefined) {
+    playPromise.catch((err) => {
+      console.warn("HTML5 Audio play blocked, using device WebSpeech:", err);
+      speakWebSpeech();
+    });
+  }
+
+  const speakWebSpeech = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(spokenText);
+        utterance.volume = 1.0;
+        utterance.rate = 0.90;
+        utterance.pitch = 1.30;
+
+        const voices = window.speechSynthesis.getVoices();
+        const matchedVoice =
+          voices.find((v) => (v.name.includes("Female") || v.name.includes("Woman") || v.name.includes("Zira") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Hazel")) && (v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African"))) ||
+          voices.find((v) => (v.name.includes("Female") || v.name.includes("Woman")) && v.name.includes("Google")) ||
+          voices.find((v) => v.name.includes("Zira") || v.name.includes("Hazel") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Fiona")) ||
+          voices.find((v) => v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")) ||
+          voices.find((v) => v.lang.startsWith("en"));
+
+        if (matchedVoice) utterance.voice = matchedVoice;
+
+        utterance.onstart = () => { if (onStart) onStart(); };
+        utterance.onend = () => { if (onEnd) onEnd(); };
+        utterance.onerror = () => { if (onEnd) onEnd(); };
+
+        window.speechSynthesis.speak(utterance);
+        if (onStart) onStart();
+      } catch (e) {
+        console.warn("WebSpeech synthesis error:", e);
+        if (onEnd) onEnd();
       }
-
-      const utterance = new SpeechSynthesisUtterance(spokenText);
-      utterance.volume = 1.0;
-      utterance.rate = 0.90;
-      utterance.pitch = 1.30;
-
-      const voices = window.speechSynthesis.getVoices();
-      const matchedVoice =
-        voices.find((v) => (v.name.includes("Female") || v.name.includes("Woman") || v.name.includes("Zira") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Hazel")) && (v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African"))) ||
-        voices.find((v) => (v.name.includes("Female") || v.name.includes("Woman")) && v.name.includes("Google")) ||
-        voices.find((v) => v.name.includes("Zira") || v.name.includes("Hazel") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Fiona")) ||
-        voices.find((v) => v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")) ||
-        voices.find((v) => v.lang.startsWith("en"));
-
-      if (matchedVoice) utterance.voice = matchedVoice;
-
-      utterance.onstart = () => { if (onStart) onStart(); };
-      utterance.onend = () => { if (onEnd) onEnd(); };
-      utterance.onerror = () => { if (onEnd) onEnd(); };
-
-      window.speechSynthesis.speak(utterance);
-      if (onStart) onStart();
-    } catch (e) {
-      console.warn("WebSpeech synthesis error:", e);
+    } else {
       if (onEnd) onEnd();
     }
-  } else {
-    if (onEnd) onEnd();
-  }
+  };
 }
 
 function sanitizeAfricanPhonetics(text: string): string {
