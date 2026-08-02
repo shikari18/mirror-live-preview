@@ -30,32 +30,22 @@ interface ExtensionOfficer {
 const certifiedOfficers: ExtensionOfficer[] = [
   {
     id: "o1",
-    name: "Dr. Kwesi Mensah",
-    region: "Ashanti & Kumasi Region",
-    phone: "+233 24 555 0192",
-    rating: 4.9,
-    specialty: "Catfish Diseases & Pond Recirculation",
-    availableDays: "Mon - Sat (8am - 5pm)",
+    name: "Dimples",
+    region: "All Regions & National Support, Ghana",
+    phone: "+233 24 878 5807",
+    rating: 5.0,
+    specialty: "Aquaculture Extension Officer & Farm Advisory Specialist",
+    availableDays: "24/7 National On-Call Support",
     verified: true,
   },
   {
     id: "o2",
-    name: "Madam Abena Osei",
-    region: "Greater Accra & Tema",
-    phone: "+233 20 888 1234",
+    name: "Papa Quandoh",
+    region: "All Regions & National Support, Ghana",
+    phone: "+233 55 374 4813",
     rating: 5.0,
-    specialty: "Nile Tilapia Breeding & Feed Optimization",
-    availableDays: "Mon - Fri (9am - 4pm)",
-    verified: true,
-  },
-  {
-    id: "o3",
-    name: "Ing. Samuel Baah",
-    region: "Bono & Brong Ahafo",
-    phone: "+233 55 999 4321",
-    rating: 4.8,
-    specialty: "Cage Aquaculture & Water Quality Sensors",
-    availableDays: "Daily (Emergency On-Call)",
+    specialty: "Fish Health Doctor & Technical Officer",
+    availableDays: "24/7 National On-Call Support",
     verified: true,
   },
 ];
@@ -120,17 +110,19 @@ export function ExtensionSupportPage() {
 
             <div className="flex items-center gap-2 pt-1">
               <a
-                href={`tel:${officer.phone}`}
+                href={`tel:${officer.phone.replace(/\s+/g, "")}`}
                 className="flex-1 h-11 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
               >
-                <PhoneCall className="w-4 h-4" /> Call {officer.phone}
+                <PhoneCall className="w-4 h-4" /> Call {officer.name}
               </a>
-              <Link
-                to="/assistant"
-                className="px-4 h-11 rounded-2xl bg-emerald-100 text-[#0F6236] font-extrabold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-200 cursor-pointer"
+              <a
+                href={`https://wa.me/233${officer.phone.replace(/[^0-9]/g, "").replace(/^233/, "").replace(/^0/, "")}?text=${encodeURIComponent(`Hello ${officer.name}! I need support for my fish farm from FishDoctor AI.`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
               >
-                <MessageSquare className="w-4 h-4" /> Chat
-              </Link>
+                <MessageSquare className="w-4 h-4" /> WhatsApp
+              </a>
             </div>
           </div>
         ))}
