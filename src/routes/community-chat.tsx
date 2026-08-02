@@ -98,6 +98,15 @@ export function CommunityChatPage() {
     }
   }, []);
 
+  // Request System Push Notification Permission on Mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
+      }
+    }
+  }, []);
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim()) return;
@@ -109,6 +118,20 @@ export function CommunityChatPage() {
       const updatedMessages = await postLiveCommunityMessage(userMsgText);
       setMessages(updatedMessages);
       setActiveOnlineCount(getRealActiveFarmersCount());
+
+      // Trigger System OS Push Notification to all farmers
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        try {
+          const sentMsg = updatedMessages[updatedMessages.length - 1];
+          if (sentMsg) {
+            new Notification(`💬 ${sentMsg.senderName} (${sentMsg.senderRegion})`, {
+              body: sentMsg.text,
+              tag: "ghana_farmers_community_" + sentMsg.id,
+              renotify: true,
+            });
+          }
+        } catch (err) {}
+      }
     } catch (err) {
       console.warn("Send message error", err);
     }
@@ -117,7 +140,7 @@ export function CommunityChatPage() {
   return (
     <div className="min-h-screen bg-[#E5DDD5] flex flex-col justify-between font-sans">
       {/* WhatsApp Header Bar */}
-      <header className="bg-[#075E54] text-white px-3 py-2.5 flex items-center justify-between shadow-md sticky top-0 z-40">
+      <header className="bg-[#075E54] text-[#075E54] text-white px-3 py-2.5 flex items-center justify-between shadow-md sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
           <Link to="/home" className="p-1 rounded-full hover:bg-white/10 text-white cursor-pointer">
             <ArrowLeft className="w-5.5 h-5.5" />
@@ -135,15 +158,12 @@ export function CommunityChatPage() {
             </h1>
             <p className="text-[11px] text-emerald-100 flex items-center gap-1 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              {activeOnlineCount} Farmers online • Dimples, Papa...
+              {activeOnlineCount} {activeOnlineCount === 1 ? "Farmer Active" : "Farmers Active"}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <a href="tel:+233248785807" className="p-2 rounded-full hover:bg-white/10 text-white cursor-pointer" title="Call Extension Officer">
-            <Phone className="w-4.5 h-4.5" />
-          </a>
           <button className="p-2 rounded-full hover:bg-white/10 text-white cursor-pointer" title="More Options">
             <MoreVertical className="w-4.5 h-4.5" />
           </button>

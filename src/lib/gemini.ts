@@ -274,20 +274,31 @@ export function speakTextInstant(
   const isEwe = langLower.includes("ewe") || langLower.includes("eʋe");
   const isHausa = langLower.includes("hausa");
 
+  // Format spoken text for Twi & English
+  let spokenText = cleanText;
+  if (isTwi) {
+    if (cleanText.includes("Welcome farmer") || cleanText.includes("Live Weather") || cleanText.includes("Fish Doctor")) {
+      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa afutuo: Enneɔɔma nsuo mu nam no ho ye. Fa Fish Doctor AI yɛ adwuma pa bɔ wo nsuo mu nam no apɔwmuden kɔkɔɔ.";
+    } else if (!cleanText.includes("Akwaaba")) {
+      spokenText = "Akwaaba okuafoɔ! " + cleanText;
+    }
+  } else if (isEwe) {
+    if (!cleanText.includes("Woezɔ")) {
+      spokenText = "Woezɔ agbledela! " + cleanText;
+    }
+  }
+
   const speakWebSpeech = () => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       try {
         window.speechSynthesis.cancel();
-
-        let spokenText = cleanText;
-        if (isTwi) {
-          spokenText = "Akwaaba okuafoɔ! " + cleanText;
-        } else if (isEwe) {
-          spokenText = "Woezɔ agbledela! " + cleanText;
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
         }
 
         const utterance = new SpeechSynthesisUtterance(spokenText);
-        utterance.rate = 0.95;
+        utterance.volume = 1.0;
+        utterance.rate = 0.92;
         utterance.pitch = 1.0;
 
         const voices = window.speechSynthesis.getVoices();
@@ -313,37 +324,8 @@ export function speakTextInstant(
     }
   };
 
-  // Pre-create and unlock Audio element synchronously inside current user click gesture
-  const audio = new Audio();
-  audio.volume = 1.0;
-  audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
-  const unlockPromise = audio.play();
-  if (unlockPromise !== undefined) unlockPromise.catch(() => {});
-
-  getGeminiLiveVoiceAudio(cleanText, language)
-    .then((audioUrl) => {
-      if (audioUrl) {
-        audio.src = audioUrl;
-        audio.onplay = () => { if (onStart) onStart(); };
-        audio.onended = () => { if (onEnd) onEnd(); };
-        audio.onerror = () => {
-          console.warn("Network audio stream blocked, using device WebSpeech voice...");
-          speakWebSpeech();
-        };
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((err) => {
-            console.warn("Audio play prevented by browser policy, using WebSpeech:", err);
-            speakWebSpeech();
-          });
-        }
-      } else {
-        speakWebSpeech();
-      }
-    })
-    .catch(() => {
-      speakWebSpeech();
-    });
+  // Synchronously execute WebSpeech for 100% instant audible sound
+  speakWebSpeech();
 }
 
 function sanitizeAfricanPhonetics(text: string): string {
