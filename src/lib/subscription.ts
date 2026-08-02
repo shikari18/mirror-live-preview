@@ -128,9 +128,10 @@ export function activateProSubscription(method: "momo_mtn" | "momo_telecel" | "m
     const accountsRaw = localStorage.getItem("registered_user_accounts_v1");
     if (accountsRaw) {
       const accounts = JSON.parse(accountsRaw);
+      const currentUserPhoneClean = (currentUserPhone || "").toString().replace(/\s+/g, "");
       const acc = accounts.find((a: any) => 
         (currentUserEmail && a.email?.toLowerCase() === currentUserEmail.toLowerCase()) ||
-        (currentUserPhone && a.phone?.replaceAll(" ", "") === currentUserPhone.replaceAll(" ", ""))
+        (currentUserPhoneClean && a.phone && (a.phone || "").toString().replace(/\s+/g, "") === currentUserPhoneClean)
       );
       if (acc) {
         acc.isPro = true;

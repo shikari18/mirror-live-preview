@@ -36,11 +36,11 @@ export function saveRegisteredAccounts(accounts: UserAccount[]): void {
 export function findAccountByIdentifier(identifier: string): UserAccount | undefined {
   if (!identifier) return undefined;
   const accounts = getRegisteredAccounts();
-  const cleanId = identifier.trim().toLowerCase();
+  const cleanId = (identifier || "").toString().trim().toLowerCase().replace(/\s+/g, "");
   return accounts.find(
     (acc) =>
       (acc.email && acc.email.toLowerCase() === cleanId) ||
-      (acc.phone && acc.phone.replaceAll(" ", "").toLowerCase().includes(cleanId.replaceAll(" ", "")))
+      (acc.phone && (acc.phone || "").toString().replace(/\s+/g, "").toLowerCase().includes(cleanId))
   );
 }
 
@@ -55,10 +55,11 @@ export function registerOrLoginAccount(details: {
 
   // Stable email for Google users
   const cleanEmail = details.email?.toLowerCase().trim();
+  const cleanPhone = (details.phone || "").toString().replace(/\s+/g, "");
 
   let existing = accounts.find((acc) => {
     if (cleanEmail && acc.email && acc.email.toLowerCase() === cleanEmail) return true;
-    if (details.phone && acc.phone && acc.phone.replaceAll(" ", "") === details.phone.replaceAll(" ", "")) return true;
+    if (cleanPhone && acc.phone && (acc.phone || "").toString().replace(/\s+/g, "") === cleanPhone) return true;
     // Match existing Google user account if Google sign in is used
     if (details.isGoogle && acc.isGoogleSignedIn) return true;
     return false;
