@@ -43,13 +43,17 @@ export function SellFishPage() {
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("Accra, Ghana");
   const [phone, setPhone] = useState("+233 248785807");
+  const [whatsappPhone, setWhatsappPhone] = useState("+233 248785807");
   const [contactMethod, setContactMethod] = useState<"whatsapp" | "phone">("whatsapp");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     loadListings();
     const savedPhone = localStorage.getItem("user_phone");
-    if (savedPhone) setPhone(savedPhone);
+    if (savedPhone) {
+      setPhone(savedPhone);
+      setWhatsappPhone(savedPhone);
+    }
   }, []);
 
   const loadListings = () => {
@@ -72,11 +76,12 @@ export function SellFishPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const formattedPrice = price.startsWith("GH₵") ? price : `GH₵ ${price}`;
     const newItem: MarketplaceItem = {
       id: Date.now().toString(),
       category,
       title,
-      price: price.startsWith("GH₵") ? price : `GH₵ ${price}`,
+      price: formattedPrice,
       description,
       location,
       phone,
@@ -92,15 +97,16 @@ export function SellFishPage() {
 
     // Also publish to global shared cloud store
     try {
-      const numPrice = parseFloat(price.replace(/[^0-9.]/g, "")) || 35;
+      const numPrice = parseFloat(price.replace(/[^0-9.]/g, "")) || 1;
       const catKey = category.toLowerCase() === "fish" || category.toLowerCase() === "harvest" ? "harvest" : category.toLowerCase() === "feed" ? "feeds" : "equipment";
       await publishMarketItem({
         category: catKey as any,
         title,
         priceGHS: numPrice,
-        unit: "Harvest Batch",
+        unit: "per kg",
         seller: newItem.sellerName,
         phone,
+        whatsappPhone,
         location,
         tag: "Direct Farm Sale",
         image: imagePreview || undefined,
@@ -239,26 +245,40 @@ export function SellFishPage() {
               </div>
 
               <div>
-                <label className="block font-bold text-gray-700 mb-1">Asking Price</label>
+                <label className="block font-bold text-gray-700 mb-1">Asking Price (GH₵)</label>
                 <input
                   type="text"
+                  inputMode="decimal"
                   required
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="e.g. GH₵ 48 per kg"
-                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                  placeholder="e.g. 1 or 48"
+                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none text-gray-900"
                 />
               </div>
 
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">Contact Phone Number</label>
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Phone 1 (Call)</label>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="0241234567"
+                    className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Phone 2 (WhatsApp)</label>
+                  <input
+                    type="tel"
+                    value={whatsappPhone}
+                    onChange={(e) => setWhatsappPhone(e.target.value)}
+                    placeholder="0201234567 (Optional)"
+                    className="w-full h-11 rounded-xl border border-gray-200 px-3 text-xs font-semibold bg-gray-50 outline-none"
+                  />
+                </div>
               </div>
 
               <div>

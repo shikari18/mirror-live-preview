@@ -8,6 +8,7 @@ export interface MarketItem {
   unit: string;
   seller: string;
   phone: string;
+  whatsappPhone?: string;
   location: string;
   tag?: string;
   image?: string;

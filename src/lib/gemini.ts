@@ -300,20 +300,39 @@ export function speakTextInstant(
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
-  const isTwi = targetLanguage.toLowerCase().includes("twi") || targetLanguage.toLowerCase().includes("akan");
+  const langLower = targetLanguage.toLowerCase();
+  const isTwi = langLower.includes("twi") || langLower.includes("akan");
+  const isEwe = langLower.includes("ewe") || langLower.includes("eʋe");
+  const isGa = langLower.includes("ga");
+  const isHausa = langLower.includes("hausa");
 
   let spokenText = cleanText;
-  if (isTwi && (cleanText.includes("Welcome farmer") || cleanText.includes("Tropical Climate") || cleanText.includes("Feeding Schedule"))) {
-    spokenText = "Akwaaba okuafoɔ! Ewiem mmoa ne mpɔtorɔ afideɛ afutuo: Ewiem mmoa ye aduasa. Ma w'anigye mmra aduane ma mpɔtorɔ no na fa Fish Doctor AI bɔ wɔn apɔwmuden kɔkɔɔ.";
+  if (cleanText.includes("Welcome farmer") || cleanText.includes("Tropical Climate") || cleanText.includes("Feeding Schedule")) {
+    if (isTwi) {
+      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa ne mpɔtorɔ afideɛ afutuo: Ewiem mmoa ye aduasa. Ma w'anigye mmra aduane ma mpɔtorɔ no na fa Fish Doctor AI bɔ wɔn apɔwmuden kɔkɔɔ.";
+    } else if (isEwe) {
+      spokenText = "Woezɔ agbledela! Yame ƒe nɔnɔme gblɔ be dzoxɔxɔ le 29°C. Kpɔ nuɖuɖu na tɔmelãwo nyuie eye zã Fish Doctor AI na dɔwɔwɔ nyui.";
+    } else if (isGa) {
+      spokenText = "Ofeeŋɔ nitsulɔ! Jeŋgbɛ mli dzɔɔmɔ: Ma oniyeniishee aha looyii lɛ kɛ nitsumɔ Fish Doctor AI.";
+    } else if (isHausa) {
+      spokenText = "Barka da zuwa manoma! Kula da abincin kifi da lafiyar ruwa da amfani da Fish Doctor AI.";
+    }
   }
 
   // 1. Try Gemini 2.5 & 3.1 Flash Live Audio Generation API (Ghanaian Neural Voice)
   const apiKey = getGeminiKey();
   if (apiKey) {
     const AUDIO_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
-    const promptText = isTwi
-      ? `You are an authentic native speaker born and raised in Kumasi, Ghana. Speak fluent Asante Twi at a lively, energetic pace with a 100% authentic, typical local Ghanaian accent and native vocal inflection: "${spokenText}"`
-      : spokenText;
+    let promptText = spokenText;
+    if (isTwi) {
+      promptText = `You are an authentic native speaker born and raised in Kumasi, Ghana. Speak fluent Asante Twi at a lively, energetic pace with a 100% authentic, typical local Ghanaian accent and native vocal inflection: "${spokenText}"`;
+    } else if (isEwe) {
+      promptText = `You are a native Ewe speaker born in Ho, Volta Region, Ghana. Speak this in authentic native Ewe (Eʋegbe) language with a warm local Volta Ghanaian accent and natural cadence: "${spokenText}"`;
+    } else if (isGa) {
+      promptText = `You are a native Ga speaker born in Greater Accra, Ghana. Speak this in authentic native Ga language with a local Accra Ghanaian accent and natural cadence: "${spokenText}"`;
+    } else if (isHausa) {
+      promptText = `You are a native Hausa speaker. Speak this in authentic native Hausa language with a warm African accent and natural cadence: "${spokenText}"`;
+    }
 
     for (const model of AUDIO_MODELS) {
       try {

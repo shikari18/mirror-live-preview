@@ -23,15 +23,14 @@ export function MarketPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<MarketItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  // New Listing Form State
+  const [isSyncing, setIsSyncing] = useState(false);  // New Listing Form State
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<"harvest" | "feeds" | "equipment" | "fish">("harvest");
-  const [newPrice, setNewPrice] = useState<number>(38);
+  const [newPrice, setNewPrice] = useState<string>("");
   const [newUnit, setNewUnit] = useState("per kg");
   const [newSeller, setNewSeller] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [newWhatsappPhone, setNewWhatsappPhone] = useState("");
   const [newLocation, setNewLocation] = useState("Kumasi, Ghana");
 
   const loadSharedItems = async () => {
@@ -47,7 +46,10 @@ export function MarketPage() {
     const savedName = localStorage.getItem("user_name");
     const savedPhone = localStorage.getItem("user_phone");
     if (savedName) setNewSeller(savedName);
-    if (savedPhone) setNewPhone(savedPhone);
+    if (savedPhone) {
+      setNewPhone(savedPhone);
+      setNewWhatsappPhone(savedPhone);
+    }
 
     loadSharedItems();
 
@@ -68,15 +70,18 @@ export function MarketPage() {
       return;
     }
 
+    const numericPrice = parseFloat(newPrice) || 1;
+
     setIsSyncing(true);
     try {
       const updated = await publishMarketItem({
         category: newCategory,
         title: newTitle.trim(),
-        priceGHS: Number(newPrice) || 0,
+        priceGHS: numericPrice,
         unit: newUnit.trim() || "per unit",
         seller: newSeller.trim() || "Farmer",
         phone: newPhone.trim(),
+        whatsappPhone: newWhatsappPhone.trim() || newPhone.trim(),
         location: newLocation.trim() || "Ghana",
         tag: "Verified Farmer",
         image: newCategory === "feeds" ? buyFeedImg : newCategory === "equipment" ? marketPricesImg : sellFishImg,
@@ -85,6 +90,7 @@ export function MarketPage() {
       setItems(updated);
       setIsModalOpen(false);
       setNewTitle("");
+      setNewPrice("");
       alert("🎉 Your item has been published globally to the shared marketplace!");
     } catch (err) {
       console.error("Listing publish error:", err);
@@ -163,44 +169,50 @@ export function MarketPage() {
 
         {/* Listings Grid */}
         <div className="space-y-3">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="bg-white p-4 rounded-3xl border border-gray-200/90 shadow-sm space-y-3 hover:shadow-md transition-shadow">
-              <div className="flex gap-3">
-                <img src={item.image} alt={item.title} className="w-16 h-16 rounded-2xl object-cover border border-gray-100 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold uppercase text-[#0F6236] bg-emerald-50 px-2 py-0.5 rounded-md">
-                      {item.tag || "Verified"}
-                    </span>
-                    <span className="text-xs text-gray-500 font-medium">{item.location}</span>
-                  </div>
-                  <h3 className="text-xs font-extrabold text-gray-900 mt-1 leading-snug truncate">{item.title}</h3>
-                  <div className="text-[11px] text-gray-600 font-medium mt-0.5">Seller: {item.seller}</div>
-                  <div className="text-sm font-black text-[#0F6236] mt-1">
-                    GH₵ {item.priceGHS.toLocaleString()} <span className="text-[11px] text-gray-500 font-semibold">{item.unit}</span>
+          {filteredItems.map((item) => {
+            const rawWaPhone = (item.whatsappPhone || item.phone || "").replace(/[^0-9]/g, "").replace(/^233/, "").replace(/^0/, "");
+            const waNumber = "233" + (rawWaPhone || "244123456");
+            const autoMsg = `Hello ${item.seller}! I am interested in buying your listed product: "${item.title}" (Price: GH₵ ${item.priceGHS} ${item.unit}) on FishDoctor AI Marketplace. Is it still available?`;
+
+            return (
+              <div key={item.id} className="bg-white p-4 rounded-3xl border border-gray-200/90 shadow-sm space-y-3 hover:shadow-md transition-shadow">
+                <div className="flex gap-3">
+                  <img src={item.image || sellFishImg} alt={item.title} className="w-16 h-16 rounded-2xl object-cover border border-gray-100 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold uppercase text-[#0F6236] bg-emerald-50 px-2 py-0.5 rounded-md">
+                        {item.tag || "Verified"}
+                      </span>
+                      <span className="text-xs text-gray-500 font-medium">{item.location}</span>
+                    </div>
+                    <h3 className="text-xs font-extrabold text-gray-900 mt-1 leading-snug truncate">{item.title}</h3>
+                    <div className="text-[11px] text-gray-600 font-medium mt-0.5">Seller: {item.seller}</div>
+                    <div className="text-sm font-black text-[#0F6236] mt-1">
+                      GH₵ {item.priceGHS.toLocaleString()} <span className="text-[11px] text-gray-500 font-semibold">{item.unit}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Action Buttons: WhatsApp & Direct Call */}
-              <div className="flex gap-2 pt-1 border-t border-gray-100">
-                <a
-                  href={`https://api.whatsapp.com/send?phone=233${item.phone.replace(/^0/, "")}&text=${encodeURIComponent(`Hi ${item.seller}, I saw your listing for "${item.title}" on FishFarm OS Marketplace.`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer"
-                >
-                  <MessageSquare className="w-3.5 h-3.5" /> Order WhatsApp
-                </a>
-                <a
-                  href={`tel:${item.phone}`}
-                  className="flex-1 h-10 rounded-xl bg-gray-900 hover:bg-black text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer"
-                >
-                  <Phone className="w-3.5 h-3.5" /> Call Seller
-                </a>
+                {/* Action Buttons: WhatsApp & Direct Call */}
+                <div className="flex gap-2 pt-1 border-t border-gray-100">
+                  <a
+                    href={`https://wa.me/${waNumber}?text=${encodeURIComponent(autoMsg)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                  </a>
+                  <a
+                    href={`tel:${item.phone}`}
+                    className="flex-1 h-10 rounded-xl bg-gray-900 hover:bg-black text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Phone className="w-3.5 h-3.5" /> Call Seller
+                  </a>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -248,11 +260,13 @@ export function MarketPage() {
                 <div>
                   <label className="block font-extrabold text-gray-800 mb-1">Price (GH₵)</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     required
+                    placeholder="e.g. 1 or 38"
                     value={newPrice}
-                    onChange={(e) => setNewPrice(Number(e.target.value) || 0)}
-                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold text-gray-900"
                   />
                 </div>
                 <div>
@@ -268,25 +282,36 @@ export function MarketPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block font-extrabold text-gray-800 mb-1">Seller Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newSeller}
+                  onChange={(e) => setNewSeller(e.target.value)}
+                  className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block font-extrabold text-gray-800 mb-1">Seller Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={newSeller}
-                    onChange={(e) => setNewSeller(e.target.value)}
-                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-extrabold text-gray-800 mb-1">Phone Number</label>
+                  <label className="block font-extrabold text-gray-800 mb-1">Phone 1 (Call)</label>
                   <input
                     type="tel"
                     required
                     placeholder="0241234567"
                     value={newPhone}
                     onChange={(e) => setNewPhone(e.target.value)}
+                    className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-extrabold text-gray-800 mb-1">Phone 2 (WhatsApp)</label>
+                  <input
+                    type="tel"
+                    placeholder="0201234567 (Optional)"
+                    value={newWhatsappPhone}
+                    onChange={(e) => setNewWhatsappPhone(e.target.value)}
                     className="w-full h-11 px-3 border border-gray-300 rounded-xl bg-gray-50 outline-none font-bold"
                   />
                 </div>
@@ -306,9 +331,10 @@ export function MarketPage() {
 
               <button
                 type="submit"
-                className="w-full h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs rounded-2xl shadow-md cursor-pointer mt-2"
+                disabled={isSyncing}
+                className="w-full h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs rounded-2xl shadow-md cursor-pointer mt-2 flex items-center justify-center gap-2"
               >
-                Publish to Marketplace Board
+                {isSyncing ? "Publishing..." : "Publish to Marketplace Board"}
               </button>
             </form>
           </div>
