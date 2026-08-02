@@ -58,10 +58,11 @@ export function AssistantPage() {
   const [attachment, setAttachment] = useState<{ name: string; type: string; mimeType: string; url: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fullscreen Live Video Call State
+  // Fullscreen Live Call State
   const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
+  const [callMode, setCallMode] = useState<"voice" | "video">("voice");
   const [isCallMuted, setIsCallMuted] = useState(false);
-  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(true);
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
   const [isListeningSpeech, setIsListeningSpeech] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
@@ -101,15 +102,19 @@ export function AssistantPage() {
   }, []);
 
   useEffect(() => {
-    if (isVideoCallOpen && !isCameraOff) {
-      startWebcam(cameraFacing);
+    if (isVideoCallOpen) {
       startSpeechRecognition();
+      if (callMode === "video" && !isCameraOff) {
+        startWebcam(cameraFacing);
+      } else {
+        stopWebcam();
+      }
     } else {
       stopWebcam();
       stopSpeechRecognition();
       stopAudio();
     }
-  }, [isVideoCallOpen, cameraFacing, isCameraOff]);
+  }, [isVideoCallOpen, callMode, cameraFacing, isCameraOff]);
 
   const startWebcam = async (facing: "user" | "environment") => {
     stopWebcam();
@@ -485,16 +490,13 @@ export function AssistantPage() {
         </button>
       </div>
 
-      {/* FULLSCREEN VIDEO CALL MODAL */}
+      {/* FULLSCREEN VOICE / VIDEO CALL MODAL */}
       {isVideoCallOpen && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
-          <div className="absolute inset-0 w-full h-full bg-gray-900 overflow-hidden">
-            {isCameraOff ? (
-              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-900">
-                <VideoOff className="w-12 h-12 mb-2 text-gray-600" />
-                <span className="text-xs font-bold">Camera Turned Off</span>
-              </div>
-            ) : (
+        <div className="fixed inset-0 z-50 bg-gradient-to-b from-gray-950 via-emerald-950 to-gray-950 flex flex-col justify-between items-center animate-in fade-in">
+          
+          {/* Background Video Preview (Only active when callMode === "video" and camera is ON) */}
+          {callMode === "video" && !isCameraOff ? (
+            <div className="absolute inset-0 w-full h-full overflow-hidden z-0">
               <video
                 ref={webcamVideoRef}
                 autoPlay
@@ -502,13 +504,27 @@ export function AssistantPage() {
                 muted
                 className="w-full h-full object-cover"
               />
-            )}
-          </div>
+              <div className="absolute inset-0 bg-black/40" />
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-0">
+              <div className="w-36 h-36 rounded-full bg-emerald-500/20 border-2 border-emerald-400/40 flex items-center justify-center animate-pulse">
+                <div className="w-28 h-28 rounded-full bg-emerald-500/30 border border-emerald-300/50 flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-full bg-[#0F6236] text-white flex items-center justify-center shadow-2xl">
+                    <Stethoscope className="w-10 h-10 text-emerald-300 animate-bounce" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
+          {/* Modal Header Bar */}
           <div className="w-full flex items-center justify-between text-white z-20 pt-6 px-5 bg-gradient-to-b from-black/80 to-transparent pb-4">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h3 className="font-extrabold text-sm text-white">Live Video Call — Fish Doctor AI</h3>
+              <h3 className="font-extrabold text-sm text-white">
+                {callMode === "video" ? "Live Video Call" : "Live Speech-to-Speech Call"} — Fish Doctor AI
+              </h3>
             </div>
             <button
               onClick={() => setIsVideoCallOpen(false)}
@@ -518,39 +534,57 @@ export function AssistantPage() {
             </button>
           </div>
 
+          {/* Call Controls Panel */}
           <div className="w-full max-w-sm bg-black/80 backdrop-blur-md rounded-3xl p-5 m-5 z-20 space-y-4 border border-white/20 text-center shadow-2xl">
             <div className="flex items-center justify-center gap-2">
-              <Stethoscope className="w-6 h-6 text-emerald-400 animate-bounce" />
-              <span className="text-sm font-extrabold text-white">AI Doctor Listening...</span>
+              <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-sm font-extrabold text-white">
+                {videoLoading ? "AI Doctor Thinking..." : "AI Doctor Listening..."}
+              </span>
             </div>
 
             <p className="text-xs text-gray-300 font-medium">
-              Speak into your microphone in {language}. AI Doctor will answer live in spoken audio!
+              Speak in English or Akan Twi. AI Doctor auto-detects your language and responds in live spoken audio!
             </p>
 
-            <div className="flex items-center justify-center gap-4 pt-2">
+            <div className="flex items-center justify-center gap-3 pt-2">
               <button
                 onClick={() => setIsCallMuted((prev) => !prev)}
                 className={`p-3.5 rounded-full transition-all cursor-pointer ${
                   isCallMuted ? "bg-red-600 text-white" : "bg-white/20 text-white hover:bg-white/30"
                 }`}
+                title={isCallMuted ? "Unmute Mic" : "Mute Mic"}
               >
-                <MicOff className="w-5 h-5" />
+                {isCallMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5 text-white" />}
               </button>
 
               <button
                 onClick={() => setIsVideoCallOpen(false)}
                 className="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg cursor-pointer transition-all active:scale-95"
+                title="End Call"
               >
                 <PhoneOff className="w-6 h-6" />
               </button>
 
-              <button
-                onClick={toggleCameraFacing}
-                className="p-3.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all cursor-pointer"
-              >
-                <SwitchCamera className="w-5 h-5" />
-              </button>
+              {callMode === "voice" ? (
+                <button
+                  onClick={() => {
+                    setCallMode("video");
+                    setIsCameraOff(false);
+                  }}
+                  className="px-3.5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+                >
+                  <Video className="w-4 h-4" /> Video Call
+                </button>
+              ) : (
+                <button
+                  onClick={toggleCameraFacing}
+                  className="p-3.5 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all cursor-pointer"
+                  title="Switch Camera"
+                >
+                  <SwitchCamera className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
