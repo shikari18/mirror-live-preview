@@ -176,7 +176,7 @@ export function HomePage() {
     return () => clearInterval(subInterval);
   }, []);
 
-  const handlePlayDailyVoiceAdvice = async () => {
+  const handlePlayDailyVoiceAdvice = () => {
     if (isPlayingAudio) {
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
@@ -190,42 +190,23 @@ export function HomePage() {
     setIsPlayingAudio(true);
     setAudioStatusText("Playing Voice...");
 
-    const adviceText = `Welcome farmer! Live Weather & Farm Advisory: ${weatherAlert.summary}. Maintain optimal feeding schedules and use Fish Doctor AI for instant photo diagnosis.`;
-
-    try {
-      const audioUrl = await getGeminiLiveVoiceAudio(adviceText, language);
-
-      if (audioUrl) {
-        const audio = new Audio(audioUrl);
-        currentAudioRef.current = audio;
-        audio.onended = () => {
-          setIsPlayingAudio(false);
-          setAudioStatusText("");
-          currentAudioRef.current = null;
-        };
-        audio.onerror = () => {
-          speakTextInstant(
-            adviceText,
-            language,
-            () => setAudioStatusText("Playing Voice..."),
-            () => {
-              setIsPlayingAudio(false);
-              setAudioStatusText("");
-              currentAudioRef.current = null;
-            }
-          );
-        };
-        await audio.play();
-        return;
-      }
-    } catch (e) {
-      console.warn("Audio play error", e);
+    const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
+    const isEwe = language.toLowerCase().includes("ewe");
+    
+    let adviceText = `Welcome farmer! Live Weather & Farm Advisory: ${liveWeather.description}. Maintain optimal feeding schedules and use Fish Doctor AI for instant photo diagnosis.`;
+    if (isTwi) {
+      adviceText = "Akwaaba okuafoɔ! Ewiem mmoa afutuo: Enneɔɔma nsuo mu nam no ho ye. Fa Fish Doctor AI yɛ adwuma pa bɔ wo nsuo mu nam no apɔwmuden kɔkɔɔ.";
+    } else if (isEwe) {
+      adviceText = "Woezɔ agbledela! Yame ƒe nɔnɔme gblɔ be dzoxɔxɔ le 29°C. Kpɔ nuɖuɖu na tɔmelãwo nyuie eye zã Fish Doctor AI.";
     }
 
     speakTextInstant(
       adviceText,
       language,
-      () => setAudioStatusText("Playing Voice..."),
+      () => {
+        setIsPlayingAudio(true);
+        setAudioStatusText("Playing Voice...");
+      },
       () => {
         setIsPlayingAudio(false);
         setAudioStatusText("");

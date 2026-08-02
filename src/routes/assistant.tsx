@@ -170,7 +170,7 @@ export function AssistantPage() {
   };
 
   const playVoice = (text: string, msgId?: string): Promise<void> => {
-    return new Promise<void>(async (resolve) => {
+    return new Promise<void>((resolve) => {
       if (playingMsgId === msgId) {
         if (currentAudioRef.current) {
           try { currentAudioRef.current.pause(); } catch (e) {}
@@ -187,28 +187,6 @@ export function AssistantPage() {
       stopAudio();
       if (msgId) setPlayingMsgId(msgId);
       setVoiceProgress("Playing Voice...");
-
-      try {
-        const audioUrl = await getGeminiLiveVoiceAudio(text, language);
-        if (audioUrl && !audioUrl.includes("translate_tts")) {
-          const audio = new Audio(audioUrl);
-          currentAudioRef.current = audio;
-          audio.onended = () => {
-            stopAudio();
-            resolve();
-          };
-          audio.onerror = () => {
-            speakTextInstant(text, language, () => setVoiceProgress("Playing Voice..."), () => {
-              stopAudio();
-              resolve();
-            });
-          };
-          await audio.play();
-          return;
-        }
-      } catch (e) {
-        console.warn("Gemini voice audio error:", e);
-      }
 
       speakTextInstant(
         text,
