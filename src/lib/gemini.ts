@@ -357,14 +357,15 @@ export function speakTextInstant(
 
       const utterance = new SpeechSynthesisUtterance(spokenText);
       utterance.volume = 1.0;
-      utterance.rate = 0.92;
-      utterance.pitch = 1.0;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.02;
 
       const voices = window.speechSynthesis.getVoices();
-      const targetLangCode = isTwi ? "en-GH" : isEwe ? "fr-FR" : isHausa ? "ha-NG" : "en-US";
-      const matchedVoice = voices.find(
-        (v) => v.lang.includes(targetLangCode) || v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")
-      ) || voices.find((v) => v.lang.startsWith("en"));
+      const matchedVoice =
+        voices.find((v) => v.name.includes("Google") && (v.lang.includes("en-GH") || v.lang.includes("en-GB") || v.lang.includes("en-US"))) ||
+        voices.find((v) => v.name.includes("Natural") || v.name.includes("Enhanced") || v.name.includes("Premium")) ||
+        voices.find((v) => v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")) ||
+        voices.find((v) => v.lang.startsWith("en"));
 
       if (matchedVoice) utterance.voice = matchedVoice;
 
