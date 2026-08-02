@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
-import { diagnoseFishDiseaseAI, MediaAttachment, getGeminiLiveVoiceAudio, DiagnosisResult } from "@/lib/gemini";
+import { diagnoseFishDiseaseAI, MediaAttachment, speakTextInstant, DiagnosisResult } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
 import { getFarmProfile, PondRecord } from "@/lib/farmMemory";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
@@ -127,16 +127,24 @@ export function DiseasePage() {
 
   // Voice playback trigger ONLY when user clicks play button
   const toggleAudio = () => {
-    if (audioRef.current) {
-      if (isPlayingAudio) {
+    if (isPlayingAudio) {
+      if (audioRef.current) {
         audioRef.current.pause();
-        setIsPlayingAudio(false);
-      } else {
-        audioRef.current.play()
-          .then(() => setIsPlayingAudio(true))
-          .catch((e) => console.warn("Manual audio play error:", e));
+        audioRef.current = null;
       }
+      setIsPlayingAudio(false);
+      return;
     }
+
+    if (!diagnosisResult) return;
+    const ttsSummary = `${diagnosisResult.diseaseName}. Confidence ${diagnosisResult.confidencePercent} percent. ${diagnosisResult.whyThisDiagnosis}`;
+
+    speakTextInstant(
+      ttsSummary,
+      language,
+      () => setIsPlayingAudio(true),
+      () => setIsPlayingAudio(false)
+    );
   };
 
   const getRiskBadge = (level: string) => {
