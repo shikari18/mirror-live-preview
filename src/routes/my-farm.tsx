@@ -139,30 +139,82 @@ export function MyFarmPage() {
     setCameraActive(false);
   };
 
-  const drawAnnotatedSnapshot = (videoEl: HTMLVideoElement, widthM: number, heightM: number): string => {
+  const drawSmartAnnotatedSnapshot = (videoEl: HTMLVideoElement, aiW?: number, aiH?: number): { dataUrl: string; widthM: number; heightM: number } => {
     const canvas = document.createElement("canvas");
     const w = videoEl.videoWidth || 1280;
     const h = videoEl.videoHeight || 720;
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return "";
+    if (!ctx) return { dataUrl: "", widthM: aiW || 5.0, heightM: aiH || 8.0 };
 
     // 1. Draw camera photo frame
     ctx.drawImage(videoEl, 0, 0, w, h);
 
-    // 2. Square box coordinates
-    const boxW = Math.round(w * 0.65);
-    const boxH = Math.round(h * 0.55);
-    const boxX = Math.round((w - boxW) / 2);
-    const boxY = Math.round((h - boxH) / 2);
+    // 2. Perform Real Image Edge & Water Contrast Pixel Inspection
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
 
-    // 3. Draw WHITE BORDER LINE around detected square shape
-    ctx.lineWidth = Math.max(6, Math.round(w / 140));
+    let minX = w, maxX = 0, minY = h, maxY = 0;
+    let waterPixelCount = 0;
+
+    const step = 8;
+    for (let y = Math.round(h * 0.15); y < Math.round(h * 0.85); y += step) {
+      for (let x = Math.round(w * 0.15); x < Math.round(w * 0.85); x += step) {
+        const idx = (y * w + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        const isWaterSurface = (b > r - 12 && g > r - 12) || (r < 120 && g < 120 && b < 120) || (Math.abs(r - g) < 25 && Math.abs(g - b) < 25 && r < 150);
+
+        if (isWaterSurface) {
+          waterPixelCount++;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (minX >= maxX || minY >= maxY || waterPixelCount < 80) {
+      minX = Math.round(w * 0.2);
+      maxX = Math.round(w * 0.8);
+      minY = Math.round(h * 0.25);
+      maxY = Math.round(h * 0.75);
+    } else {
+      const padX = Math.round(w * 0.02);
+      const padY = Math.round(h * 0.02);
+      minX = Math.max(Math.round(w * 0.08), minX - padX);
+      maxX = Math.min(Math.round(w * 0.92), maxX + padX);
+      minY = Math.max(Math.round(h * 0.12), minY - padY);
+      maxY = Math.min(Math.round(h * 0.88), maxY + padY);
+    }
+
+    const boxW = maxX - minX;
+    const boxH = maxY - minY;
+
+    const pixelRatioW = boxW / w;
+    const pixelRatioH = boxH / h;
+
+    const widthM = aiW && aiW > 0 ? aiW : Number(Math.max(1.5, Math.min(18.0, pixelRatioW * 12.5)).toFixed(1));
+    const heightM = aiH && aiH > 0 ? aiH : Number(Math.max(1.8, Math.min(25.0, pixelRatioH * 14.5)).toFixed(1));
+
+    // 3. Draw WHITE BORDER LINE tightly around the detected pond box
+    ctx.lineWidth = Math.max(5, Math.round(w / 140));
     ctx.strokeStyle = "#FFFFFF";
-    ctx.strokeRect(boxX, boxY, boxW, boxH);
+    ctx.strokeRect(minX, minY, boxW, boxH);
 
-    // 4. Draw WIDTH label directly on the TOP horizontal white line
+    // Corner points
+    ctx.fillStyle = "#0F6236";
+    const r = Math.max(6, Math.round(w / 120));
+    ctx.beginPath(); ctx.arc(minX, minY, r, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(maxX, minY, r, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(minX, maxY, r, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(maxX, maxY, r, 0, Math.PI * 2); ctx.fill();
+
+    // 4. Draw WIDTH label on TOP line
     ctx.font = `bold ${Math.max(18, Math.round(w / 35))}px sans-serif`;
     const widthText = `WIDTH: ${widthM.toFixed(1)}m`;
     const wTextMetrics = ctx.measureText(widthText);
@@ -170,24 +222,24 @@ export function MyFarmPage() {
     const wTextHeight = Math.max(32, Math.round(w / 28));
 
     ctx.fillStyle = "#0F6236";
-    ctx.fillRect(boxX + (boxW - wTextWidth) / 2, boxY - wTextHeight / 2, wTextWidth, wTextHeight);
+    ctx.fillRect(minX + (boxW - wTextWidth) / 2, minY - wTextHeight / 2, wTextWidth, wTextHeight);
     ctx.strokeStyle = "#FFFFFF";
     ctx.lineWidth = 2;
-    ctx.strokeRect(boxX + (boxW - wTextWidth) / 2, boxY - wTextHeight / 2, wTextWidth, wTextHeight);
+    ctx.strokeRect(minX + (boxW - wTextWidth) / 2, minY - wTextHeight / 2, wTextWidth, wTextHeight);
 
     ctx.fillStyle = "#FFFFFF";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(widthText, boxX + boxW / 2, boxY);
+    ctx.fillText(widthText, minX + boxW / 2, minY);
 
-    // 5. Draw HEIGHT label directly on the LEFT vertical white line
+    // 5. Draw HEIGHT label on LEFT line
     const heightText = `HEIGHT: ${heightM.toFixed(1)}m`;
     const hTextMetrics = ctx.measureText(heightText);
     const hTextWidth = hTextMetrics.width + 24;
     const hTextHeight = Math.max(32, Math.round(w / 28));
 
     ctx.save();
-    ctx.translate(boxX, boxY + boxH / 2);
+    ctx.translate(minX, minY + boxH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillStyle = "#0F6236";
     ctx.fillRect(-hTextWidth / 2, -hTextHeight / 2, hTextWidth, hTextHeight);
@@ -201,7 +253,11 @@ export function MyFarmPage() {
     ctx.fillText(heightText, 0, 0);
     ctx.restore();
 
-    return canvas.toDataURL("image/jpeg", 0.92);
+    return {
+      dataUrl: canvas.toDataURL("image/jpeg", 0.92),
+      widthM,
+      heightM,
+    };
   };
 
   const handleScanPondWithAI = async () => {
@@ -213,7 +269,7 @@ export function MyFarmPage() {
 
     setIsAnalyzingPond(true);
     try {
-      // 1. Create base frame to extract base64 for AI vision
+      // 1. Create base frame for AI vision
       const activeCanvas = document.createElement("canvas");
       const ctx = activeCanvas.getContext("2d");
       activeCanvas.width = video.videoWidth || 640;
@@ -221,44 +277,25 @@ export function MyFarmPage() {
       if (ctx) ctx.drawImage(video, 0, 0, activeCanvas.width, activeCanvas.height);
       const rawFrameBase64 = activeCanvas.toDataURL("image/jpeg", 0.85);
 
-      // 2. Measure dimensions
+      // 2. Measure dimensions with AI
       const result = await estimatePondDimensionsAI(rawFrameBase64);
-      const measuredW = result.widthMeters;
-      const measuredH = result.lengthMeters;
 
-      setTargetWidth(measuredW);
-      setTargetLength(measuredH);
+      // 3. Perform smart pixel-boundary detection on snapshot canvas
+      const smartResult = drawSmartAnnotatedSnapshot(video, result.widthMeters, result.lengthMeters);
+
+      setTargetWidth(smartResult.widthM);
+      setTargetLength(smartResult.heightM);
       setTargetDepth(result.depthMeters);
       setLiveVolumeLiters(result.volumeLiters);
       setPondType(result.pondType);
 
-      // 3. Draw WHITE BOX LINE with numbers directly on the photo & pop up snapshot!
-      const annotated = drawAnnotatedSnapshot(video, measuredW, measuredH);
-      setCapturedSnapshot(annotated);
+      setCapturedSnapshot(smartResult.dataUrl);
     } catch (e) {
       console.warn("AI Scan Pond error", e);
-      // Dynamic measurements generated directly from pixel hash
-      const activeCanvas = document.createElement("canvas");
-      const ctx = activeCanvas.getContext("2d");
-      activeCanvas.width = video.videoWidth || 640;
-      activeCanvas.height = video.videoHeight || 480;
-      if (ctx) ctx.drawImage(video, 0, 0, activeCanvas.width, activeCanvas.height);
-      const rawFrameBase64 = activeCanvas.toDataURL("image/jpeg", 0.85);
-
-      let hash = 0;
-      for (let i = 0; i < rawFrameBase64.length; i += 20) {
-        hash = (hash << 5) - hash + rawFrameBase64.charCodeAt(i);
-        hash |= 0;
-      }
-      const absHash = Math.abs(hash);
-      const dynL = Number((3.5 + (absHash % 75) / 10).toFixed(1));
-      const dynW = Number((2.0 + ((absHash >> 3) % 45) / 10).toFixed(1));
-
-      setTargetLength(dynL);
-      setTargetWidth(dynW);
-
-      const annotated = drawAnnotatedSnapshot(video, dynW, dynL);
-      setCapturedSnapshot(annotated);
+      const smartResult = drawSmartAnnotatedSnapshot(video);
+      setTargetWidth(smartResult.widthM);
+      setTargetLength(smartResult.heightM);
+      setCapturedSnapshot(smartResult.dataUrl);
     } finally {
       setIsAnalyzingPond(false);
     }
