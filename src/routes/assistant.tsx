@@ -156,45 +156,57 @@ export function AssistantPage() {
     setVoiceProgress("");
   };
 
-  const playVoice = async (text: string, msgId?: string) => {
-    if (playingMsgId === msgId) {
-      if (currentAudioRef.current) {
-        try { currentAudioRef.current.pause(); } catch (e) {}
-        currentAudioRef.current = null;
-      }
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-      stopAudio();
-      return;
-    }
-
-    stopAudio();
-    if (msgId) setPlayingMsgId(msgId);
-    setVoiceProgress("Playing Voice...");
-
-    try {
-      const audioUrl = await getGeminiLiveVoiceAudio(text, language);
-      if (audioUrl && !audioUrl.includes("translate_tts")) {
-        const audio = new Audio(audioUrl);
-        currentAudioRef.current = audio;
-        audio.onended = () => stopAudio();
-        audio.onerror = () => {
-          speakTextInstant(text, language, () => setVoiceProgress("Playing Voice..."), () => stopAudio());
-        };
-        await audio.play();
+  const playVoice = (text: string, msgId?: string): Promise<void> => {
+    return new Promise<void>(async (resolve) => {
+      if (playingMsgId === msgId) {
+        if (currentAudioRef.current) {
+          try { currentAudioRef.current.pause(); } catch (e) {}
+          currentAudioRef.current = null;
+        }
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+        stopAudio();
+        resolve();
         return;
       }
-    } catch (e) {
-      console.warn("Gemini voice audio error:", e);
-    }
 
-    speakTextInstant(
-      text,
-      language,
-      () => setVoiceProgress("Playing Voice..."),
-      () => stopAudio()
-    );
+      stopAudio();
+      if (msgId) setPlayingMsgId(msgId);
+      setVoiceProgress("Playing Voice...");
+
+      try {
+        const audioUrl = await getGeminiLiveVoiceAudio(text, language);
+        if (audioUrl && !audioUrl.includes("translate_tts")) {
+          const audio = new Audio(audioUrl);
+          currentAudioRef.current = audio;
+          audio.onended = () => {
+            stopAudio();
+            resolve();
+          };
+          audio.onerror = () => {
+            speakTextInstant(text, language, () => setVoiceProgress("Playing Voice..."), () => {
+              stopAudio();
+              resolve();
+            });
+          };
+          await audio.play();
+          return;
+        }
+      } catch (e) {
+        console.warn("Gemini voice audio error:", e);
+      }
+
+      speakTextInstant(
+        text,
+        language,
+        () => setVoiceProgress("Playing Voice..."),
+        () => {
+          stopAudio();
+          resolve();
+        }
+      );
+    });
   };
 
   const isProcessingCallRef = useRef(false);
@@ -552,25 +564,8 @@ export function AssistantPage() {
               ✕
             </button>
           </div>
-          {/* Quick Voice Sample Chips */}
-          <div className="w-full max-w-sm px-6 z-20 flex flex-wrap items-center justify-center gap-2">
-            {[
-              "Hello Doctor!",
-              "How to feed my fish?",
-              "Check water parameters"
-            ].map((sample) => (
-              <button
-                key={sample}
-                onClick={() => handleUserVoiceInCall(sample)}
-                className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 text-white text-[11px] font-semibold cursor-pointer transition-all active:scale-95 shadow-sm"
-              >
-                🗣️ "{sample}"
-              </button>
-            ))}
-          </div>
-
           {/* Minimal Bottom Control Bar */}
-          <div className="w-full max-w-sm p-6 m-5 z-20 flex items-center justify-center gap-5">
+          <div className="w-full max-w-sm p-6 m-5 z-20 flex items-center justify-center gap-4">
             <button
               onClick={() => {
                 if (isCallMuted) {
@@ -609,13 +604,26 @@ export function AssistantPage() {
                 <Video className="w-6 h-6" />
               </button>
             ) : (
-              <button
-                onClick={toggleCameraFacing}
-                className="p-4 rounded-full bg-white/15 text-white hover:bg-white/25 transition-all cursor-pointer shadow-lg"
-                title="Switch Camera"
-              >
-                <SwitchCamera className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setCallMode("voice");
+                    setIsCameraOff(true);
+                    stopWebcam();
+                  }}
+                  className="p-4 rounded-full bg-white/15 hover:bg-white/25 text-white transition-all cursor-pointer shadow-lg"
+                  title="Switch to Voice Call"
+                >
+                  <PhoneCall className="w-6 h-6 text-emerald-400" />
+                </button>
+                <button
+                  onClick={toggleCameraFacing}
+                  className="p-4 rounded-full bg-white/15 text-white hover:bg-white/25 transition-all cursor-pointer shadow-lg"
+                  title="Switch Camera"
+                >
+                  <SwitchCamera className="w-6 h-6" />
+                </button>
+              </div>
             )}
           </div>
         </div>
