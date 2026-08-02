@@ -210,6 +210,8 @@ export function AssistantPage() {
   };
 
   const isProcessingCallRef = useRef(false);
+  const speechDebounceTimerRef = useRef<any>(null);
+  const pendingSpeechTextRef = useRef<string>("");
 
   const startSpeechRecognition = () => {
     if (typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
@@ -219,26 +221,40 @@ export function AssistantPage() {
         }
         const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
         const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.continuous = true;
+        recognition.interimResults = true;
         recognition.lang = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan") ? "ak-GH" : "en-US";
 
         recognition.onstart = () => setIsListeningSpeech(true);
         recognition.onend = () => {
           setIsListeningSpeech(false);
           if (isVideoCallOpen && !isCallMuted && !isProcessingCallRef.current) {
-            setTimeout(() => {
-              if (isVideoCallOpen && !isProcessingCallRef.current) {
-                try { recognition.start(); } catch (e) {}
-              }
-            }, 300);
+            try { recognition.start(); } catch (e) {}
           }
         };
 
         recognition.onresult = (event: any) => {
-          const spokenText = event.results[0]?.[0]?.transcript?.trim();
-          if (spokenText && spokenText.length >= 2) {
-            handleUserVoiceInCall(spokenText);
+          let latestTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            latestTranscript += event.results[i][0].transcript;
+          }
+          const trimmed = latestTranscript.trim();
+          if (trimmed && trimmed.length >= 2) {
+            pendingSpeechTextRef.current = trimmed;
+
+            if (speechDebounceTimerRef.current) {
+              clearTimeout(speechDebounceTimerRef.current);
+            }
+
+            // Trigger response after ultra-fast 350ms pause!
+            speechDebounceTimerRef.current = setTimeout(() => {
+              const textToProcess = pendingSpeechTextRef.current;
+              pendingSpeechTextRef.current = "";
+              if (textToProcess && !isProcessingCallRef.current) {
+                try { recognition.stop(); } catch (e) {}
+                handleUserVoiceInCall(textToProcess);
+              }
+            }, 350);
           }
         };
 
@@ -252,6 +268,11 @@ export function AssistantPage() {
 
   const stopSpeechRecognition = () => {
     isProcessingCallRef.current = false;
+    pendingSpeechTextRef.current = "";
+    if (speechDebounceTimerRef.current) {
+      clearTimeout(speechDebounceTimerRef.current);
+      speechDebounceTimerRef.current = null;
+    }
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch (e) {}
       recognitionRef.current = null;
@@ -271,6 +292,11 @@ export function AssistantPage() {
     } finally {
       setVideoLoading(false);
       isProcessingCallRef.current = false;
+      if (isVideoCallOpen && !isCallMuted) {
+        setTimeout(() => {
+          startSpeechRecognition();
+        }, 200);
+      }
     }
   };
 
