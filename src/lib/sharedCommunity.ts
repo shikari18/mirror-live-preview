@@ -2,6 +2,7 @@
 
 export interface CommunityChatMessage {
   id: string;
+  senderId: string;
   senderName: string;
   senderRegion: string;
   senderPhone?: string;
@@ -9,14 +10,23 @@ export interface CommunityChatMessage {
   text: string;
   time: string;
   timestamp: number;
-  isSelf?: boolean;
   role?: string;
   mediaUrl?: string;
 }
 
 const COMMUNITY_BLOB_URL = "https://jsonblob.com/api/jsonBlob/019fc23b-97d7-77ee-a822-b98341df9001";
-const LOCAL_STORAGE_KEY = "ghana_farmers_community_chat_history_v2";
+const LOCAL_STORAGE_KEY = "ghana_farmers_community_chat_history_v3";
 const SESSION_TIMESTAMP_KEY = "farmer_last_active_timestamp";
+
+export function getMyDeviceId(): string {
+  if (typeof window === "undefined") return "dev_default";
+  let devId = localStorage.getItem("my_farmer_device_id");
+  if (!devId) {
+    devId = "dev_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now();
+    localStorage.setItem("my_farmer_device_id", devId);
+  }
+  return devId;
+}
 
 // Calculate REAL DYNAMIC ACTIVE FARMERS COUNT (based on registered profiles & active session participants)
 export function getRealActiveFarmersCount(): number {
@@ -90,6 +100,7 @@ export async function postLiveCommunityMessage(text: string, senderName?: string
 
   const newMsg: CommunityChatMessage = {
     id: "msg_" + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+    senderId: getMyDeviceId(),
     senderName: name!,
     senderRegion: region!,
     avatarBg: "bg-[#0F6236]",

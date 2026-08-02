@@ -8,7 +8,8 @@ import {
   CommunityChatMessage, 
   fetchLiveCommunityMessages, 
   postLiveCommunityMessage, 
-  getRealActiveFarmersCount 
+  getRealActiveFarmersCount,
+  getMyDeviceId
 } from "@/lib/sharedCommunity";
 
 export const Route = createFileRoute("/community-chat")({
@@ -28,6 +29,7 @@ export function CommunityChatPage() {
   const [input, setInput] = useState("");
   const [activeOnlineCount, setActiveOnlineCount] = useState(1);
   const [currentFarmerName, setCurrentFarmerName] = useState("");
+  const [myDeviceId, setMyDeviceId] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
@@ -39,6 +41,7 @@ export function CommunityChatPage() {
   // Load real user profile & messages on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
+      setMyDeviceId(getMyDeviceId());
       try {
         const farmProfile = JSON.parse(localStorage.getItem("fish_farm_profile") || "{}");
         const activeUser = JSON.parse(localStorage.getItem("active_user") || "{}");
@@ -188,47 +191,55 @@ export function CommunityChatPage() {
         </div>
 
         {/* Chat Messages List */}
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex flex-col ${msg.isSelf ? "items-end" : "items-start"} space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-200`}
-          >
+        {messages.map((msg) => {
+          const isSelf = Boolean(
+            (myDeviceId && msg.senderId === myDeviceId) ||
+            (currentFarmerName && msg.senderName === currentFarmerName) ||
+            msg.senderName === "You (Farmer)"
+          );
+
+          return (
             <div
-              className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3 shadow-xs relative ${
-                msg.isSelf
-                  ? "bg-[#DCF8C6] text-gray-900 rounded-tr-none border border-emerald-200"
-                  : "bg-white text-gray-900 rounded-tl-none border border-gray-200"
-              }`}
+              key={msg.id}
+              className={`flex flex-col ${isSelf ? "items-end ml-auto" : "items-start mr-auto"} space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-200`}
             >
-              {/* Sender Name & Region */}
-              {!msg.isSelf && (
-                <div className="flex items-center gap-1.5 mb-1 border-b border-gray-100 pb-1">
-                  <div className={`w-5 h-5 rounded-full ${msg.avatarBg} text-white text-[10px] font-black flex items-center justify-center uppercase`}>
-                    {msg.senderName[0]}
+              <div
+                className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3 shadow-xs relative ${
+                  isSelf
+                    ? "bg-[#DCF8C6] text-gray-900 rounded-tr-none border border-emerald-200"
+                    : "bg-white text-gray-900 rounded-tl-none border border-gray-200"
+                }`}
+              >
+                {/* Sender Name & Region */}
+                {!isSelf && (
+                  <div className="flex items-center gap-1.5 mb-1 border-b border-gray-100 pb-1">
+                    <div className={`w-5 h-5 rounded-full ${msg.avatarBg || "bg-[#0F6236]"} text-white text-[10px] font-black flex items-center justify-center uppercase`}>
+                      {msg.senderName ? msg.senderName[0] : "F"}
+                    </div>
+                    <span className="text-xs font-black text-[#075E54] flex items-center gap-1">
+                      {msg.senderName}
+                      {msg.role && (
+                        <span className="bg-[#075E54] text-white text-[9px] px-1.5 py-0.2 rounded-md font-bold uppercase">
+                          {msg.role}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-medium ml-auto">{msg.senderRegion}</span>
                   </div>
-                  <span className="text-xs font-black text-[#075E54] flex items-center gap-1">
-                    {msg.senderName}
-                    {msg.role && (
-                      <span className="bg-[#075E54] text-white text-[9px] px-1.5 py-0.2 rounded-md font-bold uppercase">
-                        {msg.role}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-[10px] text-gray-400 font-medium ml-auto">{msg.senderRegion}</span>
+                )}
+
+                {/* Message Content */}
+                <p className="text-xs font-medium text-gray-800 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+
+                {/* Timestamp & Double Checkmarks */}
+                <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-400">
+                  <span>{msg.time}</span>
+                  {isSelf && <CheckCheck className="w-3.5 h-3.5 text-blue-500" />}
                 </div>
-              )}
-
-              {/* Message Content */}
-              <p className="text-xs font-medium text-gray-800 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-
-              {/* Timestamp & Double Checkmarks */}
-              <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-400">
-                <span>{msg.time}</span>
-                {msg.isSelf && <CheckCheck className="w-3.5 h-3.5 text-blue-500" />}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={messagesEndRef} />
       </main>
 
