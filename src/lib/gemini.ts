@@ -338,7 +338,7 @@ export function speakTextInstant(
   let spokenText = cleanText;
   if (isTwi) {
     if (cleanText.includes("Welcome farmer") || cleanText.includes("Live Weather") || cleanText.includes("Fish Doctor") || cleanText.includes("Part Cloud") || cleanText.includes("Reduce feed")) {
-      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa afutuo: Enneɔɔma nsuo mu nam no ho ye. Nsuo mu afutuo pa: Te aduane no so ketewa bi na mframa pa mmra nsuo no mu pa.";
+      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa afutuo: Enneɔɔma nsuo mu nam no ho ye. Te aduane no so ketewa bi na mframa pa mmra nsuo no mu pa.";
     } else if (!cleanText.includes("Akwaaba")) {
       spokenText = "Akwaaba okuafoɔ! " + cleanText;
     }
@@ -348,73 +348,39 @@ export function speakTextInstant(
     }
   }
 
-  const speakWebSpeech = () => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      try {
-        window.speechSynthesis.cancel();
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-
-        const utterance = new SpeechSynthesisUtterance(spokenText);
-        utterance.volume = 1.0;
-        utterance.rate = 0.88;
-        utterance.pitch = 1.05;
-
-        const voices = window.speechSynthesis.getVoices();
-        const targetLangCode = isTwi ? "en-GH" : isEwe ? "fr-FR" : isHausa ? "ha-NG" : "en-US";
-        const matchedVoice = voices.find(
-          (v) => v.lang.includes(targetLangCode) || v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")
-        ) || voices.find((v) => v.lang.startsWith("en"));
-
-        if (matchedVoice) utterance.voice = matchedVoice;
-
-        utterance.onstart = () => { if (onStart) onStart(); };
-        utterance.onend = () => { if (onEnd) onEnd(); };
-        utterance.onerror = () => { if (onEnd) onEnd(); };
-
-        window.speechSynthesis.speak(utterance);
-        if (onStart) onStart();
-      } catch (e) {
-        console.warn("WebSpeech synthesis error:", e);
-        if (onEnd) onEnd();
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
       }
-    } else {
+
+      const utterance = new SpeechSynthesisUtterance(spokenText);
+      utterance.volume = 1.0;
+      utterance.rate = 0.92;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const targetLangCode = isTwi ? "en-GH" : isEwe ? "fr-FR" : isHausa ? "ha-NG" : "en-US";
+      const matchedVoice = voices.find(
+        (v) => v.lang.includes(targetLangCode) || v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")
+      ) || voices.find((v) => v.lang.startsWith("en"));
+
+      if (matchedVoice) utterance.voice = matchedVoice;
+
+      utterance.onstart = () => { if (onStart) onStart(); };
+      utterance.onend = () => { if (onEnd) onEnd(); };
+      utterance.onerror = () => { if (onEnd) onEnd(); };
+
+      window.speechSynthesis.speak(utterance);
+      if (onStart) onStart();
+    } catch (e) {
+      console.warn("WebSpeech synthesis error:", e);
       if (onEnd) onEnd();
     }
-  };
-
-  const playGhanaAudioStream = () => {
-    try {
-      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(spokenText.substring(0, 200))}&tl=${isTwi ? "en-GH" : isEwe ? "fr-FR" : "en-GH"}&client=tw-ob`;
-      const audio = new Audio(audioUrl);
-      audio.volume = 1.0;
-      audio.onplay = () => { if (onStart) onStart(); };
-      audio.onended = () => { if (onEnd) onEnd(); };
-      audio.onerror = () => {
-        speakWebSpeech();
-      };
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => speakWebSpeech());
-      }
-    } catch (e) {
-      speakWebSpeech();
-    }
-  };
-
-  // Try Khaya AI (Ghana NLP) audio if API key is present, else use Ghana Accent Stream
-  synthesizeSpeechKhayaAI(cleanText, isTwi ? "tw" : isEwe ? "ee" : "en").then((khayaAudioUrl) => {
-    if (khayaAudioUrl) {
-      const audio = new Audio(khayaAudioUrl);
-      audio.volume = 1.0;
-      audio.onplay = () => { if (onStart) onStart(); };
-      audio.onended = () => { if (onEnd) onEnd(); };
-      audio.play().catch(() => playGhanaAudioStream());
-      return;
-    }
-    playGhanaAudioStream();
-  }).catch(() => playGhanaAudioStream());
+  } else {
+    if (onEnd) onEnd();
+  }
 }
 
 function sanitizeAfricanPhonetics(text: string): string {
