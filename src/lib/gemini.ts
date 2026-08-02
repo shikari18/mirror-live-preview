@@ -357,13 +357,14 @@ export function speakTextInstant(
 
       const utterance = new SpeechSynthesisUtterance(spokenText);
       utterance.volume = 1.0;
-      utterance.rate = 0.95;
-      utterance.pitch = 1.02;
+      utterance.rate = 0.90;
+      utterance.pitch = 1.30;
 
       const voices = window.speechSynthesis.getVoices();
       const matchedVoice =
-        voices.find((v) => v.name.includes("Google") && (v.lang.includes("en-GH") || v.lang.includes("en-GB") || v.lang.includes("en-US"))) ||
-        voices.find((v) => v.name.includes("Natural") || v.name.includes("Enhanced") || v.name.includes("Premium")) ||
+        voices.find((v) => (v.name.includes("Female") || v.name.includes("Woman") || v.name.includes("Zira") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Hazel")) && (v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African"))) ||
+        voices.find((v) => (v.name.includes("Female") || v.name.includes("Woman")) && v.name.includes("Google")) ||
+        voices.find((v) => v.name.includes("Zira") || v.name.includes("Hazel") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Fiona")) ||
         voices.find((v) => v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")) ||
         voices.find((v) => v.lang.startsWith("en"));
 
