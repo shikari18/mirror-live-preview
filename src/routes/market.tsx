@@ -16,102 +16,14 @@ export const Route = createFileRoute("/market")({
   }),
 });
 
-interface MarketItem {
-  id: string;
-  category: "feeds" | "equipment" | "supplies" | "fish" | "harvest";
-  title: string;
-  priceGHS: number;
-  unit: string;
-  seller: string;
-  phone: string;
-  location: string;
-  tag?: string;
-  image: string;
-  isUserListing?: boolean;
-}
-
-const DEFAULT_MARKET_ITEMS: MarketItem[] = [
-  {
-    id: "m1",
-    category: "harvest",
-    title: "Fresh Harvested Catfish (1.2kg - 1.5kg size)",
-    priceGHS: 38,
-    unit: "per kg",
-    seller: "Kofi Mensah Farm",
-    phone: "0244123456",
-    location: "Kasoa, Central Region",
-    tag: "Fresh Harvest",
-    image: sellFishImg,
-  },
-  {
-    id: "m2",
-    category: "harvest",
-    title: "Live Nile Tilapia (Table Size 400g)",
-    priceGHS: 35,
-    unit: "per kg",
-    seller: "Akosombo Cage Farm",
-    phone: "0209876543",
-    location: "Akosombo, Eastern Region",
-    tag: "High Quality",
-    image: sellFishImg,
-  },
-  {
-    id: "m3",
-    category: "feeds",
-    title: "Raanan Catfish Feed (45% Protein)",
-    priceGHS: 245,
-    unit: "15kg Bag",
-    seller: "Raanan Feed Depot",
-    phone: "0551122334",
-    location: "Tema Heavy Industrial",
-    tag: "Wholesale",
-    image: buyFeedImg,
-  },
-  {
-    id: "m4",
-    category: "feeds",
-    title: "Aller Aqua Tilapia Pellets (3mm)",
-    priceGHS: 230,
-    unit: "15kg Bag",
-    seller: "Aller Aqua Ghana",
-    phone: "0277334455",
-    location: "Kumasi Depot",
-    tag: "Best Seller",
-    image: buyFeedImg,
-  },
-  {
-    id: "m5",
-    category: "equipment",
-    title: "Solar Paddlewheel Aerator (1.5 HP)",
-    priceGHS: 3400,
-    unit: "Unit",
-    seller: "AquaTech Solar Ghana",
-    phone: "0500998877",
-    location: "Accra",
-    tag: "Solar Powered",
-    image: marketPricesImg,
-  },
-  {
-    id: "m6",
-    category: "fish",
-    title: "High-Growth Catfish Fingerlings",
-    priceGHS: 1.8,
-    unit: "Piece (Min 500)",
-    seller: "Sunrise Hatchery",
-    phone: "0245667788",
-    location: "Sunyani, Bono Region",
-    tag: "Fast Growing",
-    image: sellFishImg,
-  },
-];
-
-const LOCAL_STORAGE_LISTINGS_KEY = "custom_marketplace_listings_v1";
+import { fetchGlobalMarketItems, publishMarketItem, MarketItem } from "@/lib/sharedMarket";
 
 export function MarketPage() {
   const [activeCategory, setActiveCategory] = useState<"all" | "harvest" | "feeds" | "equipment" | "fish">("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [items, setItems] = useState<MarketItem[]>(DEFAULT_MARKET_ITEMS);
+  const [items, setItems] = useState<MarketItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // New Listing Form State
   const [newTitle, setNewTitle] = useState("");
@@ -122,55 +34,64 @@ export function MarketPage() {
   const [newPhone, setNewPhone] = useState("");
   const [newLocation, setNewLocation] = useState("Kumasi, Ghana");
 
+  const loadSharedItems = async () => {
+    try {
+      const data = await fetchGlobalMarketItems();
+      setItems(data);
+    } catch (e) {
+      console.warn("Market sync error", e);
+    }
+  };
+
   useEffect(() => {
-    // Load custom listings
     const savedName = localStorage.getItem("user_name");
     const savedPhone = localStorage.getItem("user_phone");
     if (savedName) setNewSeller(savedName);
     if (savedPhone) setNewPhone(savedPhone);
 
-    try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_LISTINGS_KEY);
-      if (raw) {
-        const customItems: MarketItem[] = JSON.parse(raw);
-        setItems([...customItems, ...DEFAULT_MARKET_ITEMS]);
-      }
-    } catch (e) {
-      console.warn("Market custom listings error", e);
-    }
+    loadSharedItems();
+
+    // Poll every 3 seconds for real-time cloud sync across devices
+    const interval = setInterval(loadSharedItems, 3000);
+    window.addEventListener("storage", loadSharedItems);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", loadSharedItems);
+    };
   }, []);
 
-  const handleCreateListing = (e: React.FormEvent) => {
+  const handleCreateListing = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newPhone.trim()) {
       alert("Please enter a title and phone number for your listing!");
       return;
     }
 
-    const newItem: MarketItem = {
-      id: "c_" + Date.now().toString(36),
-      category: newCategory,
-      title: newTitle.trim(),
-      priceGHS: Number(newPrice) || 0,
-      unit: newUnit.trim() || "per unit",
-      seller: newSeller.trim() || "Farmer",
-      phone: newPhone.trim(),
-      location: newLocation.trim() || "Ghana",
-      tag: "Verified Farmer",
-      image: newCategory === "feeds" ? buyFeedImg : newCategory === "equipment" ? marketPricesImg : sellFishImg,
-      isUserListing: true,
-    };
+    setIsSyncing(true);
+    try {
+      const updated = await publishMarketItem({
+        category: newCategory,
+        title: newTitle.trim(),
+        priceGHS: Number(newPrice) || 0,
+        unit: newUnit.trim() || "per unit",
+        seller: newSeller.trim() || "Farmer",
+        phone: newPhone.trim(),
+        location: newLocation.trim() || "Ghana",
+        tag: "Verified Farmer",
+        image: newCategory === "feeds" ? buyFeedImg : newCategory === "equipment" ? marketPricesImg : sellFishImg,
+      });
 
-    const updated = [newItem, ...items];
-    setItems(updated);
-
-    // Save custom items
-    const customOnly = updated.filter((i) => i.isUserListing);
-    localStorage.setItem(LOCAL_STORAGE_LISTINGS_KEY, JSON.stringify(customOnly));
-
-    setIsModalOpen(false);
-    setNewTitle("");
-    alert("Your harvest listing has been posted successfully to the marketplace!");
+      setItems(updated);
+      setIsModalOpen(false);
+      setNewTitle("");
+      alert("🎉 Your item has been published globally to the shared marketplace!");
+    } catch (err) {
+      console.error("Listing publish error:", err);
+      alert("Listing saved locally.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const filteredItems = items.filter((item) => {

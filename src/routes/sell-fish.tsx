@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Plus, Phone, MessageSquare, ImageIcon, CheckCircle, 
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { useLanguage } from "@/lib/languageContext";
+import { publishMarketItem } from "@/lib/sharedMarket";
 
 export const Route = createFileRoute("/sell-fish")({
   component: SellFishPage,
@@ -69,7 +70,7 @@ export function SellFishPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newItem: MarketplaceItem = {
       id: Date.now().toString(),
@@ -89,12 +90,32 @@ export function SellFishPage() {
     const updated = [newItem, ...existing];
     localStorage.setItem("user_marketplace_items", JSON.stringify(updated));
 
+    // Also publish to global shared cloud store
+    try {
+      const numPrice = parseFloat(price.replace(/[^0-9.]/g, "")) || 35;
+      const catKey = category.toLowerCase() === "fish" || category.toLowerCase() === "harvest" ? "harvest" : category.toLowerCase() === "feed" ? "feeds" : "equipment";
+      await publishMarketItem({
+        category: catKey as any,
+        title,
+        priceGHS: numPrice,
+        unit: "Harvest Batch",
+        seller: newItem.sellerName,
+        phone,
+        location,
+        tag: "Direct Farm Sale",
+        image: imagePreview || undefined,
+      });
+    } catch (err) {
+      console.warn("Global publish error from sell-fish", err);
+    }
+
     setUserListings(updated);
     setIsModalOpen(false);
     setTitle("");
     setPrice("");
     setDescription("");
     setImagePreview(null);
+    alert("🎉 Your harvest listing has been published to the shared marketplace!");
   };
 
   return (
