@@ -338,34 +338,35 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   const isGa = langLower.includes("ga");
   const isHausa = langLower.includes("hausa");
 
-  let spokenText = cleanText;
-  if (cleanText.includes("Welcome farmer") || cleanText.includes("Tropical Climate") || cleanText.includes("Feeding Schedule")) {
-    if (isTwi) {
-      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa ne mpɔtorɔ afideɛ afutuo: Ewiem mmoa ye aduasa. Ma w'anigye mmra aduane ma mpɔtorɔ no na fa Fish Doctor AI bɔ wɔn apɔwmuden kɔkɔɔ.";
-    } else if (isEwe) {
-      spokenText = "Woezɔ agbledela! Yame ƒe nɔnɔme gblɔ be dzoxɔxɔ le 29°C. Kpɔ nuɖuɖu na tɔmelãwo nyuie eye zã Fish Doctor AI na dɔwɔwɔ nyui.";
-    } else if (isGa) {
-      spokenText = "Ofeeŋɔ nitsulɔ! Jeŋgbɛ mli dzɔɔmɔ: Ma oniyeniishee aha looyii lɛ kɛ nitsumɔ Fish Doctor AI.";
-    } else if (isHausa) {
-      spokenText = "Barka da zuwa manoma! Kula da abincin kifi da lafiyar ruwa da amfani da Fish Doctor AI.";
+  const sanitizedSpokenText = sanitizeAfricanPhonetics(cleanText);
+
+  // 1. Primary Priority: Abena AI Authentic Voice Engine
+  let abenaVoice: string | null = null;
+  if (isTwi) abenaVoice = "abena_twi_high";
+  else if (isEwe) abenaVoice = "mawuli_ewe";
+  else if (isPidgin) abenaVoice = "kobby_gpe";
+  else if (isHausa) abenaVoice = "abubakar_hau";
+  else abenaVoice = "akua_eng"; // Default Ghanaian Accent English
+
+  if (abenaVoice) {
+    const abenaAudioUrl = await synthesizeAbenaAI(sanitizedSpokenText, abenaVoice);
+    if (abenaAudioUrl) {
+      CLIENT_AUDIO_CACHE.set(cacheKey, abenaAudioUrl);
+      return abenaAudioUrl;
     }
   }
 
-  const sanitizedSpokenText = sanitizeAfricanPhonetics(spokenText);
-
-  // 1. Try Gemini 2.5 & 3.1 Flash Live Audio Generation API (Ghanaian Neural Voice)
+  // 2. Gemini Multi-Model Failover
   const apiKey = getGeminiKey();
   if (apiKey) {
     const AUDIO_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
     let promptText = sanitizedSpokenText;
     if (isTwi) {
-      promptText = `You are an authentic native speaker born and raised in Kumasi, Ghana. Speak fluent Asante Twi at a lively, energetic pace with a 100% authentic, typical local Ghanaian accent and native vocal inflection: "${sanitizedSpokenText}"`;
+      promptText = `You are an authentic native speaker born in Kumasi, Ghana. Speak fluent Asante Twi with authentic Ghanaian accent: "${sanitizedSpokenText}"`;
     } else if (isEwe) {
-      promptText = `You are a native Ewe speaker born in Ho, Volta Region, Ghana. Speak this in authentic native Ewe language with a warm local Volta Ghanaian accent and natural cadence: "${sanitizedSpokenText}"`;
+      promptText = `You are a native Ewe speaker born in Ho, Volta Region, Ghana. Speak in native Ewe with Volta Ghanaian accent: "${sanitizedSpokenText}"`;
     } else if (isGa) {
-      promptText = `You are a native Ga speaker born in Greater Accra, Ghana. Speak this in authentic native Ga language with a local Accra Ghanaian accent and natural cadence: "${sanitizedSpokenText}"`;
-    } else if (isHausa) {
-      promptText = `You are a native Hausa speaker. Speak this in authentic native Hausa language with a warm African accent and natural cadence: "${sanitizedSpokenText}"`;
+      promptText = `You are a native Ga speaker. Speak in native Ga with Accra Ghanaian accent: "${sanitizedSpokenText}"`;
     }
 
     for (const model of AUDIO_MODELS) {
@@ -376,23 +377,14 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              contents: [
-                {
-                  role: "user",
-                  parts: [{ text: promptText }]
-                }
-              ],
+              contents: [{ role: "user", parts: [{ text: promptText }] }],
               generationConfig: {
                 responseModalities: ["AUDIO"],
                 speechConfig: {
-                  voiceConfig: {
-                    prebuiltVoiceConfig: {
-                      voiceName: "Kore" // Expressive warm voice
-                    }
-                  }
-                }
-              }
-            })
+                  voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } },
+                },
+              },
+            }),
           }
         );
 
@@ -416,7 +408,7 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
     }
   }
 
-  // 2. High-Speed Fallback to Google TTS Audio Stream URL
+  // 3. Google TTS Fallback
   const ttsLang = isTwi ? "sw" : isEwe ? "fr" : isGa ? "sw" : isHausa ? "ha" : "en";
   const fallbackUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(sanitizedSpokenText.slice(0, 200))}&tl=${ttsLang}&client=tw-ob`;
   CLIENT_AUDIO_CACHE.set(cacheKey, fallbackUrl);

@@ -456,62 +456,49 @@ export function MyFarmPage() {
             </span>
           </div>
 
-          {/* Captured Snapshot & Measurement Result Popup Modal */}
+          {/* Full Screen Captured Snapshot & Measurement Result Modal */}
           {capturedSnapshot && (
-            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-5 animate-in zoom-in-95">
-              <div className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl border border-gray-100 text-gray-900">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <h3 className="font-black text-base text-gray-900 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-[#0F6236]" /> Measured Result
-                  </h3>
-                  <button onClick={() => setCapturedSnapshot(null)} className="p-1 text-gray-400 hover:text-gray-600">
+            <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in zoom-in-95">
+              {/* Full Screen Image displaying White Line & Numbers */}
+              <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+                <img src={capturedSnapshot} alt="Full Scanned Pond" className="w-full h-full object-contain" />
+              </div>
+
+              {/* Floating Bottom Action Sheet */}
+              <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black via-black/90 to-transparent z-30 space-y-3 max-w-md mx-auto">
+                <div className="flex items-center justify-between text-white border-b border-white/20 pb-2">
+                  <span className="font-extrabold text-sm flex items-center gap-1.5 text-emerald-400">
+                    <Sparkles className="w-4 h-4 text-emerald-400" /> Full Photo Scan Verified
+                  </span>
+                  <button
+                    onClick={() => setCapturedSnapshot(null)}
+                    className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full text-white cursor-pointer"
+                  >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                {/* Captured Photo Snapshot */}
-                <div className="relative rounded-2xl overflow-hidden border-2 border-[#0F6236] shadow-md">
-                  <img src={capturedSnapshot} alt="Captured Pond" className="w-full h-44 object-cover" />
-                  <div className="absolute bottom-2 left-2 bg-black/80 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                    Scanned Photo
+                <div className="grid grid-cols-2 gap-3 text-white">
+                  <div className="bg-white/10 backdrop-blur-md p-2.5 rounded-2xl border border-white/20 text-center">
+                    <div className="text-[10px] font-extrabold text-emerald-300 uppercase">Width</div>
+                    <div className="text-lg font-black text-white">{targetWidth.toFixed(1)} m</div>
                   </div>
-                </div>
-
-                {/* Measured Width & Height Results */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-center">
-                    <div className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wide">Width</div>
-                    <div className="text-xl font-black text-[#0F6236] mt-0.5">{targetWidth.toFixed(1)} m</div>
+                  <div className="bg-white/10 backdrop-blur-md p-2.5 rounded-2xl border border-white/20 text-center">
+                    <div className="text-[10px] font-extrabold text-emerald-300 uppercase">Height</div>
+                    <div className="text-lg font-black text-white">{targetLength.toFixed(1)} m</div>
                   </div>
-
-                  <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-center">
-                    <div className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wide">Height / Length</div>
-                    <div className="text-xl font-black text-[#0F6236] mt-0.5">{targetLength.toFixed(1)} m</div>
-                  </div>
-                </div>
-
-                {/* Save Pond Name Form */}
-                <div>
-                  <label className="text-[11px] font-extrabold text-gray-700 block mb-1">Pond Name</label>
-                  <input
-                    type="text"
-                    value={pondName}
-                    onChange={(e) => setPondName(e.target.value)}
-                    placeholder="e.g. Earth Pond 1"
-                    className="w-full h-11 px-3 text-xs font-bold border border-gray-300 rounded-xl bg-gray-50 outline-none"
-                  />
                 </div>
 
                 <div className="flex gap-2 pt-1">
                   <button
                     onClick={handleSaveCameraPond}
-                    className="flex-1 h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+                    className="flex-1 h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
                   >
-                    <Check className="w-4 h-4 text-white" /> Save Pond to Memory
+                    <Check className="w-4 h-4" /> Save Pond Record
                   </button>
                   <button
                     onClick={() => setCapturedSnapshot(null)}
-                    className="px-4 h-12 bg-gray-100 text-gray-800 font-extrabold text-xs rounded-2xl hover:bg-gray-200 cursor-pointer"
+                    className="px-4 h-12 bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs rounded-2xl cursor-pointer"
                   >
                     Retake
                   </button>
