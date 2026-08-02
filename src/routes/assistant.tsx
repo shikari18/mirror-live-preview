@@ -178,50 +178,49 @@ export function AssistantPage() {
     );
   };
 
-  const lastSpokenRef = useRef<string>("");
+  const isProcessingCallRef = useRef(false);
 
   const startSpeechRecognition = () => {
     if (typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan") ? "ak-GH" : "en-US";
-
-      recognition.onstart = () => setIsListeningSpeech(true);
-      recognition.onend = () => {
-        setIsListeningSpeech(false);
-        if (isVideoCallOpen) {
-          try { recognition.start(); } catch (e) {}
-        }
-      };
-
-      recognition.onresult = (event: any) => {
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          const spokenText = result[0]?.transcript?.trim();
-
-          if (spokenText && spokenText.length >= 2) {
-            // Trigger immediately when phrase is finalized or continuous speech is received
-            if (result.isFinal || event.results.length === i + 1) {
-              if (lastSpokenRef.current !== spokenText) {
-                lastSpokenRef.current = spokenText;
-                handleUserVoiceInCall(spokenText);
-              }
-            }
-          }
-        }
-      };
-
       try {
+        if (recognitionRef.current) {
+          try { recognitionRef.current.stop(); } catch (e) {}
+        }
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan") ? "ak-GH" : "en-US";
+
+        recognition.onstart = () => setIsListeningSpeech(true);
+        recognition.onend = () => {
+          setIsListeningSpeech(false);
+          if (isVideoCallOpen && !isCallMuted && !isProcessingCallRef.current) {
+            setTimeout(() => {
+              if (isVideoCallOpen && !isProcessingCallRef.current) {
+                try { recognition.start(); } catch (e) {}
+              }
+            }, 300);
+          }
+        };
+
+        recognition.onresult = (event: any) => {
+          const spokenText = event.results[0]?.[0]?.transcript?.trim();
+          if (spokenText && spokenText.length >= 2) {
+            handleUserVoiceInCall(spokenText);
+          }
+        };
+
         recognition.start();
         recognitionRef.current = recognition;
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Speech recognition error", e);
+      }
     }
   };
 
   const stopSpeechRecognition = () => {
-    lastSpokenRef.current = "";
+    isProcessingCallRef.current = false;
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch (e) {}
       recognitionRef.current = null;
@@ -229,13 +228,18 @@ export function AssistantPage() {
   };
 
   const handleUserVoiceInCall = async (userSpeech: string) => {
-    if (isCallMuted || !userSpeech.trim()) return;
+    if (isCallMuted || isProcessingCallRef.current || !userSpeech.trim()) return;
+    isProcessingCallRef.current = true;
+    setVideoLoading(true);
 
     try {
       const response = await getAIVideoCallResponse(userSpeech, language);
-      playVoice(response);
+      await playVoice(response);
     } catch (err) {
       console.error(err);
+    } finally {
+      setVideoLoading(false);
+      isProcessingCallRef.current = false;
     }
   };
 
@@ -529,17 +533,41 @@ export function AssistantPage() {
               ✕
             </button>
           </div>
+          {/* Quick Voice Sample Chips */}
+          <div className="w-full max-w-sm px-6 z-20 flex flex-wrap items-center justify-center gap-2">
+            {[
+              "Hello Doctor!",
+              "How to feed my fish?",
+              "Check water parameters"
+            ].map((sample) => (
+              <button
+                key={sample}
+                onClick={() => handleUserVoiceInCall(sample)}
+                className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 text-white text-[11px] font-semibold cursor-pointer transition-all active:scale-95 shadow-sm"
+              >
+                🗣️ "{sample}"
+              </button>
+            ))}
+          </div>
 
           {/* Minimal Bottom Control Bar */}
           <div className="w-full max-w-sm p-6 m-5 z-20 flex items-center justify-center gap-5">
             <button
-              onClick={() => setIsCallMuted((prev) => !prev)}
+              onClick={() => {
+                if (isCallMuted) {
+                  setIsCallMuted(false);
+                  startSpeechRecognition();
+                } else {
+                  setIsCallMuted(true);
+                  stopSpeechRecognition();
+                }
+              }}
               className={`p-4 rounded-full transition-all cursor-pointer shadow-lg ${
-                isCallMuted ? "bg-red-600 text-white" : "bg-white/15 text-white hover:bg-white/25"
+                isCallMuted ? "bg-red-600 text-white" : "bg-emerald-600/30 border border-emerald-400/50 text-white hover:bg-emerald-600/50"
               }`}
               title={isCallMuted ? "Unmute Mic" : "Mute Mic"}
             >
-              {isCallMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6 text-white" />}
+              {isCallMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6 text-emerald-400 animate-pulse" />}
             </button>
 
             <button
