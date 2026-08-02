@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { Send, Mic, ArrowLeft, Stethoscope, Loader2, MapPin, Video, PhoneOff, MicOff, RefreshCw, Volume2, Download, Paperclip, FileText, Camera, Check, VideoOff, SwitchCamera, UserCheck, Plus } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
-import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, MediaAttachment } from "@/lib/gemini";
+import { getAIAssistantResponse, getAIVideoCallResponse, getGeminiLiveVoiceAudio, speakTextInstant, MediaAttachment } from "@/lib/gemini";
 import { useLanguage } from "@/lib/languageContext";
 
 export const Route = createFileRoute("/assistant")({
@@ -152,58 +152,25 @@ export function AssistantPage() {
   };
 
   const playVoice = async (text: string, msgId?: string) => {
-    if (playingMsgId === msgId && currentAudioRef.current) {
+    if (playingMsgId === msgId) {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
       stopAudio();
       return;
     }
 
     stopAudio();
     if (msgId) setPlayingMsgId(msgId);
+    setVoiceProgress("Playing Voice...");
 
-    setVoiceProgress("Downloading Voice 10%...");
-    let pct = 10;
-    progressIntervalRef.current = setInterval(() => {
-      pct = Math.min(pct + 15, 90);
-      setVoiceProgress(`Downloading Voice ${pct}%...`);
-    }, 150);
-
-    const audioUrl = await getGeminiLiveVoiceAudio(text, language);
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
-
-    if (audioUrl) {
-      setVoiceProgress("Downloading Voice 100%!");
-      try {
-        const audio = new Audio(audioUrl);
-        currentAudioRef.current = audio;
-
-        audio.onplay = () => setVoiceProgress("Playing Voice...");
-        audio.onended = () => stopAudio();
-        audio.onerror = () => {
-          console.warn("Audio element failed, falling back to speech synth");
-          if (typeof window !== "undefined" && "speechSynthesis" in window) {
-            window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
-            u.rate = 0.88;
-            window.speechSynthesis.speak(u);
-          }
-          stopAudio();
-        };
-        await audio.play();
-        return;
-      } catch (e) {
-        console.warn("Audio play error", e);
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-          const u = new SpeechSynthesisUtterance(text);
-          u.rate = 0.88;
-          window.speechSynthesis.speak(u);
-        }
-      }
-    }
-    stopAudio();
+    // Instantly speak using high quality speech engine
+    speakTextInstant(
+      text,
+      language,
+      () => setVoiceProgress("Playing Voice..."),
+      () => stopAudio()
+    );
   };
 
   const startSpeechRecognition = () => {

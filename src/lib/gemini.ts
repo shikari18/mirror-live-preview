@@ -249,6 +249,59 @@ function pcmToWavUrl(base64Pcm: string, sampleRate: number = 24000): string {
   }
 }
 
+export function speakTextInstant(
+  text: string,
+  language: string = "English",
+  onStart?: () => void,
+  onEnd?: () => void
+): void {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    if (onEnd) onEnd();
+    return;
+  }
+
+  try {
+    window.speechSynthesis.cancel();
+    const cleanText = text.replace(/[#*`_]/g, "").trim();
+    if (!cleanText) {
+      if (onEnd) onEnd();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 0.90;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const isTwi = language.toLowerCase().includes("twi") || language.toLowerCase().includes("akan");
+
+    if (!isTwi) {
+      const engVoice = voices.find(
+        (v) =>
+          (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Samantha") || v.name.includes("Daniel")) &&
+          v.lang.startsWith("en")
+      );
+      if (engVoice) utterance.voice = engVoice;
+      utterance.lang = "en-US";
+    }
+
+    utterance.onstart = () => {
+      if (onStart) onStart();
+    };
+    utterance.onend = () => {
+      if (onEnd) onEnd();
+    };
+    utterance.onerror = () => {
+      if (onEnd) onEnd();
+    };
+
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn("Speech error:", e);
+    if (onEnd) onEnd();
+  }
+}
+
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
