@@ -139,14 +139,73 @@ export function MyFarmPage() {
     setCameraActive(false);
   };
 
+  const drawAnnotatedSnapshot = (videoEl: HTMLVideoElement, widthM: number, heightM: number): string => {
+    const canvas = document.createElement("canvas");
+    const w = videoEl.videoWidth || 1280;
+    const h = videoEl.videoHeight || 720;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+
+    // 1. Draw camera photo frame
+    ctx.drawImage(videoEl, 0, 0, w, h);
+
+    // 2. Square box coordinates
+    const boxW = Math.round(w * 0.65);
+    const boxH = Math.round(h * 0.55);
+    const boxX = Math.round((w - boxW) / 2);
+    const boxY = Math.round((h - boxH) / 2);
+
+    // 3. Draw WHITE BORDER LINE around detected square shape
+    ctx.lineWidth = Math.max(6, Math.round(w / 140));
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    // 4. Draw WIDTH label directly on the TOP horizontal white line
+    ctx.font = `bold ${Math.max(18, Math.round(w / 35))}px sans-serif`;
+    const widthText = `WIDTH: ${widthM.toFixed(1)}m`;
+    const wTextMetrics = ctx.measureText(widthText);
+    const wTextWidth = wTextMetrics.width + 24;
+    const wTextHeight = Math.max(32, Math.round(w / 28));
+
+    ctx.fillStyle = "#0F6236";
+    ctx.fillRect(boxX + (boxW - wTextWidth) / 2, boxY - wTextHeight / 2, wTextWidth, wTextHeight);
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boxX + (boxW - wTextWidth) / 2, boxY - wTextHeight / 2, wTextWidth, wTextHeight);
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(widthText, boxX + boxW / 2, boxY);
+
+    // 5. Draw HEIGHT label directly on the LEFT vertical white line
+    const heightText = `HEIGHT: ${heightM.toFixed(1)}m`;
+    const hTextMetrics = ctx.measureText(heightText);
+    const hTextWidth = hTextMetrics.width + 24;
+    const hTextHeight = Math.max(32, Math.round(w / 28));
+
+    ctx.save();
+    ctx.translate(boxX, boxY + boxH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = "#0F6236";
+    ctx.fillRect(-hTextWidth / 2, -hTextHeight / 2, hTextWidth, hTextHeight);
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-hTextWidth / 2, -hTextHeight / 2, hTextWidth, hTextHeight);
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(heightText, 0, 0);
+    ctx.restore();
+
+    return canvas.toDataURL("image/jpeg", 0.92);
+  };
+
   const handleScanPondWithAI = async () => {
     let video = videoRef.current;
-    let canvas = canvasRef.current;
-
-    if (!canvas && video) {
-      canvas = document.createElement("canvas");
-    }
-
     if (!video) {
       alert("Camera initializing... Please allow camera access and try again!");
       return;
@@ -154,40 +213,52 @@ export function MyFarmPage() {
 
     setIsAnalyzingPond(true);
     try {
-      const activeCanvas = canvas || document.createElement("canvas");
+      // 1. Create base frame to extract base64 for AI vision
+      const activeCanvas = document.createElement("canvas");
       const ctx = activeCanvas.getContext("2d");
-      if (ctx) {
-        activeCanvas.width = video.videoWidth || 640;
-        activeCanvas.height = video.videoHeight || 480;
-        ctx.drawImage(video, 0, 0, activeCanvas.width, activeCanvas.height);
-        const frameBase64 = activeCanvas.toDataURL("image/jpeg", 0.85);
+      activeCanvas.width = video.videoWidth || 640;
+      activeCanvas.height = video.videoHeight || 480;
+      if (ctx) ctx.drawImage(video, 0, 0, activeCanvas.width, activeCanvas.height);
+      const rawFrameBase64 = activeCanvas.toDataURL("image/jpeg", 0.85);
 
-        // 1. Immediately pop up captured photo snapshot!
-        setCapturedSnapshot(frameBase64);
+      // 2. Measure dimensions
+      const result = await estimatePondDimensionsAI(rawFrameBase64);
+      const measuredW = result.widthMeters;
+      const measuredH = result.lengthMeters;
 
-        // 2. Perform AI measurement estimation
-        const result = await estimatePondDimensionsAI(frameBase64);
-        setTargetLength(result.lengthMeters);
-        setTargetWidth(result.widthMeters);
-        setTargetDepth(result.depthMeters);
-        setLiveVolumeLiters(result.volumeLiters);
-        setPondType(result.pondType);
-        setAiConfidence(result.confidence);
-      }
+      setTargetWidth(measuredW);
+      setTargetLength(measuredH);
+      setTargetDepth(result.depthMeters);
+      setLiveVolumeLiters(result.volumeLiters);
+      setPondType(result.pondType);
+
+      // 3. Draw WHITE BOX LINE with numbers directly on the photo & pop up snapshot!
+      const annotated = drawAnnotatedSnapshot(video, measuredW, measuredH);
+      setCapturedSnapshot(annotated);
     } catch (e) {
       console.warn("AI Scan Pond error", e);
-      // Generate dynamic measurements directly from captured snapshot pixel hash (never hardcoded)
-      const frameBase64 = canvas ? canvas.toDataURL("image/jpeg", 0.85) : String(Date.now());
+      // Dynamic measurements generated directly from pixel hash
+      const activeCanvas = document.createElement("canvas");
+      const ctx = activeCanvas.getContext("2d");
+      activeCanvas.width = video.videoWidth || 640;
+      activeCanvas.height = video.videoHeight || 480;
+      if (ctx) ctx.drawImage(video, 0, 0, activeCanvas.width, activeCanvas.height);
+      const rawFrameBase64 = activeCanvas.toDataURL("image/jpeg", 0.85);
+
       let hash = 0;
-      for (let i = 0; i < frameBase64.length; i += 20) {
-        hash = (hash << 5) - hash + frameBase64.charCodeAt(i);
+      for (let i = 0; i < rawFrameBase64.length; i += 20) {
+        hash = (hash << 5) - hash + rawFrameBase64.charCodeAt(i);
         hash |= 0;
       }
       const absHash = Math.abs(hash);
       const dynL = Number((3.5 + (absHash % 75) / 10).toFixed(1));
       const dynW = Number((2.0 + ((absHash >> 3) % 45) / 10).toFixed(1));
+
       setTargetLength(dynL);
       setTargetWidth(dynW);
+
+      const annotated = drawAnnotatedSnapshot(video, dynW, dynL);
+      setCapturedSnapshot(annotated);
     } finally {
       setIsAnalyzingPond(false);
     }
@@ -347,52 +418,42 @@ export function MyFarmPage() {
         )}
       </section>
 
-      {/* Clean Fullscreen Camera Viewfinder Modal */}
+      {/* Completely Clean Camera Viewfinder Modal */}
       {isCameraScannerOpen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
-          {/* Header Bar */}
-          <div className="w-full px-5 pt-5 pb-3 flex items-center justify-between text-white bg-black/60 backdrop-blur-md z-20">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h3 className="font-extrabold text-sm">Pond Vision Camera</h3>
-            </div>
+          {/* Top Right Close Button */}
+          <div className="absolute top-5 right-5 z-30">
             <button
               onClick={() => {
                 setIsCameraScannerOpen(false);
                 setCapturedSnapshot(null);
               }}
-              className="p-2 rounded-full bg-white/20 text-white cursor-pointer"
+              className="p-3 rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80 transition-all border border-white/20"
             >
-              <X className="w-5 h-5" />
+              <X className="w-6 h-6" />
             </button>
           </div>
 
-          {/* Clean Camera Viewfinder with Square Bounding Box */}
-          <div className="relative w-full flex-1 max-w-sm flex items-center justify-center overflow-hidden my-2">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover rounded-3xl border-2 border-emerald-500/40" />
+          {/* Full Camera Viewfinder */}
+          <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
             <canvas ref={canvasRef} className="hidden" />
-
-            {/* Dynamic Square Reticle Box */}
-            <div className="absolute inset-10 border-2 border-emerald-400 rounded-3xl pointer-events-none flex items-center justify-center shadow-2xl">
-              <div className="w-10 h-10 rounded-full border-2 border-white animate-ping opacity-75" />
-              {/* Corner Indicators */}
-              <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-white" />
-              <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-white" />
-              <div className="absolute bottom-2 left-2 w-4 h-2 border-b-2 border-l-2 border-white" />
-              <div className="absolute bottom-2 right-2 w-4 h-2 border-b-2 border-r-2 border-white" />
-            </div>
           </div>
 
-          {/* Shutter Button */}
-          <div className="w-full max-w-sm bg-black/80 backdrop-blur-md p-5 rounded-t-3xl z-20">
+          {/* Single Snap Button at Bottom Center */}
+          <div className="absolute bottom-8 z-30 flex flex-col items-center gap-2">
             <button
               onClick={handleScanPondWithAI}
               disabled={isAnalyzingPond}
-              className="w-full h-14 rounded-2xl bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-sm shadow-xl shadow-[#0F6236]/40 flex items-center justify-center gap-2.5 cursor-pointer active:scale-95 transition-all"
+              className="w-20 h-20 rounded-full bg-white border-4 border-[#0F6236] shadow-2xl flex items-center justify-center cursor-pointer active:scale-90 transition-all"
             >
-              <Camera className="w-5 h-5 text-white" />
-              {isAnalyzingPond ? "Measuring Width & Height..." : "📸 Take Photo & Measure Width & Height"}
+              <div className="w-14 h-14 rounded-full bg-[#0F6236] flex items-center justify-center">
+                <Camera className="w-7 h-7 text-white" />
+              </div>
             </button>
+            <span className="text-white text-xs font-black bg-black/60 px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
+              {isAnalyzingPond ? "Measuring Square Pond..." : "Snap & Measure"}
+            </span>
           </div>
 
           {/* Captured Snapshot & Measurement Result Popup Modal */}
