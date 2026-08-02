@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Bell, MapPin, Volume2, Play, Stethoscope, CloudRain, Zap, Camera, AlertCircle, Building2, ChevronRight, Clock, ShieldCheck } from "lucide-react";
+import { Settings, Bell, MapPin, Volume2, Play, Stethoscope, CloudRain, Zap, Camera, AlertCircle, Building2, ChevronRight, Clock, ShieldCheck, MessageSquare } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import feedSacks from "@/assets/feed-sacks.jpg";
@@ -313,16 +313,62 @@ export function HomePage() {
           <div className="mt-1 text-[13px] text-emerald-100 font-medium leading-relaxed">
             {pondsCount > 0 ? `Total Stock: ${totalFish.toLocaleString()} Fish • AI Doctor Synced` : "Measure your pond with camera scanner to sync metrics"}
           </div>
-
           <div className="mt-4 flex gap-2.5">
             <Link to="/my-farm" className="px-4 py-2.5 rounded-2xl bg-white text-[#0F6236] hover:bg-emerald-50 font-extrabold text-xs shadow-lg shadow-black/20 flex items-center gap-2 transition-all active:scale-95">
               <Camera className="w-4 h-4 text-[#0F6236]" /> AR Camera Measure
             </Link>
-            <Link to="/ai-doctor" className="px-4 py-2.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-white font-extrabold text-xs backdrop-blur-md border border-white/20 flex items-center gap-1.5 transition-all">
-              <Stethoscope className="w-3.5 h-3.5 text-emerald-300" /> Diagnose Fish
+            <Link to="/ai-doctor" className="px-4 py-2.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-white font-extrabold text-xs border border-emerald-400/30 flex items-center gap-2 transition-all active:scale-95">
+              <Stethoscope className="w-4 h-4 text-emerald-300" /> AI Doctor Scan
             </Link>
           </div>
         </div>
+      </section>
+
+      {/* Big Prominent Live Farmers Chat Card (WhatsApp Style) */}
+      <section className="mx-5 mt-4">
+        <Link
+          to="/community-chat"
+          className="block p-5 rounded-3xl bg-gradient-to-r from-[#075E54] via-[#128C7E] to-[#075E54] text-white shadow-xl shadow-[#075E54]/30 border border-emerald-400/30 relative overflow-hidden transition-all hover:scale-[1.01] active:scale-95"
+        >
+          <div className="flex items-center justify-between">
+            <span className="bg-emerald-400/20 text-emerald-100 font-extrabold text-[11px] px-3 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 border border-emerald-300/30">
+              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+              Live WhatsApp Chat
+            </span>
+            <span className="text-[11px] font-extrabold text-white/90 bg-white/20 px-2.5 py-0.5 rounded-full">
+              342 Farmers Online
+            </span>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between">
+            <div className="space-y-1">
+              <h2 className="text-xl font-black text-white leading-tight flex items-center gap-2">
+                <MessageSquare className="w-6 h-6 text-emerald-300 shrink-0" />
+                Chat Live With All Farmers 🇬🇭
+              </h2>
+              <p className="text-xs text-emerald-100 font-medium max-w-[280px]">
+                Discuss feed prices, buy/sell fingerlings, and chat live with extension officers & farmers across Ghana!
+              </p>
+            </div>
+          </div>
+
+          {/* Active Farmers Avatar Stack & CTA */}
+          <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2 overflow-hidden">
+                <div className="w-7 h-7 rounded-full bg-emerald-700 border-2 border-white flex items-center justify-center text-[10px] font-black text-white">D</div>
+                <div className="w-7 h-7 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center text-[10px] font-black text-white">P</div>
+                <div className="w-7 h-7 rounded-full bg-purple-600 border-2 border-white flex items-center justify-center text-[10px] font-black text-white">A</div>
+                <div className="w-7 h-7 rounded-full bg-amber-600 border-2 border-white flex items-center justify-center text-[10px] font-black text-white">K</div>
+              </div>
+              <span className="text-[11px] font-bold text-emerald-100">Dimples, Papa & 340+ active</span>
+            </div>
+
+            <span className="px-4 py-2 rounded-2xl bg-white text-[#075E54] font-black text-xs shadow-md flex items-center gap-1.5">
+              Open Chat <ChevronRight className="w-4 h-4 text-[#075E54]" />
+            </span>
+          </div>
+        </Link>
       </section>
 
       {/* Location-Based Weather & Rain Advisory Card */}

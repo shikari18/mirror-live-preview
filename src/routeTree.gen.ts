@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiDoctorRouteImport } from './routes/ai-doctor'
 import { Route as AiWelcomeRouteImport } from './routes/ai-welcome'
 import { Route as AssistantRouteImport } from './routes/assistant'
+import { Route as CommunityChatRouteImport } from './routes/community-chat'
 import { Route as ExtensionSupportRouteImport } from './routes/extension-support'
 import { Route as FeedCalculatorRouteImport } from './routes/feed-calculator'
 import { Route as HarvestRouteImport } from './routes/harvest'
@@ -53,6 +54,11 @@ const AiWelcomeRoute = AiWelcomeRouteImport.update({
 const AssistantRoute = AssistantRouteImport.update({
   id: '/assistant',
   path: '/assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityChatRoute = CommunityChatRouteImport.update({
+  id: '/community-chat',
+  path: '/community-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExtensionSupportRoute = ExtensionSupportRouteImport.update({
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/ai-doctor': typeof AiDoctorRoute
   '/ai-welcome': typeof AiWelcomeRoute
   '/assistant': typeof AssistantRoute
+  '/community-chat': typeof CommunityChatRoute
   '/extension-support': typeof ExtensionSupportRoute
   '/feed-calculator': typeof FeedCalculatorRoute
   '/harvest': typeof HarvestRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   '/ai-doctor': typeof AiDoctorRoute
   '/ai-welcome': typeof AiWelcomeRoute
   '/assistant': typeof AssistantRoute
+  '/community-chat': typeof CommunityChatRoute
   '/extension-support': typeof ExtensionSupportRoute
   '/feed-calculator': typeof FeedCalculatorRoute
   '/harvest': typeof HarvestRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/ai-doctor': typeof AiDoctorRoute
   '/ai-welcome': typeof AiWelcomeRoute
   '/assistant': typeof AssistantRoute
+  '/community-chat': typeof CommunityChatRoute
   '/extension-support': typeof ExtensionSupportRoute
   '/feed-calculator': typeof FeedCalculatorRoute
   '/harvest': typeof HarvestRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/ai-doctor'
     | '/ai-welcome'
     | '/assistant'
+    | '/community-chat'
     | '/extension-support'
     | '/feed-calculator'
     | '/harvest'
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/ai-doctor'
     | '/ai-welcome'
     | '/assistant'
+    | '/community-chat'
     | '/extension-support'
     | '/feed-calculator'
     | '/harvest'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/ai-doctor'
     | '/ai-welcome'
     | '/assistant'
+    | '/community-chat'
     | '/extension-support'
     | '/feed-calculator'
     | '/harvest'
@@ -273,6 +285,7 @@ export interface RootRouteChildren {
   AiDoctorRoute: typeof AiDoctorRoute
   AiWelcomeRoute: typeof AiWelcomeRoute
   AssistantRoute: typeof AssistantRoute
+  CommunityChatRoute: typeof CommunityChatRoute
   ExtensionSupportRoute: typeof ExtensionSupportRoute
   FeedCalculatorRoute: typeof FeedCalculatorRoute
   HarvestRoute: typeof HarvestRoute
@@ -325,6 +338,13 @@ declare module '@tanstack/react-router' {
       path: '/assistant'
       fullPath: '/assistant'
       preLoaderRoute: typeof AssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community-chat': {
+      id: '/community-chat'
+      path: '/community-chat'
+      fullPath: '/community-chat'
+      preLoaderRoute: typeof CommunityChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/extension-support': {
@@ -441,6 +461,7 @@ const rootRouteChildren: RootRouteChildren = {
   AiDoctorRoute: AiDoctorRoute,
   AiWelcomeRoute: AiWelcomeRoute,
   AssistantRoute: AssistantRoute,
+  CommunityChatRoute: CommunityChatRoute,
   ExtensionSupportRoute: ExtensionSupportRoute,
   FeedCalculatorRoute: FeedCalculatorRoute,
   HarvestRoute: HarvestRoute,
