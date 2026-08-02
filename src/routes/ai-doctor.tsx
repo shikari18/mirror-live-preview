@@ -411,16 +411,16 @@ export function DiseasePage() {
             {/* Header: Identified Species & Disease Name */}
             <div className="flex items-start justify-between border-b border-gray-100 pb-4">
               <div>
-                <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                  <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#0F6236] flex items-center gap-1 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#0F6236]" /> AI Health Assessment
-                  </span>
-                  {diagnosisResult.species && (
-                    <span className="text-[11px] font-black text-amber-950 bg-amber-100 px-3 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 shadow-2xs">
-                      🐟 Identified Species: {diagnosisResult.species}
-                    </span>
-                  )}
-                </div>
+                <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#0F6236] flex items-center gap-1 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 w-fit">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#0F6236]" /> AI Health Assessment
+                </span>
+
+                {diagnosisResult.species && (
+                  <div className="text-sm font-black text-gray-900 mt-2 uppercase tracking-tight flex items-center gap-1.5">
+                    <span>🐟</span>
+                    <span>Fish Species: {diagnosisResult.species}</span>
+                  </div>
+                )}
 
                 <h2 className="text-xl font-black text-gray-900 mt-1 leading-tight">
                   {diagnosisResult.diseaseName}
@@ -438,7 +438,7 @@ export function DiseasePage() {
                   type="button"
                   onClick={() => {
                     if (!diagnosisResult) return;
-                    const text = `🐟 Fish Doctor AI Diagnosis Report\n\nCondition: ${diagnosisResult.diseaseName}\nConfidence: ${diagnosisResult.confidencePercent}%\nStatus: ${diagnosisResult.riskLevel}\n\nSummary: ${diagnosisResult.whyThisDiagnosis}\n\nGenerated via FishFarm OS Ghana`;
+                    const text = `🐟 Fish Doctor AI Diagnosis Report\n\nSpecies: ${diagnosisResult.species || "Aquaculture Species"}\nCondition: ${diagnosisResult.diseaseName}\nStatus: ${diagnosisResult.riskLevel}\n\nSummary: ${diagnosisResult.whyThisDiagnosis}\n\nGenerated via FishFarm OS Ghana`;
                     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
                   }}
                   className="p-2.5 rounded-2xl bg-emerald-100 hover:bg-emerald-200 text-[#0F6236] cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center"
@@ -476,36 +476,12 @@ export function DiseasePage() {
               </div>
             </div>
 
-            {/* Confidence Score & Visual Meter */}
-            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-gray-900">
-                  Confidence: <span className="text-[#0F6236]">{diagnosisResult.confidencePercent}%</span>
-                </span>
-                <span className={`text-xs font-extrabold px-3 py-1 rounded-full border ${getRiskBadge(diagnosisResult.riskLevel).bg}`}>
-                  {getRiskBadge(diagnosisResult.riskLevel).label}
-                </span>
-              </div>
-
-              {/* Confidence Progress Bar */}
-              <div className="w-full h-3 rounded-full bg-gray-200 overflow-hidden relative">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${
-                    diagnosisResult.confidencePercent >= 90
-                      ? "bg-emerald-600"
-                      : diagnosisResult.confidencePercent >= 70
-                      ? "bg-yellow-500"
-                      : diagnosisResult.confidencePercent >= 50
-                      ? "bg-orange-500"
-                      : "bg-red-500"
-                  }`}
-                  style={{ width: `${diagnosisResult.confidencePercent}%` }}
-                />
-              </div>
-
-              <p className="text-[11.5px] text-gray-600 font-medium">
-                {diagnosisResult.riskDescription}
-              </p>
+            {/* Risk Assessment Status Box (No Confidence Bar) */}
+            <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-700">Health Risk Status:</span>
+              <span className={`text-xs font-extrabold px-3 py-1 rounded-full border ${getRiskBadge(diagnosisResult.riskLevel).bg}`}>
+                {getRiskBadge(diagnosisResult.riskLevel).label}
+              </span>
             </div>
 
             {/* Primary Lesion Localization Summary */}
