@@ -95,6 +95,21 @@ export function HomePage() {
       setUserLocation(profile.location);
     }
 
+    // Reverse geocode lat/lon to exact town name in Ghana
+    const fetchLocationName = async (lat: number, lon: number) => {
+      try {
+        const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          const city = geoData.locality || geoData.city || geoData.principalSubdivision || "Ghana";
+          const locationStr = `${city}, ${geoData.principalSubdivision || "Ghana"}`;
+          setUserLocation(locationStr);
+        }
+      } catch (e) {
+        console.warn("Geocoding error", e);
+      }
+    };
+
     // Fetch live weather from Open-Meteo API
     const fetchLiveWeather = async (lat: number, lon: number) => {
       try {
@@ -104,7 +119,9 @@ export function HomePage() {
           const code = data.current_weather?.weathercode ?? 0;
           const temp = Math.round(data.current_weather?.temperature ?? 28);
           
-          const isRainingNow = code >= 51; // Codes 51-99 are drizzle/rain/thunderstorm
+          // Codes for actual rain/thunderstorm: 51,53,55,61,63,65,80,81,82,95,96,99
+          const rainCodes = [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99];
+          const isRainingNow = rainCodes.includes(code);
           
           if (isRainingNow) {
             setLiveWeather({
@@ -117,8 +134,8 @@ export function HomePage() {
             setLiveWeather({
               isRaining: false,
               temp,
-              description: `Overcast & Overcast (${temp}°C)`,
-              adviceText: `☁️ Overcast Weather (${temp}°C): Reduce feed ration by 20% due to reduced photosynthesis oxygen levels.`
+              description: `Partly Cloudy (${temp}°C)`,
+              adviceText: `☁️ Part Cloud Weather (${temp}°C): Reduce feed ration slightly due to moderate oxygen levels.`
             });
           } else {
             setLiveWeather({
@@ -136,11 +153,19 @@ export function HomePage() {
 
     if (typeof window !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => fetchLiveWeather(pos.coords.latitude, pos.coords.longitude),
-        () => fetchLiveWeather(5.60, -0.18)
+        (pos) => {
+          fetchLiveWeather(pos.coords.latitude, pos.coords.longitude);
+          fetchLocationName(pos.coords.latitude, pos.coords.longitude);
+        },
+        () => {
+          fetchLiveWeather(5.60, -0.18);
+          fetchLocationName(5.60, -0.18);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     } else {
       fetchLiveWeather(5.60, -0.18);
+      fetchLocationName(5.60, -0.18);
     }
 
     // Refresh Subscription Status every 1 second for live countdown

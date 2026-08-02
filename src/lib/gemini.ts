@@ -312,7 +312,7 @@ export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: stri
   if (apiKey) {
     const AUDIO_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
     const promptText = isTwi
-      ? `You are a native Ghanaian speaker from Kumasi, Ghana. Speak this in an authentic local Ghanaian Akan Twi accent and natural intonation: "${spokenText}"`
+      ? `You are an authentic native speaker born and raised in Kumasi, Ghana. Speak fluent Asante Twi at a lively, energetic pace with a 100% authentic, typical local Ghanaian accent and native vocal inflection: "${spokenText}"`
       : spokenText;
 
     for (const model of AUDIO_MODELS) {
