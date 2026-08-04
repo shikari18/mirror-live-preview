@@ -487,7 +487,55 @@ export async function synthesizeSpeechKhayaAI(text: string, lang: string = "tw")
   return "";
 }
 
-export function speakTextInstant(
+// ── GhanaNLP Khaya TTS for authentic Twi voice ──────────────────────────────
+async function speakWithGhanaNLP(text: string, onStart?: () => void, onEnd?: () => void): Promise<boolean> {
+  try {
+    // GhanaNLP public TTS endpoint (free, no API key for basic use)
+    const endpoint = "https://translation.ghananlp.org/v1/tts";
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, language: "tw" }),
+    });
+    if (!response.ok) throw new Error(`GhanaNLP TTS ${response.status}`);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    if (onStart) onStart();
+    audio.onended = () => { URL.revokeObjectURL(url); if (onEnd) onEnd(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); if (onEnd) onEnd(); };
+    await audio.play();
+    return true;
+  } catch (e) {
+    console.warn("GhanaNLP TTS failed, falling back to WebSpeech:", e);
+    return false;
+  }
+}
+
+// ── Ghanaian English via ResponsiveVoice-style Google TTS ────────────────────
+async function speakGhanaEnglish(text: string, onStart?: () => void, onEnd?: () => void): Promise<boolean> {
+  try {
+    // Use Google Cloud TTS-compatible endpoint with en-GH locale via gTTS trick
+    const params = new URLSearchParams({
+      ie: "UTF-8",
+      tl: "en",
+      client: "tw-ob",
+      q: text.slice(0, 200),
+    });
+    const url = `https://translate.google.com/translate_tts?${params.toString()}`;
+    const audio = new Audio(url);
+    audio.crossOrigin = "anonymous";
+    if (onStart) onStart();
+    audio.onended = () => { if (onEnd) onEnd(); };
+    audio.onerror = () => { if (onEnd) onEnd(); };
+    await audio.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function speakTextInstant(
   text: string,
   language: string = "English",
   onStart?: () => void,
@@ -498,7 +546,7 @@ export function speakTextInstant(
     return;
   }
 
-  const cleanText = text.replace(/[#*`_]/g, "").trim();
+  const cleanText = text.replace(/[#*`_]/g, "").trim().slice(0, 400);
   if (!cleanText) {
     if (onEnd) onEnd();
     return;
@@ -506,48 +554,45 @@ export function speakTextInstant(
 
   const langLower = language.toLowerCase();
   const isTwi = langLower.includes("twi") || langLower.includes("akan");
-  const isEwe = langLower.includes("ewe") || langLower.includes("eʋe");
-  const isHausa = langLower.includes("hausa");
 
-  // Format spoken text for Twi & English
-  let spokenText = cleanText;
+  // ── For Twi: try GhanaNLP real Ghanaian TTS first ───────────────────────
   if (isTwi) {
-    if (cleanText.includes("Welcome farmer") || cleanText.includes("Live Weather") || cleanText.includes("Fish Doctor") || cleanText.includes("Part Cloud") || cleanText.includes("Reduce feed")) {
-      spokenText = "Akwaaba okuafoɔ! Ewiem mmoa afutuo: Enneɔɔma nsuo mu nam no ho ye. Te aduane no so ketewa bi na mframa pa mmra nsuo no mu pa.";
-    } else if (!cleanText.includes("Akwaaba")) {
-      spokenText = "Akwaaba okuafoɔ! " + cleanText;
-    }
-  } else if (isEwe) {
-    if (!cleanText.includes("Woezɔ")) {
-      spokenText = "Woezɔ agbledela! " + cleanText;
-    }
+    const ok = await speakWithGhanaNLP(cleanText, onStart, onEnd);
+    if (ok) return;
+    // Fallback: Web Speech with Ghanaian phonetics
   }
 
+  // ── Web Speech API fallback with best available voice ───────────────────
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
     try {
       window.speechSynthesis.cancel();
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
 
-      const utterance = new SpeechSynthesisUtterance(spokenText);
+      const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.volume = 1.0;
-      utterance.rate = 0.92;
-      utterance.pitch = 1.30;
+      utterance.rate   = isTwi ? 0.82 : 0.90;
+      utterance.pitch  = 1.15;
 
       const allVoices = window.speechSynthesis.getVoices();
-      const matchedVoice =
-        allVoices.find((v) => (v.name.includes("Female") || v.name.includes("Woman") || v.name.includes("Zira") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Hazel") || v.name.includes("Fiona")) && (v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African"))) ||
-        allVoices.find((v) => (v.name.includes("Female") || v.name.includes("Woman")) && v.name.includes("Google")) ||
-        allVoices.find((v) => v.name.includes("Zira") || v.name.includes("Hazel") || v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Victoria") || v.name.includes("Fiona")) ||
-        allVoices.find((v) => v.lang.includes("en-GH") || v.name.includes("Ghana") || v.name.includes("African")) ||
-        allVoices.find((v) => v.name.includes("Female") || v.name.includes("Woman")) ||
+
+      let matchedVoice =
+        // 1. Real en-GH voice (Ghanaian English — most authentic)
+        allVoices.find((v) => v.lang === "en-GH") ||
+        // 2. African-English voice
+        allVoices.find((v) => v.name.toLowerCase().includes("ghana") || v.name.toLowerCase().includes("african")) ||
+        // 3. Female Google voices (natural)
+        allVoices.find((v) => v.name.includes("Google") && (v.name.includes("Female") || v.name.includes("Woman"))) ||
+        // 4. Known good female voices
+        allVoices.find((v) => ["Samantha", "Karen", "Victoria", "Fiona", "Hazel", "Zira"].some((n) => v.name.includes(n))) ||
+        // 5. Any female voice
+        allVoices.find((v) => v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("woman")) ||
+        // 6. Any English voice
         allVoices.find((v) => v.lang.startsWith("en"));
 
       if (matchedVoice) utterance.voice = matchedVoice;
 
       utterance.onstart = () => { if (onStart) onStart(); };
-      utterance.onend = () => { if (onEnd) onEnd(); };
+      utterance.onend   = () => { if (onEnd) onEnd(); };
       utterance.onerror = () => { if (onEnd) onEnd(); };
 
       window.speechSynthesis.speak(utterance);

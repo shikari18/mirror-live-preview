@@ -3,8 +3,9 @@ import { useState, useRef, useEffect } from "react";
 import { 
   ArrowLeft, MapPin, Upload, RefreshCw, Stethoscope, Loader2, 
   Volume2, VolumeX, ShieldCheck, 
-  ChevronDown, ChevronUp, Droplets, Activity,Pill,
-  AlertTriangle, Info, Share2, Printer, CheckCircle2, XCircle
+  ChevronDown, ChevronUp, Droplets, Activity, Pill,
+  AlertTriangle, Info, Share2, Printer, CheckCircle2, XCircle,
+  Clock, Trash2, History
 } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
@@ -12,6 +13,7 @@ import { diagnoseFishDiseaseAI, MediaAttachment, speakTextInstant, DiagnosisResu
 import { useLanguage } from "@/lib/languageContext";
 import { getFarmProfile, PondRecord } from "@/lib/farmMemory";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
+import { getDiagnosisHistory, saveDiagnosis, deleteDiagnosis, clearAllDiagnoses, SavedDiagnosis, formatDiagnosisDate } from "@/lib/diagnosisHistory";
 
 export const Route = createFileRoute("/ai-doctor")({
   component: DiseasePage,
@@ -25,7 +27,7 @@ export const Route = createFileRoute("/ai-doctor")({
 
 export function DiseasePage() {
   const { t, language } = useLanguage();
-  const [activeMode, setActiveMode] = useState<"health" | "weight">("health");
+  const [activeMode, setActiveMode] = useState<"health" | "weight" | "history">("health");
 
   const [description, setDescription] = useState<string>("");
   const [ponds, setPonds] = useState<PondRecord[]>([]);
@@ -36,6 +38,12 @@ export function DiseasePage() {
   const [userCity, setUserCity] = useState<string>("Accra & Ashanti Region, Ghana");
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
+
+  // Diagnosis history
+  const [history, setHistory] = useState<SavedDiagnosis[]>([]);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+
+  const refreshHistory = () => setHistory(getDiagnosisHistory());
 
   const [weightResult, setWeightResult] = useState<{
     estimatedWeightGrams: number;
@@ -66,6 +74,7 @@ export function DiseasePage() {
         () => {}
       );
     }
+    refreshHistory();
   }, []);
 
   const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,6 +109,13 @@ export function DiseasePage() {
       const result = await diagnoseFishDiseaseAI(fullSymptomsText, mediaAttachments);
       setDiagnosisResult(result);
       setScanTimestamp(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      // Auto-save to history
+      saveDiagnosis({
+        result,
+        pond: selectedPond || "General Pond",
+        imageUrl: uploadedMedia?.url,
+      });
+      refreshHistory();
     } catch (err) {
       console.error("AI Doctor diagnosis error:", err);
     } finally {
@@ -175,14 +191,21 @@ export function DiseasePage() {
       <section className="mx-5 mt-4 space-y-4 mb-8">
         
         {/* Mode Switcher */}
-        <div className="flex rounded-2xl bg-gray-200/80 p-1">
+        <div className="flex rounded-2xl bg-gray-200/80 p-1 gap-0.5">
           <button type="button" onClick={() => setActiveMode("health")}
             className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${activeMode === "health" ? "bg-[#0F6236] text-white shadow-md" : "text-gray-600 hover:text-gray-900"}`}>
-            🩺 Health Screening
+            🩺 Health
           </button>
           <button type="button" onClick={() => setActiveMode("weight")}
             className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${activeMode === "weight" ? "bg-[#0F6236] text-white shadow-md" : "text-gray-600 hover:text-gray-900"}`}>
-            📐 Weight Estimator
+            📐 Weight
+          </button>
+          <button type="button" onClick={() => { setActiveMode("history"); refreshHistory(); }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 ${activeMode === "history" ? "bg-[#0F6236] text-white shadow-md" : "text-gray-600 hover:text-gray-900"}`}>
+            <History className="w-3 h-3" /> History
+            {history.length > 0 && (
+              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${activeMode === "history" ? "bg-white/20 text-white" : "bg-[#0F6236] text-white"}`}>{history.length}</span>
+            )}
           </button>
         </div>
 
@@ -525,6 +548,127 @@ export function DiseasePage() {
               </div>
 
             </div>
+          </div>
+        )}
+
+        {/* ─── DIAGNOSIS HISTORY PANEL ─── */}
+        {activeMode === "history" && (
+          <div className="space-y-3 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-extrabold text-gray-900">Saved Diagnoses</h2>
+                <p className="text-[10.5px] text-gray-400 font-medium">{history.length} scan{history.length !== 1 ? "s" : ""} saved</p>
+              </div>
+              {history.length > 0 && (
+                <button
+                  onClick={() => { if (confirm("Clear all saved diagnoses?")) { clearAllDiagnoses(); refreshHistory(); } }}
+                  className="text-[10.5px] font-bold text-red-500 hover:text-red-700 flex items-center gap-1 cursor-pointer">
+                  <Trash2 className="w-3.5 h-3.5" /> Clear All
+                </button>
+              )}
+            </div>
+
+            {history.length === 0 ? (
+              <div className="bg-gray-50 border border-gray-100 rounded-3xl p-8 text-center space-y-2">
+                <History className="w-10 h-10 text-gray-300 mx-auto" />
+                <p className="text-sm font-extrabold text-gray-400">No diagnoses yet</p>
+                <p className="text-xs text-gray-400">Run a health screening and it will be saved here automatically.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {history.map((item) => {
+                  const isExpanded = expandedHistoryId === item.id;
+                  const riskEmoji = item.result.riskLevel === "Healthy" ? "🟢" : item.result.riskLevel === "Monitor" ? "🟡" : item.result.riskLevel === "Needs Attention" ? "🟠" : "🔴";
+                  return (
+                    <div key={item.id} className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+                      {/* Collapsed row */}
+                      <div
+                        className="flex items-center gap-3 p-4 cursor-pointer"
+                        onClick={() => setExpandedHistoryId(isExpanded ? null : item.id)}>
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt="fish" className="w-12 h-12 rounded-2xl object-cover border border-gray-100 shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-2xl bg-[#0F6236]/10 flex items-center justify-center shrink-0">
+                            <Stethoscope className="w-5 h-5 text-[#0F6236]" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-sm">{riskEmoji}</span>
+                            <span className="text-xs font-black text-gray-900 truncate">{item.result.diseaseName}</span>
+                          </div>
+                          {item.result.species && (
+                            <div className="text-[10.5px] font-bold text-[#0F6236] truncate">🐟 {item.result.species}</div>
+                          )}
+                          <div className="flex items-center gap-1 text-[9.5px] text-gray-400 font-medium mt-0.5">
+                            <Clock className="w-3 h-3" />
+                            {formatDiagnosisDate(item.timestamp)}
+                            {item.pond && <span>• {item.pond}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteDiagnosis(item.id); refreshHistory(); }}
+                            className="p-1.5 rounded-xl text-red-400 hover:bg-red-50 cursor-pointer transition-all">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                        </div>
+                      </div>
+
+                      {/* Expanded detail */}
+                      {isExpanded && (
+                        <div className="border-t border-gray-100 bg-gray-50/60 p-4 space-y-3 animate-in fade-in">
+                          {/* Risk pill */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-extrabold text-gray-500 uppercase">Status:</span>
+                            <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                              item.result.riskLevel === "Healthy" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                              item.result.riskLevel === "Monitor" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+                              item.result.riskLevel === "Needs Attention" ? "bg-orange-50 text-orange-700 border-orange-200" :
+                              "bg-red-50 text-red-700 border-red-200"
+                            }`}>{riskEmoji} {item.result.riskLevel}</span>
+                          </div>
+
+                          {/* Visual findings */}
+                          {item.result.visualFindings && item.result.visualFindings.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-[9.5px] font-extrabold text-gray-400 uppercase">Visual Findings</p>
+                              {item.result.visualFindings.map((f, i) => (
+                                <div key={i} className={`flex items-start gap-2 text-[10.5px] font-medium p-2 rounded-xl border ${f.isHealthy ? "bg-emerald-50/60 border-emerald-100 text-gray-700" : "bg-red-50/60 border-red-100 text-gray-700"}`}>
+                                  {f.isHealthy ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" /> : <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />}
+                                  {f.text}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Treatment summary */}
+                          {item.result.treatmentPlan?.medication && (
+                            <div className="bg-[#07200F] rounded-2xl p-3">
+                              <p className="text-[9.5px] font-extrabold text-emerald-400 uppercase mb-1.5 flex items-center gap-1">
+                                <Pill className="w-3 h-3" /> Medication
+                              </p>
+                              <p className="text-[10.5px] text-emerald-200 font-medium leading-relaxed">{item.result.treatmentPlan.medication}</p>
+                            </div>
+                          )}
+
+                          {/* Share button */}
+                          <button
+                            onClick={() => {
+                              const text = `🐟 Fish Doctor AI Report\n\nSpecies: ${item.result.species || "Fish"}\nCondition: ${item.result.diseaseName}\nStatus: ${item.result.riskLevel}\n\n${item.result.whyThisDiagnosis}\n\nGenerated via FishFarm OS Ghana`;
+                              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                            }}
+                            className="w-full h-9 rounded-2xl bg-emerald-50 border border-emerald-200 text-[#0F6236] text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-emerald-100 transition-all">
+                            <Share2 className="w-3.5 h-3.5" /> Share on WhatsApp
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
