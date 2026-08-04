@@ -1,71 +1,82 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Plus, Waves, MapPin, ArrowLeft, Camera, Check, RefreshCw, X, Sparkles, Trash2, AlertTriangle } from "lucide-react";
+import { Waves, MapPin, ArrowLeft, Camera, Check, X, Trash2, AlertTriangle, Navigation, Ruler, RefreshCw } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { useLanguage } from "@/lib/languageContext";
 import { getFarmProfile, addPondToMemory, deletePondFromMemory, clearAllPondsFromMemory, PondRecord } from "@/lib/farmMemory";
-import { estimatePondDimensionsAI } from "@/lib/gemini";
 
 export const Route = createFileRoute("/my-farm")({
   component: MyFarmPage,
   head: () => ({
     meta: [
-      { title: "My Farm & Camera Pond Calculator — Fish Doctor" },
-      { name: "description", content: "Manage ponds and calculate pond dimensions using live camera AR scanner." },
+      { title: "My Farm & Pond Measurement — Fish Doctor" },
+      { name: "description", content: "Measure pond dimensions accurately using GPS walk-and-mark or manual entry." },
     ],
   }),
 });
+
+// ── Haversine GPS distance (metres between two lat/lon points) ───────────────
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+interface GpsPoint { lat: number; lon: number; acc: number }
+
+type ScanStep = "idle" | "mark_A" | "walk_length" | "mark_B" | "walk_width" | "mark_C" | "depth" | "photo" | "done";
 
 export function MyFarmPage() {
   const { t } = useLanguage();
   const [profile, setProfile] = useState(getFarmProfile());
   const [ponds, setPonds] = useState<PondRecord[]>(profile.ponds || []);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<string>(profile.location || "Accra & Ashanti Region, Ghana");
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("scanner") === "true") setIsCameraScannerOpen(true);
-    }
-  }, []);
+  // ── GPS Measurement State ──────────────────────────────────────────────────
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [step, setStep]     = useState<ScanStep>("idle");
+  const [ptA, setPtA]       = useState<GpsPoint | null>(null);
+  const [ptB, setPtB]       = useState<GpsPoint | null>(null);
+  const [ptC, setPtC]       = useState<GpsPoint | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError]     = useState<string>("");
+  const [currentGps, setCurrentGps] = useState<GpsPoint | null>(null);
 
-  const [pondName, setPondName] = useState("");
-  const [fishType, setFishType] = useState("Catfish (Clarias)");
+  const [lengthM, setLengthM]   = useState<number | null>(null);
+  const [widthM, setWidthM]     = useState<number | null>(null);
+  const [depthM, setDepthM]     = useState<number>(1.2);
+  const [pondType, setPondType] = useState<string>("Earthen");
+  const [pondName, setPondName] = useState<string>("");
+  const [fishType, setFishType] = useState<string>("Catfish (Clarias)");
   const [fishCount, setFishCount] = useState<number>(1000);
-  const [pondType, setPondType] = useState("Concrete");
 
-  const [targetWidth, setTargetWidth] = useState<number>(5.5);
-  const [targetLength, setTargetLength] = useState<number>(8.0);
-  const [targetDepth, setTargetDepth] = useState<number>(1.4);
-  const [liveVolumeLiters, setLiveVolumeLiters] = useState<number>(61600);
-  const [isAnalyzingPond, setIsAnalyzingPond] = useState<boolean>(false);
-  const [capturedSnapshot, setCapturedSnapshot] = useState<string | null>(null);
-  const [scanResult, setScanResult] = useState<{
-    widthM: number; heightM: number; depthM: number;
-    volL: number; stockCap: number; dailyFeed: number; pondType: string;
-  } | null>(null);
-
-  // Live AR guide state
-  const [pondFillPct, setPondFillPct] = useState<number>(0);
-  const [guideStatus, setGuideStatus] = useState<"scanning" | "good" | "bad">("scanning");
-  const [guideMessage, setGuideMessage] = useState<string>("Point camera at pond");
-
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const animFrameRef = useRef<number | null>(null);
+  // Camera for photo
+  const [isCameraOpen, setIsCameraOpen]       = useState(false);
+  const [capturedPhoto, setCapturedPhoto]     = useState<string | null>(null);
+  const videoRef        = useRef<HTMLVideoElement | null>(null);
+  const mediaStreamRef  = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     refreshMemory();
+    // Start watching GPS position continuously
+    let watchId: number | null = null;
     if (typeof window !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation(`GPS: ${pos.coords.latitude.toFixed(2)}°, ${pos.coords.longitude.toFixed(2)}°`),
+        (p) => setUserLocation(`GPS ${p.coords.latitude.toFixed(3)}°, ${p.coords.longitude.toFixed(3)}°`),
         () => {}
       );
+      watchId = navigator.geolocation.watchPosition(
+        (p) => setCurrentGps({ lat: p.coords.latitude, lon: p.coords.longitude, acc: Math.round(p.coords.accuracy) }),
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 0 }
+      );
     }
+    return () => { if (watchId !== null) navigator.geolocation.clearWatch(watchId); };
   }, []);
 
   const refreshMemory = () => {
@@ -74,241 +85,164 @@ export function MyFarmPage() {
     setPonds(fresh.ponds || []);
   };
 
-  const handleDeletePond = (id: string) => { deletePondFromMemory(id); refreshMemory(); };
-  const handleClearAllPonds = () => {
-    if (confirm("Are you sure you want to clear all measured ponds?")) {
-      clearAllPondsFromMemory(); refreshMemory();
+  // ── Get single high-accuracy GPS fix ──────────────────────────────────────
+  const getHighAccuracyFix = (): Promise<GpsPoint> =>
+    new Promise((resolve, reject) => {
+      if (!("geolocation" in navigator)) { reject(new Error("GPS not available on this device.")); return; }
+      // Take 3 readings and average them for better accuracy
+      const readings: GpsPoint[] = [];
+      let count = 0;
+      const id = navigator.geolocation.watchPosition(
+        (p) => {
+          readings.push({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy });
+          count++;
+          if (count >= 3 || (count >= 1 && p.coords.accuracy < 3)) {
+            navigator.geolocation.clearWatch(id);
+            const avgLat = readings.reduce((s, r) => s + r.lat, 0) / readings.length;
+            const avgLon = readings.reduce((s, r) => s + r.lon, 0) / readings.length;
+            const bestAcc = Math.min(...readings.map((r) => r.acc));
+            resolve({ lat: avgLat, lon: avgLon, acc: Math.round(bestAcc) });
+          }
+        },
+        (err) => { navigator.geolocation.clearWatch(id); reject(err); },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
+      );
+    });
+
+  const markPoint = async (which: "A" | "B" | "C") => {
+    setGpsLoading(true);
+    setGpsError("");
+    try {
+      const pt = await getHighAccuracyFix();
+      if (which === "A") {
+        setPtA(pt);
+        setStep("walk_length");
+      } else if (which === "B") {
+        setPtB(pt);
+        if (ptA) {
+          const dist = haversineMeters(ptA.lat, ptA.lon, pt.lat, pt.lon);
+          setLengthM(Math.round(dist * 10) / 10);
+        }
+        setStep("walk_width");
+      } else if (which === "C") {
+        setPtC(pt);
+        if (ptA) {
+          const dist = haversineMeters(ptA.lat, ptA.lon, pt.lat, pt.lon);
+          setWidthM(Math.round(dist * 10) / 10);
+        }
+        setStep("depth");
+      }
+    } catch (err: any) {
+      setGpsError(err?.message ?? "GPS error — make sure location is enabled.");
+    } finally {
+      setGpsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (isCameraScannerOpen) startCamera();
-    else stopCamera();
-    return () => stopCamera();
-  }, [isCameraScannerOpen]);
+  const resetScan = () => {
+    setStep("idle");
+    setPtA(null); setPtB(null); setPtC(null);
+    setLengthM(null); setWidthM(null);
+    setDepthM(1.2);
+    setCapturedPhoto(null);
+    setPondName("");
+    setGpsError("");
+  };
 
+  const openScanner = () => { resetScan(); setIsScannerOpen(true); setStep("mark_A"); };
+  const closeScanner = () => { setIsScannerOpen(false); resetScan(); };
+
+  // ── Camera for photo capture ───────────────────────────────────────────────
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
       });
       mediaStreamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play();
-          startLiveGuideLoop();
-        };
+        videoRef.current.play();
       }
-    } catch (err) { console.warn("Camera fallback", err); }
+    } catch { /* camera optional */ }
   };
 
   const stopCamera = () => {
-    if (animFrameRef.current) { cancelAnimationFrame(animFrameRef.current); animFrameRef.current = null; }
-    if (mediaStreamRef.current) { mediaStreamRef.current.getTracks().forEach((t) => t.stop()); mediaStreamRef.current = null; }
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
   };
 
-  // ── Live AR guide loop: detects pond fill percentage in guide zone ──
-  const startLiveGuideLoop = () => {
-    const loop = () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const vw = video.videoWidth || 640;
-          const vh = video.videoHeight || 480;
-          canvas.width = vw;
-          canvas.height = vh;
-          ctx.drawImage(video, 0, 0, vw, vh);
-
-          // Sample the 84%×76% guide zone
-          const sx = Math.round(vw * 0.08);
-          const sy = Math.round(vh * 0.12);
-          const sw = Math.round(vw * 0.84);
-          const sh = Math.round(vh * 0.76);
-          const fd = ctx.getImageData(sx, sy, sw, sh);
-          const d = fd.data;
-          const total = d.length / 4;
-
-          let waterPx = 0;
-          for (let i = 0; i < d.length; i += 4) {
-            const r = d[i], g = d[i + 1], b = d[i + 2];
-            const isWater =
-              (b >= r - 15 && g >= r - 15) ||
-              (r < 130 && g < 130 && b < 130) ||
-              (Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && r < 160);
-            if (isWater) waterPx++;
-          }
-
-          const fillPct = Math.round((waterPx / total) * 100);
-          setPondFillPct(fillPct);
-
-          if (fillPct >= 50) {
-            setGuideStatus("good");
-            setGuideMessage("✅ Pond in frame — tap Scan!");
-          } else if (fillPct >= 25) {
-            setGuideStatus("scanning");
-            setGuideMessage("Move closer or tilt down slightly");
-          } else {
-            setGuideStatus("bad");
-            setGuideMessage("No pond detected — aim at pond surface");
-          }
-        }
-      }
-      animFrameRef.current = requestAnimationFrame(loop);
-    };
-    loop();
-  };
-
-  // ── Annotate captured frame with guide box + labels ──
-  const drawAnnotatedSnapshot = (videoEl: HTMLVideoElement, aiW: number, aiH: number): string => {
-    const c = document.createElement("canvas");
-    const vw = videoEl.videoWidth || 1280;
-    const vh = videoEl.videoHeight || 720;
-    c.width = vw;
-    c.height = vh;
-    const ctx = c.getContext("2d")!;
-    ctx.drawImage(videoEl, 0, 0, vw, vh);
-
-    const bx = vw * 0.08, by = vh * 0.12;
-    const bw = vw * 0.84, bh = vh * 0.76;
-    const lw = Math.max(4, Math.round(vw / 160));
-    const cl = Math.min(bw, bh) * 0.08;
-
-    // Dark overlay everywhere except box
-    ctx.fillStyle = "rgba(0,0,0,0.40)";
-    ctx.fillRect(0, 0, vw, vh);
-    ctx.clearRect(bx, by, bw, bh);
-    ctx.drawImage(videoEl, bx, by, bw, bh, bx, by, bw, bh);
-
-    // Green border
-    ctx.strokeStyle = "#22c55e";
-    ctx.lineWidth = lw;
-    ctx.strokeRect(bx, by, bw, bh);
-
-    // Corner accents
-    const drawCorner = (cx: number, cy: number, dx: number, dy: number) => {
-      ctx.beginPath();
-      ctx.moveTo(cx + dx * cl, cy);
-      ctx.lineTo(cx, cy);
-      ctx.lineTo(cx, cy + dy * cl);
-      ctx.strokeStyle = "#4ade80";
-      ctx.lineWidth = lw * 2;
-      ctx.stroke();
-    };
-    drawCorner(bx, by, 1, 1);
-    drawCorner(bx + bw, by, -1, 1);
-    drawCorner(bx, by + bh, 1, -1);
-    drawCorner(bx + bw, by + bh, -1, -1);
-
-    const fs = Math.max(20, Math.round(vw / 30));
-    ctx.font = `bold ${fs}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    // Width pill top
-    const wLabel = `WIDTH: ${aiW.toFixed(1)} m`;
-    const wW = ctx.measureText(wLabel).width + 32;
-    const pH = fs + 18;
-    ctx.fillStyle = "rgba(15,98,54,0.93)";
-    ctx.beginPath();
-    (ctx as any).roundRect?.(bx + bw / 2 - wW / 2, by - pH / 2, wW, pH, 8);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.fillText(wLabel, bx + bw / 2, by);
-
-    // Height pill left (rotated)
-    const hLabel = `HEIGHT: ${aiH.toFixed(1)} m`;
-    ctx.save();
-    ctx.translate(bx, by + bh / 2);
-    ctx.rotate(-Math.PI / 2);
-    const hW = ctx.measureText(hLabel).width + 32;
-    ctx.fillStyle = "rgba(15,98,54,0.93)";
-    ctx.beginPath();
-    (ctx as any).roundRect?.(-hW / 2, -pH / 2, hW, pH, 8);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.fillText(hLabel, 0, 0);
-    ctx.restore();
-
-    return c.toDataURL("image/jpeg", 0.92);
-  };
-
-  const handleScanPondWithAI = async () => {
+  const capturePhoto = () => {
     const video = videoRef.current;
-    if (!video) { alert("Camera initializing... Please allow camera access and try again!"); return; }
-    if (guideStatus === "bad") {
-      alert("No pond detected in frame. Please point the camera directly at the pond surface and wait for the frame to turn green.");
-      return;
-    }
-
-    setIsAnalyzingPond(true);
-    try {
-      const ac = document.createElement("canvas");
-      const ctx = ac.getContext("2d")!;
-      ac.width = video.videoWidth || 640;
-      ac.height = video.videoHeight || 480;
-      ctx.drawImage(video, 0, 0, ac.width, ac.height);
-      const rawBase64 = ac.toDataURL("image/jpeg", 0.85);
-
-      const result = await estimatePondDimensionsAI(rawBase64);
-      const dataUrl = drawAnnotatedSnapshot(video, result.widthMeters, result.lengthMeters);
-
-      setTargetWidth(result.widthMeters);
-      setTargetLength(result.lengthMeters);
-      setTargetDepth(result.depthMeters);
-      setLiveVolumeLiters(result.volumeLiters);
-      setPondType(result.pondType);
-      setScanResult({
-        widthM: result.widthMeters,
-        heightM: result.lengthMeters,
-        depthM: result.depthMeters,
-        volL: result.volumeLiters,
-        stockCap: result.stockingCapacity,
-        dailyFeed: result.dailyFeedKg,
-        pondType: result.pondType,
-      });
-      setCapturedSnapshot(dataUrl);
-    } catch (e) {
-      console.warn("AI Scan Pond error", e);
-    } finally {
-      setIsAnalyzingPond(false);
-    }
+    if (!video) return;
+    const c = document.createElement("canvas");
+    c.width = video.videoWidth || 1280;
+    c.height = video.videoHeight || 720;
+    c.getContext("2d")!.drawImage(video, 0, 0, c.width, c.height);
+    setCapturedPhoto(c.toDataURL("image/jpeg", 0.85));
+    stopCamera();
+    setIsCameraOpen(false);
+    setStep("done");
   };
 
-  const handleSaveCameraPond = () => {
+  const skipPhoto = () => { stopCamera(); setIsCameraOpen(false); setStep("done"); };
+
+  useEffect(() => {
+    if (isCameraOpen) startCamera();
+    else stopCamera();
+    return () => stopCamera();
+  }, [isCameraOpen]);
+
+  // ── Calculations ──────────────────────────────────────────────────────────
+  const volCubicM   = (lengthM ?? 0) * (widthM ?? 0) * depthM;
+  const volLiters   = Math.round(volCubicM * 1000);
+  const density     = pondType.toLowerCase().includes("concrete") ? 80 : 50;
+  const stockCap    = Math.round(volCubicM * density);
+  const dailyFeedKg = Number((stockCap * 0.4 * 0.03).toFixed(1));
+
+  const handleSavePond = () => {
+    if (!lengthM || !widthM) return;
     addPondToMemory({
       name: pondName || `Pond ${ponds.length + 1}`,
       type: pondType,
-      widthMeters: targetWidth,
-      lengthMeters: targetLength,
-      depthMeters: targetDepth,
-      volumeLiters: liveVolumeLiters,
-      fishCount: scanResult?.stockCap ?? Math.floor(liveVolumeLiters / 40),
+      widthMeters: widthM,
+      lengthMeters: lengthM,
+      depthMeters: depthM,
+      volumeLiters: volLiters,
+      fishCount: stockCap,
       fishType: fishType,
       measuredViaCamera: true,
     });
     refreshMemory();
-    setIsCameraScannerOpen(false);
-    setCapturedSnapshot(null);
-    setScanResult(null);
-    setPondName("");
+    closeScanner();
   };
 
-  const handleAddStandardPond = (e: React.FormEvent) => {
-    e.preventDefault();
-    addPondToMemory({
-      name: pondName || `Pond ${ponds.length + 1}`,
-      type: pondType, widthMeters: 5, lengthMeters: 8, depthMeters: 1.5,
-      volumeLiters: 60000, fishCount: fishCount, fishType: fishType, measuredViaCamera: false,
-    });
-    refreshMemory();
-    setIsModalOpen(false);
-    setPondName("");
-  };
+  // ── Step UI data ──────────────────────────────────────────────────────────
+  const steps: { key: ScanStep; num: number; icon: string; title: string; desc: string }[] = [
+    { key: "mark_A",       num: 1, icon: "📍", title: "Stand at Corner A",        desc: "Walk to any corner of your pond. Stand as close to the edge as possible, then tap Mark Point A." },
+    { key: "walk_length",  num: 2, icon: "🚶", title: "Walk the LENGTH",          desc: "Walk along the longest side of your pond to the opposite corner." },
+    { key: "mark_B",       num: 3, icon: "📍", title: "Mark Corner B (Length end)", desc: "You are now at the opposite end. Tap to record this GPS point — the app will calculate the length." },
+    { key: "walk_width",   num: 4, icon: "🚶", title: "Walk the WIDTH",           desc: "Now walk 90° sideways across the width of your pond to the third corner." },
+    { key: "mark_C",       num: 5, icon: "📍", title: "Mark Corner C (Width end)", desc: "Tap to record this GPS point — the app will calculate the width." },
+    { key: "depth",        num: 6, icon: "📏", title: "Enter Pond Depth",         desc: "Enter the water depth of your pond (in metres). You can use a marked stick or rope to measure it." },
+    { key: "photo",        num: 7, icon: "📸", title: "Take Pond Photo",          desc: "Take an optional photo of your pond for your record." },
+    { key: "done",         num: 8, icon: "✅", title: "Review & Save",            desc: "Review your measurements and save the pond." },
+  ];
 
-  const estimatedFishCapacity = Math.floor(liveVolumeLiters / 40);
+  const currentStepData = steps.find((s) => s.key === step);
+
+  // ── GPS accuracy signal ───────────────────────────────────────────────────
+  const gpsSignal = currentGps
+    ? currentGps.acc <= 5 ? { label: "Excellent", color: "text-green-400" }
+    : currentGps.acc <= 10 ? { label: "Good", color: "text-emerald-400" }
+    : currentGps.acc <= 20 ? { label: "Fair", color: "text-yellow-400" }
+    : { label: "Weak", color: "text-red-400" }
+    : { label: "No GPS", color: "text-gray-400" };
+
+  // ── Pond type option (manual delete) ──────────────────────────────────────
+  const handleDeletePond = (id: string) => { deletePondFromMemory(id); refreshMemory(); };
+  const handleClearAllPonds = () => {
+    if (confirm("Clear all saved ponds?")) { clearAllPondsFromMemory(); refreshMemory(); }
+  };
 
   return (
     <PhoneFrame>
@@ -319,7 +253,7 @@ export function MyFarmPage() {
             <ArrowLeft className="w-5.5 h-5.5 text-gray-900" />
           </Link>
           <div>
-            <h1 className="text-[19px] font-extrabold text-gray-900 leading-tight">Pond Camera Scanner</h1>
+            <h1 className="text-[19px] font-extrabold text-gray-900 leading-tight">Pond Measurement</h1>
             <div className="flex items-center gap-1 text-[#0F6236] text-[12px] font-bold mt-0.5">
               <MapPin className="w-3.5 h-3.5" /> {userLocation}
             </div>
@@ -328,30 +262,35 @@ export function MyFarmPage() {
         <img src={farmerImg} alt="Kofi" className="w-9.5 h-9.5 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
-      {/* Launcher */}
+      {/* Launcher Card */}
       <section className="mx-5 mt-4">
-        <div className="p-5 rounded-3xl bg-gradient-to-br from-[#09341D] via-[#0F6236] to-[#082917] text-white shadow-xl shadow-[#0F6236]/30 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-extrabold uppercase text-emerald-200">
-              <Camera className="w-4 h-4 text-emerald-300" /> AI Vision Camera
-            </div>
-            <span className="text-[11px] bg-emerald-500/20 text-emerald-200 px-2.5 py-0.5 rounded-full font-bold">Width & Height Auto</span>
+        <div className="p-5 rounded-3xl bg-gradient-to-br from-[#09341D] via-[#0F6236] to-[#082917] text-white shadow-xl shadow-[#0F6236]/30 space-y-3">
+          <div className="flex items-center gap-2 text-xs font-extrabold uppercase text-emerald-200">
+            <Navigation className="w-4 h-4 text-emerald-300" /> GPS Walk Measurement
           </div>
           <div>
-            <h2 className="text-lg font-black leading-tight">Measure Pond With Camera</h2>
-            <p className="text-xs text-emerald-100 mt-1 font-medium">
-              Align your pond inside the green guide frame — the AI will scan Width, Height, Depth, Volume, and Max Stocking Capacity automatically.
+            <h2 className="text-lg font-black leading-tight">Measure Your Pond Accurately</h2>
+            <p className="text-xs text-emerald-100 mt-1 font-medium leading-relaxed">
+              Walk around your pond with your phone. GPS records exact Width, Length & calculates Volume, Max Stock, and Daily Feed — no guessing.
             </p>
           </div>
-          <button onClick={() => setIsCameraScannerOpen(true)}
+
+          {/* GPS quality indicator */}
+          <div className="flex items-center gap-2 text-[10.5px]">
+            <span className="text-emerald-200 font-bold">GPS Signal:</span>
+            <span className={`font-black ${gpsSignal.color}`}>{gpsSignal.label}</span>
+            {currentGps && <span className="text-emerald-200/60 font-medium">±{currentGps.acc}m</span>}
+          </div>
+
+          <button onClick={openScanner}
             className="w-full h-12 rounded-2xl bg-white text-[#0F6236] font-black text-xs shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2">
-            <Camera className="w-4 h-4" /> Open Camera Scanner
+            <Ruler className="w-4 h-4" /> Start GPS Pond Measurement
           </button>
         </div>
       </section>
 
       {/* Saved Ponds */}
-      <section className="mx-5 mt-5 space-y-3 mb-6">
+      <section className="mx-5 mt-5 space-y-3 mb-24">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-extrabold text-gray-900">Saved Ponds ({ponds.length})</h2>
           {ponds.length > 0 && (
@@ -364,251 +303,317 @@ export function MyFarmPage() {
               <Waves className="w-6 h-6 text-[#0F6236]" />
             </div>
             <h3 className="font-extrabold text-sm text-gray-900">No Saved Ponds</h3>
-            <p className="text-xs text-gray-500 font-medium">Use the Camera Scanner to automatically measure and save your pond.</p>
+            <p className="text-xs text-gray-500 font-medium">Use GPS Walk Measurement to measure and save your pond accurately.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {ponds.map((pond) => (
-              <div key={pond.id} className="bg-white p-4 rounded-3xl border border-gray-200 shadow-sm flex items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <h3 className="font-extrabold text-sm text-gray-900">{pond.name}</h3>
-                  <div className="flex items-center gap-3 text-xs font-bold text-[#0F6236]">
-                    <span>W: {pond.widthMeters}m</span>
-                    <span>H: {pond.lengthMeters}m</span>
-                    <span>D: {pond.depthMeters}m</span>
+              <div key={pond.id} className="bg-white p-4 rounded-3xl border border-gray-200 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1.5">
+                    <h3 className="font-extrabold text-sm text-gray-900">{pond.name}</h3>
+                    <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+                      {[
+                        { l: "Width", v: `${pond.widthMeters}m` },
+                        { l: "Length", v: `${pond.lengthMeters}m` },
+                        { l: "Depth", v: `${pond.depthMeters}m` },
+                      ].map(({ l, v }) => (
+                        <div key={l} className="bg-emerald-50 rounded-xl p-1.5 border border-emerald-100">
+                          <div className="text-gray-400 font-bold">{l}</div>
+                          <div className="font-black text-[#0F6236]">{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] text-gray-500 font-medium pt-0.5">
+                      <span>Vol: {(pond.volumeLiters / 1000).toFixed(1)}kL</span>
+                      <span>•</span>
+                      <span>Max: {pond.fishCount.toLocaleString()} fish</span>
+                      <span>•</span>
+                      <span>{pond.type}</span>
+                    </div>
                   </div>
-                  <div className="text-[10px] text-gray-500 font-medium">{pond.fishCount.toLocaleString()} {pond.fishType} • {pond.type}</div>
+                  <button onClick={() => handleDeletePond(pond.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-xl cursor-pointer shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-                <button onClick={() => handleDeletePond(pond.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-xl cursor-pointer">
-                  <Trash2 className="w-4.5 h-4.5" />
-                </button>
               </div>
             ))}
           </div>
         )}
       </section>
 
-      {/* ─── LIVE AR CAMERA SCANNER MODAL ─── */}
-      {isCameraScannerOpen && (
-        <div className="fixed inset-0 z-50 bg-black">
-          {/* Close */}
-          <div className="absolute top-5 right-5 z-40">
-            <button onClick={() => { setIsCameraScannerOpen(false); setCapturedSnapshot(null); setScanResult(null); }}
-              className="p-3 rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80 border border-white/20">
-              <X className="w-6 h-6" />
+      {/* ─────────────────────────── GPS SCANNER MODAL ─────────────────────────── */}
+      {isScannerOpen && (
+        <div className="fixed inset-0 z-50 bg-[#07200F] flex flex-col">
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/10">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">
+                GPS Pond Measurement
+              </span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className={`text-[10.5px] font-bold ${gpsSignal.color}`}>
+                  📡 GPS {gpsSignal.label}
+                </span>
+                {currentGps && (
+                  <span className="text-[10px] text-white/40 font-medium">±{currentGps.acc}m accuracy</span>
+                )}
+              </div>
+            </div>
+            <button onClick={closeScanner}
+              className="p-2 rounded-full bg-white/10 border border-white/15 text-white cursor-pointer hover:bg-white/20">
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Full-screen video */}
-          <div className="relative w-full h-full">
-            <video
-              ref={(el) => {
-                videoRef.current = el;
-                if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
-                  el.srcObject = mediaStreamRef.current;
-                  el.play().catch(() => {});
-                }
-              }}
-              autoPlay playsInline muted
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            <canvas ref={canvasRef} className="hidden" />
-
-            {/* ── AR Overlay ── */}
-            <div className="absolute inset-0 pointer-events-none">
-              {/* Top vignette */}
-              <div className="absolute inset-x-0 top-0 h-[12%] bg-gradient-to-b from-black/70 to-transparent" />
-              {/* Bottom vignette */}
-              <div className="absolute inset-x-0 bottom-0 h-[32%] bg-gradient-to-t from-black/80 to-transparent" />
-              {/* Left & Right vignette */}
-              <div className="absolute inset-y-0 left-0 w-[8%] bg-gradient-to-r from-black/50 to-transparent" />
-              <div className="absolute inset-y-0 right-0 w-[8%] bg-gradient-to-l from-black/50 to-transparent" />
-
-              {/* Guide Rectangle */}
-              <div className="absolute" style={{ left: "8%", top: "12%", width: "84%", height: "68%" }}>
-                {/* Main border */}
-                <div className={`absolute inset-0 rounded-2xl border-2 transition-colors duration-500 ${
-                  guideStatus === "good" ? "border-green-400 shadow-[0_0_20px_rgba(74,222,128,0.4)]"
-                  : guideStatus === "bad" ? "border-red-400/70"
-                  : "border-white/50"
+          {/* Step progress bar */}
+          <div className="px-5 pt-3 pb-1">
+            <div className="flex gap-1">
+              {steps.map((s, i) => (
+                <div key={s.key} className={`flex-1 h-1 rounded-full transition-all ${
+                  steps.findIndex((ss) => ss.key === step) >= i ? "bg-emerald-400" : "bg-white/15"
                 }`} />
-
-                {/* Corner L-brackets */}
-                {[
-                  "top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-2xl",
-                  "top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-2xl",
-                  "bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-2xl",
-                  "bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-2xl",
-                ].map((cls, i) => (
-                  <div key={i} className={`absolute w-10 h-10 transition-colors duration-500 ${cls} ${
-                    guideStatus === "good" ? "border-green-400" : guideStatus === "bad" ? "border-red-400" : "border-white"
-                  }`} />
-                ))}
-
-                {/* Label: WIDTH top center */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${
-                    guideStatus === "good" ? "bg-green-500/90 text-white" : "bg-white/20 text-white/80"
-                  }`}>WIDTH →</span>
-                </div>
-                {/* Label: HEIGHT left center */}
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2">
-                  <span className={`text-[10px] font-extrabold px-2 py-1 rounded-full writing-mode-vertical-lr rotate-180 ${
-                    guideStatus === "good" ? "bg-green-500/90 text-white" : "bg-white/20 text-white/80"
-                  }`} style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}>HEIGHT ↕</span>
-                </div>
-
-                {/* Center reticle */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className={`w-8 h-8 border-2 rounded-full transition-all ${
-                    guideStatus === "good" ? "border-green-400 bg-green-400/20" : "border-white/40 bg-white/10"
-                  }`}>
-                    <div className={`absolute inset-0 rounded-full m-1.5 ${guideStatus === "good" ? "bg-green-400" : "bg-white/30"}`} />
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
-
-            {/* ── Status Bar top ── */}
-            <div className="absolute top-5 left-4 right-16 z-20 flex flex-col gap-2">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-extrabold backdrop-blur-md border transition-all self-start ${
-                guideStatus === "good" ? "bg-green-500/25 border-green-400/50 text-green-300"
-                : guideStatus === "bad" ? "bg-red-500/25 border-red-400/40 text-red-300"
-                : "bg-black/50 border-white/20 text-white"
-              }`}>
-                {guideStatus === "good" && <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />}
-                {guideStatus === "bad" && <AlertTriangle className="w-3.5 h-3.5" />}
-                {guideStatus === "scanning" && <span className="w-2 h-2 rounded-full bg-white/60 animate-pulse" />}
-                {guideMessage}
-              </div>
-              {/* Coverage bar */}
-              <div className="flex items-center gap-2">
-                <div className="w-32 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all duration-200 ${
-                    pondFillPct >= 50 ? "bg-green-400" : pondFillPct >= 25 ? "bg-yellow-400" : "bg-red-400"
-                  }`} style={{ width: `${Math.min(pondFillPct * 2, 100)}%` }} />
-                </div>
-                <span className="text-[10px] text-white/60 font-bold">{pondFillPct}% coverage</span>
-              </div>
-            </div>
-
-            {/* ── Snap Button bottom ── */}
-            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3">
-              <button
-                onClick={handleScanPondWithAI}
-                disabled={isAnalyzingPond}
-                className={`w-20 h-20 rounded-full border-[5px] shadow-2xl flex items-center justify-center cursor-pointer active:scale-90 transition-all ${
-                  guideStatus === "good"
-                    ? "border-green-400 bg-green-500 shadow-green-500/40"
-                    : guideStatus === "bad"
-                    ? "border-red-400/60 bg-red-500/50"
-                    : "border-white bg-white/20"
-                }`}
-              >
-                <div className="w-13 h-13 rounded-full bg-white/25 flex items-center justify-center">
-                  {isAnalyzingPond
-                    ? <RefreshCw className="w-7 h-7 text-white animate-spin" />
-                    : <Camera className="w-7 h-7 text-white" />}
-                </div>
-              </button>
-              <span className={`text-xs font-extrabold px-4 py-1.5 rounded-full border backdrop-blur-md ${
-                guideStatus === "good" ? "bg-green-500/25 border-green-400/50 text-green-300"
-                : "bg-black/60 border-white/20 text-white"
-              }`}>
-                {isAnalyzingPond ? "⏳ Measuring..." : guideStatus === "good" ? "✅ Tap to Scan!" : "Align pond in frame first"}
-              </span>
+            <div className="text-[10px] text-white/40 font-bold mt-1">
+              Step {currentStepData?.num ?? 0} of {steps.length}
             </div>
           </div>
 
-          {/* ── Full-Screen Scan Result ── */}
-          {capturedSnapshot && (
-            <div className="absolute inset-0 z-50 bg-black flex flex-col">
-              {/* Annotated image */}
-              <div className="flex-1 flex items-center justify-center overflow-hidden">
-                <img src={capturedSnapshot} alt="Scanned Pond" className="w-full h-full object-contain" />
-              </div>
+          {/* ── Step Content ── */}
+          <div className="flex-1 px-5 py-4 overflow-y-auto space-y-5">
 
-              {/* Results bottom sheet */}
-              <div className="bg-gradient-to-t from-black via-black/98 to-transparent px-5 pb-8 pt-4 space-y-4">
-                <div className="flex items-center justify-between border-b border-white/15 pb-3">
-                  <span className="font-extrabold text-sm text-emerald-400 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4" /> Scan Complete ✓
-                  </span>
-                  <button onClick={() => { setCapturedSnapshot(null); setScanResult(null); }}
-                    className="p-1.5 bg-white/15 rounded-full text-white cursor-pointer hover:bg-white/25">
-                    <X className="w-4.5 h-4.5" />
+            {/* Current step card */}
+            {currentStepData && (
+              <div className="bg-white/8 border border-white/12 rounded-3xl p-5 space-y-2">
+                <div className="text-3xl">{currentStepData.icon}</div>
+                <h3 className="text-lg font-black text-white">{currentStepData.title}</h3>
+                <p className="text-sm text-white/60 font-medium leading-relaxed">{currentStepData.desc}</p>
+              </div>
+            )}
+
+            {/* GPS error */}
+            {gpsError && (
+              <div className="bg-red-500/15 border border-red-400/30 rounded-2xl p-3.5 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-300 font-medium">{gpsError}</p>
+              </div>
+            )}
+
+            {/* Accuracy warning */}
+            {currentGps && currentGps.acc > 15 && (step === "mark_A" || step === "mark_B" || step === "mark_C") && (
+              <div className="bg-yellow-500/15 border border-yellow-400/30 rounded-2xl p-3.5 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-yellow-300">GPS accuracy is {currentGps.acc}m</p>
+                  <p className="text-[10.5px] text-yellow-200/70 font-medium mt-0.5">Move to an open area away from trees and buildings for better accuracy. Wait for signal to improve before marking.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Measurements so far */}
+            {(lengthM !== null || widthM !== null) && (
+              <div className="bg-emerald-500/10 border border-emerald-400/20 rounded-2xl p-4 space-y-2">
+                <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider">Measurements So Far</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {lengthM !== null && (
+                    <div className="bg-white/8 rounded-xl p-3 text-center">
+                      <div className="text-[9px] text-white/40 font-bold uppercase">Length</div>
+                      <div className="text-xl font-black text-white">{lengthM.toFixed(1)}<span className="text-sm text-white/50 ml-0.5">m</span></div>
+                      {ptA && ptB && <div className="text-[9px] text-emerald-400 font-bold mt-0.5">GPS measured ✓</div>}
+                    </div>
+                  )}
+                  {widthM !== null && (
+                    <div className="bg-white/8 rounded-xl p-3 text-center">
+                      <div className="text-[9px] text-white/40 font-bold uppercase">Width</div>
+                      <div className="text-xl font-black text-white">{widthM.toFixed(1)}<span className="text-sm text-white/50 ml-0.5">m</span></div>
+                      {ptA && ptC && <div className="text-[9px] text-emerald-400 font-bold mt-0.5">GPS measured ✓</div>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Depth input step */}
+            {step === "depth" && (
+              <div className="space-y-4">
+                <div className="bg-white/8 border border-white/12 rounded-2xl p-4 space-y-3">
+                  <label className="text-xs font-extrabold text-white block">Pond Depth (metres)</label>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setDepthM(Math.max(0.3, +(depthM - 0.1).toFixed(1)))}
+                      className="w-12 h-12 rounded-2xl bg-white/15 text-white font-black text-xl cursor-pointer active:scale-90 flex items-center justify-center">−</button>
+                    <div className="flex-1 text-center">
+                      <span className="text-4xl font-black text-white">{depthM.toFixed(1)}</span>
+                      <span className="text-lg text-white/50 ml-1">m</span>
+                    </div>
+                    <button onClick={() => setDepthM(+(depthM + 0.1).toFixed(1))}
+                      className="w-12 h-12 rounded-2xl bg-white/15 text-white font-black text-xl cursor-pointer active:scale-90 flex items-center justify-center">+</button>
+                  </div>
+                  <p className="text-[10.5px] text-white/40 font-medium text-center">Use a marked stick or rope to measure water depth</p>
+                </div>
+
+                <div className="bg-white/8 border border-white/12 rounded-2xl p-4 space-y-2">
+                  <label className="text-xs font-extrabold text-white block">Pond Type</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["Earthen", "Concrete", "Tarpaulin"].map((t) => (
+                      <button key={t} onClick={() => setPondType(t)}
+                        className={`py-2.5 rounded-xl text-[10.5px] font-extrabold cursor-pointer transition-all border ${
+                          pondType === t ? "bg-emerald-500 border-emerald-400 text-white" : "bg-white/8 border-white/15 text-white/60"
+                        }`}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <button onClick={() => setStep("photo")}
+                  className="w-full h-12 bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-sm rounded-2xl cursor-pointer active:scale-95 flex items-center justify-center gap-2">
+                  <Check className="w-4.5 h-4.5" /> Confirm Depth & Continue
+                </button>
+              </div>
+            )}
+
+            {/* Photo step */}
+            {step === "photo" && (
+              <div className="space-y-3">
+                {capturedPhoto ? (
+                  <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-400/50">
+                    <img src={capturedPhoto} alt="Pond" className="w-full h-48 object-cover" />
+                    <button onClick={() => { setCapturedPhoto(null); setIsCameraOpen(true); }}
+                      className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold text-xs gap-2 cursor-pointer">
+                      <RefreshCw className="w-4 h-4" /> Retake Photo
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setIsCameraOpen(true)}
+                    className="w-full h-44 rounded-2xl border-2 border-dashed border-emerald-400/30 bg-white/5 flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95">
+                    <Camera className="w-8 h-8 text-emerald-400" />
+                    <span className="text-xs font-extrabold text-white">Take Pond Photo</span>
+                    <span className="text-[10px] text-white/40 font-medium">Optional but recommended</span>
+                  </button>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => setStep("done")}
+                    className="flex-1 h-11 bg-emerald-500 text-white font-extrabold text-xs rounded-2xl cursor-pointer active:scale-95">
+                    {capturedPhoto ? "Continue →" : "Skip Photo →"}
                   </button>
                 </div>
+              </div>
+            )}
 
-                {/* Measurement grid */}
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  {[
-                    { label: "Width", val: `${(scanResult?.widthM ?? targetWidth).toFixed(1)} m` },
-                    { label: "Height", val: `${(scanResult?.heightM ?? targetLength).toFixed(1)} m` },
-                    { label: "Depth", val: `${(scanResult?.depthM ?? targetDepth).toFixed(1)} m` },
-                    { label: "Volume", val: `${((scanResult?.volL ?? liveVolumeLiters) / 1000).toFixed(1)} kL` },
-                    { label: "Max Stock", val: `${(scanResult?.stockCap ?? estimatedFishCapacity).toLocaleString()}` },
-                    { label: "Daily Feed", val: `${scanResult?.dailyFeed?.toFixed(1) ?? "—"} kg` },
-                  ].map(({ label, val }) => (
-                    <div key={label} className="bg-white/10 rounded-2xl p-2.5 border border-white/15">
-                      <div className="text-[9px] font-extrabold text-emerald-400 uppercase mb-0.5">{label}</div>
-                      <div className="text-sm font-black text-white">{val}</div>
-                    </div>
-                  ))}
+            {/* Done / Review step */}
+            {step === "done" && lengthM !== null && widthM !== null && (
+              <div className="space-y-4">
+                {capturedPhoto && (
+                  <img src={capturedPhoto} alt="Pond" className="w-full h-36 object-cover rounded-2xl border border-emerald-400/30" />
+                )}
+
+                {/* Full results grid */}
+                <div className="bg-white/8 border border-white/12 rounded-2xl p-4 space-y-3">
+                  <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider">GPS Measurement Results</span>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    {[
+                      { l: "Length",    v: `${lengthM.toFixed(1)} m`,          sub: "GPS measured" },
+                      { l: "Width",     v: `${widthM.toFixed(1)} m`,           sub: "GPS measured" },
+                      { l: "Depth",     v: `${depthM.toFixed(1)} m`,           sub: "Manual entry" },
+                      { l: "Volume",    v: `${(volLiters / 1000).toFixed(1)} kL`, sub: "L×W×D×1000" },
+                      { l: "Max Stock", v: stockCap.toLocaleString(),          sub: `${density} fish/m³` },
+                      { l: "Daily Feed",v: `${dailyFeedKg} kg`,               sub: "3% body weight" },
+                    ].map(({ l, v, sub }) => (
+                      <div key={l} className="bg-white/8 rounded-xl p-2.5 border border-white/8">
+                        <div className="text-[8.5px] text-white/35 font-bold uppercase">{l}</div>
+                        <div className="text-sm font-black text-white mt-0.5">{v}</div>
+                        <div className="text-[8px] text-emerald-400/70 font-medium mt-0.5">{sub}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="text-[10px] text-gray-400 font-medium text-center">
-                  Pond Type: <span className="text-emerald-400 font-bold">{scanResult?.pondType ?? pondType}</span>
-                </div>
-
-                {/* Name input */}
+                {/* Pond name input */}
                 <input type="text" value={pondName} onChange={(e) => setPondName(e.target.value)}
                   placeholder="Give this pond a name (optional)"
-                  className="w-full h-10 bg-white/15 border border-white/20 rounded-xl px-3.5 text-white text-xs font-bold placeholder-white/40 outline-none" />
+                  className="w-full h-11 bg-white/10 border border-white/20 rounded-xl px-3.5 text-white text-xs font-bold placeholder-white/30 outline-none" />
 
                 <div className="flex gap-2.5">
-                  <button onClick={handleSaveCameraPond}
-                    className="flex-1 h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95">
-                    <Check className="w-4 h-4" /> Save Pond Record
+                  <button onClick={handleSavePond}
+                    className="flex-1 h-12 bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95">
+                    <Check className="w-4.5 h-4.5" /> Save Pond Record
                   </button>
-                  <button onClick={() => { setCapturedSnapshot(null); setScanResult(null); }}
-                    className="px-5 h-12 bg-white/15 hover:bg-white/25 text-white font-extrabold text-xs rounded-2xl cursor-pointer">
-                    Retake
+                  <button onClick={resetScan}
+                    className="px-4 h-12 bg-white/12 hover:bg-white/20 text-white font-extrabold text-xs rounded-2xl cursor-pointer">
+                    Redo
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* ── Bottom Action Button ── */}
+          {(step === "mark_A" || step === "mark_B" || step === "mark_C" || step === "walk_length" || step === "walk_width") && (
+            <div className="px-5 pb-8 pt-3 border-t border-white/8 space-y-2.5">
+              {step === "mark_A" && (
+                <button onClick={() => markPoint("A")} disabled={gpsLoading}
+                  className="w-full h-14 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-extrabold text-base rounded-2xl shadow-lg cursor-pointer active:scale-95 flex items-center justify-center gap-2.5 transition-all">
+                  {gpsLoading ? <><RefreshCw className="w-5 h-5 animate-spin" /> Getting GPS fix...</>
+                    : <><MapPin className="w-5 h-5" /> Mark Corner A (Start)</>}
+                </button>
+              )}
+              {step === "walk_length" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-emerald-300 font-bold text-center">Walk to the opposite end of the pond →</p>
+                  <button onClick={() => setStep("mark_B")}
+                    className="w-full h-14 bg-white/15 hover:bg-white/20 text-white font-extrabold text-sm rounded-2xl cursor-pointer active:scale-95 flex items-center justify-center gap-2.5 border border-white/20">
+                    ✅ I'm at the other end — Mark Point B
+                  </button>
+                </div>
+              )}
+              {step === "mark_B" && (
+                <button onClick={() => markPoint("B")} disabled={gpsLoading}
+                  className="w-full h-14 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-extrabold text-base rounded-2xl shadow-lg cursor-pointer active:scale-95 flex items-center justify-center gap-2.5">
+                  {gpsLoading ? <><RefreshCw className="w-5 h-5 animate-spin" /> Getting GPS fix...</>
+                    : <><MapPin className="w-5 h-5" /> Mark Corner B (Length end)</>}
+                </button>
+              )}
+              {step === "walk_width" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-emerald-300 font-bold text-center">Walk 90° sideways across the width →</p>
+                  <button onClick={() => setStep("mark_C")}
+                    className="w-full h-14 bg-white/15 hover:bg-white/20 text-white font-extrabold text-sm rounded-2xl cursor-pointer active:scale-95 flex items-center justify-center gap-2.5 border border-white/20">
+                    ✅ I'm at the side — Mark Point C
+                  </button>
+                </div>
+              )}
+              {step === "mark_C" && (
+                <button onClick={() => markPoint("C")} disabled={gpsLoading}
+                  className="w-full h-14 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-extrabold text-base rounded-2xl shadow-lg cursor-pointer active:scale-95 flex items-center justify-center gap-2.5">
+                  {gpsLoading ? <><RefreshCw className="w-5 h-5 animate-spin" /> Getting GPS fix...</>
+                    : <><MapPin className="w-5 h-5" /> Mark Corner C (Width end)</>}
+                </button>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Manual Add Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-5 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl border border-gray-100">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <h3 className="font-extrabold text-sm text-gray-900">Add Pond Manually</h3>
-              <button onClick={() => setIsModalOpen(false)} className="p-1 rounded-full hover:bg-gray-100">
-                <X className="w-4 h-4 text-gray-500" />
-              </button>
-            </div>
-            <form onSubmit={handleAddStandardPond} className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-gray-700 block mb-1">Pond Name</label>
-                <input type="text" required value={pondName} onChange={(e) => setPondName(e.target.value)}
-                  placeholder="e.g. Earth Pond 2"
-                  className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-gray-50 font-bold" />
+      {/* ── Full-screen camera for photo ── */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-60 bg-black flex flex-col">
+          <video ref={(el) => { videoRef.current = el; if (el && mediaStreamRef.current) { el.srcObject = mediaStreamRef.current; el.play(); } }}
+            autoPlay playsInline muted className="flex-1 w-full object-cover" />
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 z-10">
+            <button onClick={capturePhoto}
+              className="w-20 h-20 rounded-full bg-white border-4 border-[#0F6236] shadow-2xl flex items-center justify-center cursor-pointer active:scale-90">
+              <div className="w-14 h-14 rounded-full bg-[#0F6236] flex items-center justify-center">
+                <Camera className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <label className="font-bold text-gray-700 block mb-1">Fish Count</label>
-                <input type="number" required value={fishCount} onChange={(e) => setFishCount(Number(e.target.value) || 0)}
-                  className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-gray-50 font-bold" />
-              </div>
-              <button type="submit" className="w-full h-11 bg-[#0F6236] text-white font-extrabold rounded-xl shadow-md cursor-pointer">
-                Save Pond
-              </button>
-            </form>
+            </button>
+            <button onClick={skipPhoto}
+              className="text-white text-xs font-bold bg-black/50 px-4 py-1.5 rounded-full cursor-pointer">
+              Skip Photo
+            </button>
           </div>
+          <button onClick={() => { stopCamera(); setIsCameraOpen(false); }}
+            className="absolute top-5 right-5 p-3 rounded-full bg-black/60 text-white border border-white/20 cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
 
