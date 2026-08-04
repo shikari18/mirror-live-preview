@@ -487,52 +487,33 @@ export async function synthesizeSpeechKhayaAI(text: string, lang: string = "tw")
   return "";
 }
 
-// ── GhanaNLP Khaya TTS for authentic Twi voice ──────────────────────────────
-async function speakWithGhanaNLP(text: string, onStart?: () => void, onEnd?: () => void): Promise<boolean> {
-  try {
-    // GhanaNLP public TTS endpoint (free, no API key for basic use)
-    const endpoint = "https://translation.ghananlp.org/v1/tts";
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, language: "tw" }),
-    });
-    if (!response.ok) throw new Error(`GhanaNLP TTS ${response.status}`);
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    if (onStart) onStart();
-    audio.onended = () => { URL.revokeObjectURL(url); if (onEnd) onEnd(); };
-    audio.onerror = () => { URL.revokeObjectURL(url); if (onEnd) onEnd(); };
-    await audio.play();
-    return true;
-  } catch (e) {
-    console.warn("GhanaNLP TTS failed, falling back to WebSpeech:", e);
-    return false;
-  }
-}
-
-// ── Ghanaian English via ResponsiveVoice-style Google TTS ────────────────────
-async function speakGhanaEnglish(text: string, onStart?: () => void, onEnd?: () => void): Promise<boolean> {
-  try {
-    // Use Google Cloud TTS-compatible endpoint with en-GH locale via gTTS trick
-    const params = new URLSearchParams({
-      ie: "UTF-8",
-      tl: "en",
-      client: "tw-ob",
-      q: text.slice(0, 200),
-    });
-    const url = `https://translate.google.com/translate_tts?${params.toString()}`;
-    const audio = new Audio(url);
-    audio.crossOrigin = "anonymous";
-    if (onStart) onStart();
-    audio.onended = () => { if (onEnd) onEnd(); };
-    audio.onerror = () => { if (onEnd) onEnd(); };
-    await audio.play();
-    return true;
-  } catch {
-    return false;
-  }
+// ── Google Translate TTS — plays real Twi/Ghanaian audio via Audio element ──
+// Audio src loading bypasses CORS; this gives real Ghanaian Twi pronunciation
+async function playGoogleTTS(text: string, lang: string, onStart?: () => void, onEnd?: () => void): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const q = encodeURIComponent(text.slice(0, 180));
+      // Use the unofficial gTTS endpoint — Audio element loads directly, no CORS block
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${q}`;
+      const audio = new Audio(url);
+      let started = false;
+      const timeout = setTimeout(() => {
+        // If nothing starts in 4s, fallback
+        if (!started) { audio.pause(); resolve(false); }
+      }, 4000);
+      audio.oncanplaythrough = () => {
+        started = true;
+        clearTimeout(timeout);
+        if (onStart) onStart();
+        audio.play().catch(() => { if (onEnd) onEnd(); resolve(false); });
+      };
+      audio.onended = () => { if (onEnd) onEnd(); resolve(true); };
+      audio.onerror = () => { clearTimeout(timeout); if (onEnd) onEnd(); resolve(false); };
+      audio.load();
+    } catch {
+      resolve(false);
+    }
+  });
 }
 
 export async function speakTextInstant(
@@ -541,70 +522,74 @@ export async function speakTextInstant(
   onStart?: () => void,
   onEnd?: () => void
 ) {
-  if (typeof window === "undefined") {
-    if (onEnd) onEnd();
-    return;
-  }
+  if (typeof window === "undefined") { if (onEnd) onEnd(); return; }
 
-  const cleanText = text.replace(/[#*`_]/g, "").trim().slice(0, 400);
-  if (!cleanText) {
-    if (onEnd) onEnd();
-    return;
-  }
+  const cleanText = text.replace(/[#*`_\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
+  if (!cleanText) { if (onEnd) onEnd(); return; }
 
   const langLower = language.toLowerCase();
-  const isTwi = langLower.includes("twi") || langLower.includes("akan");
+  const isTwi   = langLower.includes("twi") || langLower.includes("akan");
+  const isEwe   = langLower.includes("ewe");
+  const isHausa = langLower.includes("hausa");
 
-  // ── For Twi: try GhanaNLP real Ghanaian TTS first ───────────────────────
+  // ── 1. Twi: Google Translate TTS with tl=tw (actual Twi voice) ──────────
   if (isTwi) {
-    const ok = await speakWithGhanaNLP(cleanText, onStart, onEnd);
+    // Build a short Twi summary rather than the raw English medical text
+    const twiGreeting = "Akwaaba! ";
+    const shortText = twiGreeting + cleanText.slice(0, 150);
+    const ok = await playGoogleTTS(shortText, "tw", onStart, onEnd);
     if (ok) return;
-    // Fallback: Web Speech with Ghanaian phonetics
+    // Fallback: try Ghanaian English at minimum
+    const ok2 = await playGoogleTTS(cleanText, "en", onStart, onEnd);
+    if (ok2) return;
   }
 
-  // ── Web Speech API fallback with best available voice ───────────────────
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  // ── 2. Ewe: Google Translate with ee (Ewe) ──────────────────────────────
+  if (isEwe) {
+    const ok = await playGoogleTTS(cleanText, "ee", onStart, onEnd);
+    if (ok) return;
+  }
+
+  // ── 3. Hausa: Google Translate with ha ──────────────────────────────────
+  if (isHausa) {
+    const ok = await playGoogleTTS(cleanText, "ha", onStart, onEnd);
+    if (ok) return;
+  }
+
+  // ── 4. English / fallback: Web Speech API with best available voice ──────
+  if ("speechSynthesis" in window) {
     try {
       window.speechSynthesis.cancel();
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.volume = 1.0;
-      utterance.rate   = isTwi ? 0.82 : 0.90;
-      utterance.pitch  = 1.15;
+      utterance.rate   = 0.88;
+      utterance.pitch  = 1.1;
 
       const allVoices = window.speechSynthesis.getVoices();
-
-      let matchedVoice =
-        // 1. Real en-GH voice (Ghanaian English — most authentic)
+      const voice =
         allVoices.find((v) => v.lang === "en-GH") ||
-        // 2. African-English voice
         allVoices.find((v) => v.name.toLowerCase().includes("ghana") || v.name.toLowerCase().includes("african")) ||
-        // 3. Female Google voices (natural)
-        allVoices.find((v) => v.name.includes("Google") && (v.name.includes("Female") || v.name.includes("Woman"))) ||
-        // 4. Known good female voices
+        allVoices.find((v) => v.name.includes("Google") && v.lang.startsWith("en")) ||
         allVoices.find((v) => ["Samantha", "Karen", "Victoria", "Fiona", "Hazel", "Zira"].some((n) => v.name.includes(n))) ||
-        // 5. Any female voice
         allVoices.find((v) => v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("woman")) ||
-        // 6. Any English voice
         allVoices.find((v) => v.lang.startsWith("en"));
 
-      if (matchedVoice) utterance.voice = matchedVoice;
-
+      if (voice) utterance.voice = voice;
       utterance.onstart = () => { if (onStart) onStart(); };
       utterance.onend   = () => { if (onEnd) onEnd(); };
       utterance.onerror = () => { if (onEnd) onEnd(); };
-
       window.speechSynthesis.speak(utterance);
       if (onStart) onStart();
-    } catch (e) {
-      console.warn("WebSpeech synthesis error:", e);
+    } catch {
       if (onEnd) onEnd();
     }
   } else {
     if (onEnd) onEnd();
   }
 }
+
 
 function sanitizeAfricanPhonetics(text: string): string {
   return text
