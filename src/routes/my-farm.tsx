@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Plus, Waves, MapPin, ArrowLeft, Camera, Check, RefreshCw, X, Sparkles, Trash2 } from "lucide-react";
+import { Plus, Waves, MapPin, ArrowLeft, Camera, Check, RefreshCw, X, Sparkles, Trash2, AlertTriangle } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { useLanguage } from "@/lib/languageContext";
@@ -28,42 +28,30 @@ export function MyFarmPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("scanner") === "true") {
-        setIsCameraScannerOpen(true);
-      }
+      if (params.get("scanner") === "true") setIsCameraScannerOpen(true);
     }
   }, []);
 
-  // Form State
   const [pondName, setPondName] = useState("");
   const [fishType, setFishType] = useState("Catfish (Clarias)");
   const [fishCount, setFishCount] = useState<number>(1000);
   const [pondType, setPondType] = useState("Concrete");
 
-  // Real-Time AR Camera Measurement State
   const [targetWidth, setTargetWidth] = useState<number>(5.5);
   const [targetLength, setTargetLength] = useState<number>(8.0);
   const [targetDepth, setTargetDepth] = useState<number>(1.4);
   const [liveVolumeLiters, setLiveVolumeLiters] = useState<number>(61600);
-  const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [isAnalyzingPond, setIsAnalyzingPond] = useState<boolean>(false);
-  const [aiConfidence, setAiConfidence] = useState<number | null>(null);
   const [capturedSnapshot, setCapturedSnapshot] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<{
+    widthM: number; heightM: number; depthM: number;
+    volL: number; stockCap: number; dailyFeed: number; pondType: string;
+  } | null>(null);
 
-  // Feed Inventory State
-  const [feedBagsInStore, setFeedBagsInStore] = useState<number>(2);
-  const [feedBrand, setFeedBrand] = useState<string>("Raanan 3mm Floating Pellets");
-
-  useEffect(() => {
-    const savedBags = localStorage.getItem("feed_inventory_bags");
-    if (savedBags) setFeedBagsInStore(Number(savedBags));
-  }, []);
-
-  const handleUpdateFeedStock = (delta: number) => {
-    const updated = Math.max(0, feedBagsInStore + delta);
-    setFeedBagsInStore(updated);
-    localStorage.setItem("feed_inventory_bags", updated.toString());
-  };
+  // Live AR guide state
+  const [pondFillPct, setPondFillPct] = useState<number>(0);
+  const [guideStatus, setGuideStatus] = useState<"scanning" | "good" | "bad">("scanning");
+  const [guideMessage, setGuideMessage] = useState<string>("Point camera at pond");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -86,24 +74,16 @@ export function MyFarmPage() {
     setPonds(fresh.ponds || []);
   };
 
-  const handleDeletePond = (id: string) => {
-    deletePondFromMemory(id);
-    refreshMemory();
-  };
-
+  const handleDeletePond = (id: string) => { deletePondFromMemory(id); refreshMemory(); };
   const handleClearAllPonds = () => {
     if (confirm("Are you sure you want to clear all measured ponds?")) {
-      clearAllPondsFromMemory();
-      refreshMemory();
+      clearAllPondsFromMemory(); refreshMemory();
     }
   };
 
   useEffect(() => {
-    if (isCameraScannerOpen) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
+    if (isCameraScannerOpen) startCamera();
+    else stopCamera();
     return () => stopCamera();
   }, [isCameraScannerOpen]);
 
@@ -117,218 +97,184 @@ export function MyFarmPage() {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
           videoRef.current?.play();
-          startRealTimeCanvasAnalysis();
+          startLiveGuideLoop();
         };
       }
-      setCameraActive(true);
-    } catch (err) {
-      console.warn("Camera fallback", err);
-      setCameraActive(false);
-    }
+    } catch (err) { console.warn("Camera fallback", err); }
   };
 
   const stopCamera = () => {
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
-    }
-    setCameraActive(false);
+    if (animFrameRef.current) { cancelAnimationFrame(animFrameRef.current); animFrameRef.current = null; }
+    if (mediaStreamRef.current) { mediaStreamRef.current.getTracks().forEach((t) => t.stop()); mediaStreamRef.current = null; }
   };
 
-  const drawSmartAnnotatedSnapshot = (videoEl: HTMLVideoElement, aiW?: number, aiH?: number): { dataUrl: string; widthM: number; heightM: number } => {
-    const canvas = document.createElement("canvas");
-    const w = videoEl.videoWidth || 1280;
-    const h = videoEl.videoHeight || 720;
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return { dataUrl: "", widthM: aiW || 5.0, heightM: aiH || 8.0 };
+  // ── Live AR guide loop: detects pond fill percentage in guide zone ──
+  const startLiveGuideLoop = () => {
+    const loop = () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          const vw = video.videoWidth || 640;
+          const vh = video.videoHeight || 480;
+          canvas.width = vw;
+          canvas.height = vh;
+          ctx.drawImage(video, 0, 0, vw, vh);
 
-    // 1. Draw camera photo frame
-    ctx.drawImage(videoEl, 0, 0, w, h);
+          // Sample the 84%×76% guide zone
+          const sx = Math.round(vw * 0.08);
+          const sy = Math.round(vh * 0.12);
+          const sw = Math.round(vw * 0.84);
+          const sh = Math.round(vh * 0.76);
+          const fd = ctx.getImageData(sx, sy, sw, sh);
+          const d = fd.data;
+          const total = d.length / 4;
 
-    // 2. Perform Real Image Edge & Water Contrast Pixel Inspection
-    const imgData = ctx.getImageData(0, 0, w, h);
-    const data = imgData.data;
+          let waterPx = 0;
+          for (let i = 0; i < d.length; i += 4) {
+            const r = d[i], g = d[i + 1], b = d[i + 2];
+            const isWater =
+              (b >= r - 15 && g >= r - 15) ||
+              (r < 130 && g < 130 && b < 130) ||
+              (Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && r < 160);
+            if (isWater) waterPx++;
+          }
 
-    let minX = w, maxX = 0, minY = h, maxY = 0;
-    let waterPixelCount = 0;
+          const fillPct = Math.round((waterPx / total) * 100);
+          setPondFillPct(fillPct);
 
-    const step = 8;
-    for (let y = Math.round(h * 0.15); y < Math.round(h * 0.85); y += step) {
-      for (let x = Math.round(w * 0.15); x < Math.round(w * 0.85); x += step) {
-        const idx = (y * w + x) * 4;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
-
-        const isWaterSurface = (b > r - 12 && g > r - 12) || (r < 120 && g < 120 && b < 120) || (Math.abs(r - g) < 25 && Math.abs(g - b) < 25 && r < 150);
-
-        if (isWaterSurface) {
-          waterPixelCount++;
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
+          if (fillPct >= 50) {
+            setGuideStatus("good");
+            setGuideMessage("✅ Pond in frame — tap Scan!");
+          } else if (fillPct >= 25) {
+            setGuideStatus("scanning");
+            setGuideMessage("Move closer or tilt down slightly");
+          } else {
+            setGuideStatus("bad");
+            setGuideMessage("No pond detected — aim at pond surface");
+          }
         }
       }
-    }
+      animFrameRef.current = requestAnimationFrame(loop);
+    };
+    loop();
+  };
 
-    if (minX >= maxX || minY >= maxY || waterPixelCount < 80) {
-      minX = Math.round(w * 0.2);
-      maxX = Math.round(w * 0.8);
-      minY = Math.round(h * 0.25);
-      maxY = Math.round(h * 0.75);
-    } else {
-      const padX = Math.round(w * 0.02);
-      const padY = Math.round(h * 0.02);
-      minX = Math.max(Math.round(w * 0.08), minX - padX);
-      maxX = Math.min(Math.round(w * 0.92), maxX + padX);
-      minY = Math.max(Math.round(h * 0.12), minY - padY);
-      maxY = Math.min(Math.round(h * 0.88), maxY + padY);
-    }
+  // ── Annotate captured frame with guide box + labels ──
+  const drawAnnotatedSnapshot = (videoEl: HTMLVideoElement, aiW: number, aiH: number): string => {
+    const c = document.createElement("canvas");
+    const vw = videoEl.videoWidth || 1280;
+    const vh = videoEl.videoHeight || 720;
+    c.width = vw;
+    c.height = vh;
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(videoEl, 0, 0, vw, vh);
 
-    const boxW = maxX - minX;
-    const boxH = maxY - minY;
+    const bx = vw * 0.08, by = vh * 0.12;
+    const bw = vw * 0.84, bh = vh * 0.76;
+    const lw = Math.max(4, Math.round(vw / 160));
+    const cl = Math.min(bw, bh) * 0.08;
 
-    const pixelRatioW = boxW / w;
-    const pixelRatioH = boxH / h;
+    // Dark overlay everywhere except box
+    ctx.fillStyle = "rgba(0,0,0,0.40)";
+    ctx.fillRect(0, 0, vw, vh);
+    ctx.clearRect(bx, by, bw, bh);
+    ctx.drawImage(videoEl, bx, by, bw, bh, bx, by, bw, bh);
 
-    const widthM = aiW && aiW > 0 ? aiW : Number(Math.max(1.5, Math.min(18.0, pixelRatioW * 12.5)).toFixed(1));
-    const heightM = aiH && aiH > 0 ? aiH : Number(Math.max(1.8, Math.min(25.0, pixelRatioH * 14.5)).toFixed(1));
+    // Green border
+    ctx.strokeStyle = "#22c55e";
+    ctx.lineWidth = lw;
+    ctx.strokeRect(bx, by, bw, bh);
 
-    // 3. Draw WHITE BORDER LINE tightly around the detected pond box
-    ctx.lineWidth = Math.max(5, Math.round(w / 140));
-    ctx.strokeStyle = "#FFFFFF";
-    ctx.strokeRect(minX, minY, boxW, boxH);
+    // Corner accents
+    const drawCorner = (cx: number, cy: number, dx: number, dy: number) => {
+      ctx.beginPath();
+      ctx.moveTo(cx + dx * cl, cy);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx, cy + dy * cl);
+      ctx.strokeStyle = "#4ade80";
+      ctx.lineWidth = lw * 2;
+      ctx.stroke();
+    };
+    drawCorner(bx, by, 1, 1);
+    drawCorner(bx + bw, by, -1, 1);
+    drawCorner(bx, by + bh, 1, -1);
+    drawCorner(bx + bw, by + bh, -1, -1);
 
-    // Corner points
-    ctx.fillStyle = "#0F6236";
-    const r = Math.max(6, Math.round(w / 120));
-    ctx.beginPath(); ctx.arc(minX, minY, r, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(maxX, minY, r, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(minX, maxY, r, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(maxX, maxY, r, 0, Math.PI * 2); ctx.fill();
-
-    // 4. Draw WIDTH label on TOP line
-    ctx.font = `bold ${Math.max(18, Math.round(w / 35))}px sans-serif`;
-    const widthText = `WIDTH: ${widthM.toFixed(1)}m`;
-    const wTextMetrics = ctx.measureText(widthText);
-    const wTextWidth = wTextMetrics.width + 24;
-    const wTextHeight = Math.max(32, Math.round(w / 28));
-
-    ctx.fillStyle = "#0F6236";
-    ctx.fillRect(minX + (boxW - wTextWidth) / 2, minY - wTextHeight / 2, wTextWidth, wTextHeight);
-    ctx.strokeStyle = "#FFFFFF";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(minX + (boxW - wTextWidth) / 2, minY - wTextHeight / 2, wTextWidth, wTextHeight);
-
-    ctx.fillStyle = "#FFFFFF";
+    const fs = Math.max(20, Math.round(vw / 30));
+    ctx.font = `bold ${fs}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(widthText, minX + boxW / 2, minY);
 
-    // 5. Draw HEIGHT label on LEFT line
-    const heightText = `HEIGHT: ${heightM.toFixed(1)}m`;
-    const hTextMetrics = ctx.measureText(heightText);
-    const hTextWidth = hTextMetrics.width + 24;
-    const hTextHeight = Math.max(32, Math.round(w / 28));
+    // Width pill top
+    const wLabel = `WIDTH: ${aiW.toFixed(1)} m`;
+    const wW = ctx.measureText(wLabel).width + 32;
+    const pH = fs + 18;
+    ctx.fillStyle = "rgba(15,98,54,0.93)";
+    ctx.beginPath();
+    (ctx as any).roundRect?.(bx + bw / 2 - wW / 2, by - pH / 2, wW, pH, 8);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.fillText(wLabel, bx + bw / 2, by);
 
+    // Height pill left (rotated)
+    const hLabel = `HEIGHT: ${aiH.toFixed(1)} m`;
     ctx.save();
-    ctx.translate(minX, minY + boxH / 2);
+    ctx.translate(bx, by + bh / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillStyle = "#0F6236";
-    ctx.fillRect(-hTextWidth / 2, -hTextHeight / 2, hTextWidth, hTextHeight);
-    ctx.strokeStyle = "#FFFFFF";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(-hTextWidth / 2, -hTextHeight / 2, hTextWidth, hTextHeight);
-
-    ctx.fillStyle = "#FFFFFF";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(heightText, 0, 0);
+    const hW = ctx.measureText(hLabel).width + 32;
+    ctx.fillStyle = "rgba(15,98,54,0.93)";
+    ctx.beginPath();
+    (ctx as any).roundRect?.(-hW / 2, -pH / 2, hW, pH, 8);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.fillText(hLabel, 0, 0);
     ctx.restore();
 
-    return {
-      dataUrl: canvas.toDataURL("image/jpeg", 0.92),
-      widthM,
-      heightM,
-    };
+    return c.toDataURL("image/jpeg", 0.92);
   };
 
   const handleScanPondWithAI = async () => {
-    let video = videoRef.current;
-    if (!video) {
-      alert("Camera initializing... Please allow camera access and try again!");
+    const video = videoRef.current;
+    if (!video) { alert("Camera initializing... Please allow camera access and try again!"); return; }
+    if (guideStatus === "bad") {
+      alert("No pond detected in frame. Please point the camera directly at the pond surface and wait for the frame to turn green.");
       return;
     }
 
     setIsAnalyzingPond(true);
     try {
-      // 1. Create base frame for AI vision
-      const activeCanvas = document.createElement("canvas");
-      const ctx = activeCanvas.getContext("2d");
-      activeCanvas.width = video.videoWidth || 640;
-      activeCanvas.height = video.videoHeight || 480;
-      if (ctx) ctx.drawImage(video, 0, 0, activeCanvas.width, activeCanvas.height);
-      const rawFrameBase64 = activeCanvas.toDataURL("image/jpeg", 0.85);
+      const ac = document.createElement("canvas");
+      const ctx = ac.getContext("2d")!;
+      ac.width = video.videoWidth || 640;
+      ac.height = video.videoHeight || 480;
+      ctx.drawImage(video, 0, 0, ac.width, ac.height);
+      const rawBase64 = ac.toDataURL("image/jpeg", 0.85);
 
-      // 2. Measure dimensions with AI
-      const result = await estimatePondDimensionsAI(rawFrameBase64);
+      const result = await estimatePondDimensionsAI(rawBase64);
+      const dataUrl = drawAnnotatedSnapshot(video, result.widthMeters, result.lengthMeters);
 
-      // 3. Perform smart pixel-boundary detection on snapshot canvas
-      const smartResult = drawSmartAnnotatedSnapshot(video, result.widthMeters, result.lengthMeters);
-
-      setTargetWidth(smartResult.widthM);
-      setTargetLength(smartResult.heightM);
+      setTargetWidth(result.widthMeters);
+      setTargetLength(result.lengthMeters);
       setTargetDepth(result.depthMeters);
       setLiveVolumeLiters(result.volumeLiters);
       setPondType(result.pondType);
-
-      setCapturedSnapshot(smartResult.dataUrl);
+      setScanResult({
+        widthM: result.widthMeters,
+        heightM: result.lengthMeters,
+        depthM: result.depthMeters,
+        volL: result.volumeLiters,
+        stockCap: result.stockingCapacity,
+        dailyFeed: result.dailyFeedKg,
+        pondType: result.pondType,
+      });
+      setCapturedSnapshot(dataUrl);
     } catch (e) {
       console.warn("AI Scan Pond error", e);
-      const smartResult = drawSmartAnnotatedSnapshot(video);
-      setTargetWidth(smartResult.widthM);
-      setTargetLength(smartResult.heightM);
-      setCapturedSnapshot(smartResult.dataUrl);
     } finally {
       setIsAnalyzingPond(false);
     }
-  };
-
-  const startRealTimeCanvasAnalysis = () => {
-    const renderLoop = () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-
-      if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          canvas.width = video.videoWidth || 640;
-          canvas.height = video.videoHeight || 480;
-
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          const frameData = ctx.getImageData(canvas.width / 4, canvas.height / 4, canvas.width / 2, canvas.height / 2);
-          let pixelSum = 0;
-          for (let i = 0; i < frameData.data.length; i += 16) {
-            pixelSum += frameData.data[i];
-          }
-          const avgBrightness = pixelSum / (frameData.data.length / 16);
-
-          const dynamicFactor = 1 + (avgBrightness % 20) / 100;
-          const calculatedLiters = Math.round(targetWidth * targetLength * targetDepth * 1000 * dynamicFactor);
-          setLiveVolumeLiters(calculatedLiters);
-        }
-      }
-      animFrameRef.current = requestAnimationFrame(renderLoop);
-    };
-    renderLoop();
   };
 
   const handleSaveCameraPond = () => {
@@ -339,13 +285,14 @@ export function MyFarmPage() {
       lengthMeters: targetLength,
       depthMeters: targetDepth,
       volumeLiters: liveVolumeLiters,
-      fishCount: estimatedFishCapacity,
+      fishCount: scanResult?.stockCap ?? Math.floor(liveVolumeLiters / 40),
       fishType: fishType,
       measuredViaCamera: true,
     });
     refreshMemory();
     setIsCameraScannerOpen(false);
     setCapturedSnapshot(null);
+    setScanResult(null);
     setPondName("");
   };
 
@@ -353,14 +300,8 @@ export function MyFarmPage() {
     e.preventDefault();
     addPondToMemory({
       name: pondName || `Pond ${ponds.length + 1}`,
-      type: pondType,
-      widthMeters: 5,
-      lengthMeters: 8,
-      depthMeters: 1.5,
-      volumeLiters: 60000,
-      fishCount: fishCount,
-      fishType: fishType,
-      measuredViaCamera: false,
+      type: pondType, widthMeters: 5, lengthMeters: 8, depthMeters: 1.5,
+      volumeLiters: 60000, fishCount: fishCount, fishType: fishType, measuredViaCamera: false,
     });
     refreshMemory();
     setIsModalOpen(false);
@@ -387,45 +328,40 @@ export function MyFarmPage() {
         <img src={farmerImg} alt="Kofi" className="w-9.5 h-9.5 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
-      {/* Main AI Scanner Launcher Card */}
+      {/* Launcher */}
       <section className="mx-5 mt-4">
         <div className="p-5 rounded-3xl bg-gradient-to-br from-[#09341D] via-[#0F6236] to-[#082917] text-white shadow-xl shadow-[#0F6236]/30 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-extrabold uppercase text-emerald-200">
               <Camera className="w-4 h-4 text-emerald-300" /> AI Vision Camera
             </div>
-            <span className="text-[11px] bg-emerald-500/20 text-emerald-200 px-2.5 py-0.5 rounded-full font-bold">Auto Width & Height</span>
+            <span className="text-[11px] bg-emerald-500/20 text-emerald-200 px-2.5 py-0.5 rounded-full font-bold">Width & Height Auto</span>
           </div>
-
           <div>
-            <h2 className="text-lg font-black leading-tight">Measure Pond Width & Height</h2>
-            <p className="text-xs text-emerald-100 mt-1 font-medium">Point your camera at your pond. The AI scans and shows the exact photo with your Width & Height.</p>
+            <h2 className="text-lg font-black leading-tight">Measure Pond With Camera</h2>
+            <p className="text-xs text-emerald-100 mt-1 font-medium">
+              Align your pond inside the green guide frame — the AI will scan Width, Height, Depth, Volume, and Max Stocking Capacity automatically.
+            </p>
           </div>
-
-          <button
-            onClick={() => setIsCameraScannerOpen(true)}
-            className="w-full h-12 rounded-2xl bg-white text-[#0F6236] font-black text-xs shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2"
-          >
-            <Camera className="w-4 h-4 text-[#0F6236]" /> Open Camera Scanner Now
+          <button onClick={() => setIsCameraScannerOpen(true)}
+            className="w-full h-12 rounded-2xl bg-white text-[#0F6236] font-black text-xs shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2">
+            <Camera className="w-4 h-4" /> Open Camera Scanner
           </button>
         </div>
       </section>
 
-      {/* Saved Ponds List */}
+      {/* Saved Ponds */}
       <section className="mx-5 mt-5 space-y-3 mb-6">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-extrabold text-gray-900">Saved Ponds ({ponds.length})</h2>
           {ponds.length > 0 && (
-            <button onClick={handleClearAllPonds} className="text-xs font-bold text-red-600 hover:underline">
-              Clear All
-            </button>
+            <button onClick={handleClearAllPonds} className="text-xs font-bold text-red-600 hover:underline">Clear All</button>
           )}
         </div>
-
         {ponds.length === 0 ? (
           <div className="bg-gray-50 border border-gray-200 p-6 rounded-3xl text-center space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-[#0F6236]/10 text-[#0F6236] flex items-center justify-center mx-auto">
-              <Waves className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-[#0F6236]/10 flex items-center justify-center mx-auto">
+              <Waves className="w-6 h-6 text-[#0F6236]" />
             </div>
             <h3 className="font-extrabold text-sm text-gray-900">No Saved Ponds</h3>
             <p className="text-xs text-gray-500 font-medium">Use the Camera Scanner to automatically measure and save your pond.</p>
@@ -437,16 +373,13 @@ export function MyFarmPage() {
                 <div className="space-y-1">
                   <h3 className="font-extrabold text-sm text-gray-900">{pond.name}</h3>
                   <div className="flex items-center gap-3 text-xs font-bold text-[#0F6236]">
-                    <span>Width: {pond.widthMeters}m</span>
-                    <span>Height: {pond.lengthMeters}m</span>
+                    <span>W: {pond.widthMeters}m</span>
+                    <span>H: {pond.lengthMeters}m</span>
+                    <span>D: {pond.depthMeters}m</span>
                   </div>
+                  <div className="text-[10px] text-gray-500 font-medium">{pond.fishCount.toLocaleString()} {pond.fishType} • {pond.type}</div>
                 </div>
-
-                <button
-                  onClick={() => handleDeletePond(pond.id)}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl cursor-pointer"
-                  title="Delete Pond"
-                >
+                <button onClick={() => handleDeletePond(pond.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-xl cursor-pointer">
                   <Trash2 className="w-4.5 h-4.5" />
                 </button>
               </div>
@@ -455,24 +388,19 @@ export function MyFarmPage() {
         )}
       </section>
 
-      {/* Completely Clean Camera Viewfinder Modal */}
+      {/* ─── LIVE AR CAMERA SCANNER MODAL ─── */}
       {isCameraScannerOpen && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in fade-in">
-          {/* Top Right Close Button */}
-          <div className="absolute top-5 right-5 z-30">
-            <button
-              onClick={() => {
-                setIsCameraScannerOpen(false);
-                setCapturedSnapshot(null);
-              }}
-              className="p-3 rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80 transition-all border border-white/20"
-            >
+        <div className="fixed inset-0 z-50 bg-black">
+          {/* Close */}
+          <div className="absolute top-5 right-5 z-40">
+            <button onClick={() => { setIsCameraScannerOpen(false); setCapturedSnapshot(null); setScanResult(null); }}
+              className="p-3 rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80 border border-white/20">
               <X className="w-6 h-6" />
             </button>
           </div>
 
-          {/* Full Camera Viewfinder */}
-          <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+          {/* Full-screen video */}
+          <div className="relative w-full h-full">
             <video
               ref={(el) => {
                 videoRef.current = el;
@@ -481,74 +409,170 @@ export function MyFarmPage() {
                   el.play().catch(() => {});
                 }
               }}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
+              autoPlay playsInline muted
+              className="absolute inset-0 w-full h-full object-cover"
             />
             <canvas ref={canvasRef} className="hidden" />
-          </div>
 
-          {/* Single Snap Button at Bottom Center */}
-          <div className="absolute bottom-8 z-30 flex flex-col items-center gap-2">
-            <button
-              onClick={handleScanPondWithAI}
-              disabled={isAnalyzingPond}
-              className="w-20 h-20 rounded-full bg-white border-4 border-[#0F6236] shadow-2xl flex items-center justify-center cursor-pointer active:scale-90 transition-all"
-            >
-              <div className="w-14 h-14 rounded-full bg-[#0F6236] flex items-center justify-center">
-                <Camera className="w-7 h-7 text-white" />
+            {/* ── AR Overlay ── */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Top vignette */}
+              <div className="absolute inset-x-0 top-0 h-[12%] bg-gradient-to-b from-black/70 to-transparent" />
+              {/* Bottom vignette */}
+              <div className="absolute inset-x-0 bottom-0 h-[32%] bg-gradient-to-t from-black/80 to-transparent" />
+              {/* Left & Right vignette */}
+              <div className="absolute inset-y-0 left-0 w-[8%] bg-gradient-to-r from-black/50 to-transparent" />
+              <div className="absolute inset-y-0 right-0 w-[8%] bg-gradient-to-l from-black/50 to-transparent" />
+
+              {/* Guide Rectangle */}
+              <div className="absolute" style={{ left: "8%", top: "12%", width: "84%", height: "68%" }}>
+                {/* Main border */}
+                <div className={`absolute inset-0 rounded-2xl border-2 transition-colors duration-500 ${
+                  guideStatus === "good" ? "border-green-400 shadow-[0_0_20px_rgba(74,222,128,0.4)]"
+                  : guideStatus === "bad" ? "border-red-400/70"
+                  : "border-white/50"
+                }`} />
+
+                {/* Corner L-brackets */}
+                {[
+                  "top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-2xl",
+                  "top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-2xl",
+                  "bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-2xl",
+                  "bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-2xl",
+                ].map((cls, i) => (
+                  <div key={i} className={`absolute w-10 h-10 transition-colors duration-500 ${cls} ${
+                    guideStatus === "good" ? "border-green-400" : guideStatus === "bad" ? "border-red-400" : "border-white"
+                  }`} />
+                ))}
+
+                {/* Label: WIDTH top center */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${
+                    guideStatus === "good" ? "bg-green-500/90 text-white" : "bg-white/20 text-white/80"
+                  }`}>WIDTH →</span>
+                </div>
+                {/* Label: HEIGHT left center */}
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2">
+                  <span className={`text-[10px] font-extrabold px-2 py-1 rounded-full writing-mode-vertical-lr rotate-180 ${
+                    guideStatus === "good" ? "bg-green-500/90 text-white" : "bg-white/20 text-white/80"
+                  }`} style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}>HEIGHT ↕</span>
+                </div>
+
+                {/* Center reticle */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className={`w-8 h-8 border-2 rounded-full transition-all ${
+                    guideStatus === "good" ? "border-green-400 bg-green-400/20" : "border-white/40 bg-white/10"
+                  }`}>
+                    <div className={`absolute inset-0 rounded-full m-1.5 ${guideStatus === "good" ? "bg-green-400" : "bg-white/30"}`} />
+                  </div>
+                </div>
               </div>
-            </button>
-            <span className="text-white text-xs font-black bg-black/60 px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
-              {isAnalyzingPond ? "Measuring Square Pond..." : "Snap & Measure"}
-            </span>
+            </div>
+
+            {/* ── Status Bar top ── */}
+            <div className="absolute top-5 left-4 right-16 z-20 flex flex-col gap-2">
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-extrabold backdrop-blur-md border transition-all self-start ${
+                guideStatus === "good" ? "bg-green-500/25 border-green-400/50 text-green-300"
+                : guideStatus === "bad" ? "bg-red-500/25 border-red-400/40 text-red-300"
+                : "bg-black/50 border-white/20 text-white"
+              }`}>
+                {guideStatus === "good" && <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />}
+                {guideStatus === "bad" && <AlertTriangle className="w-3.5 h-3.5" />}
+                {guideStatus === "scanning" && <span className="w-2 h-2 rounded-full bg-white/60 animate-pulse" />}
+                {guideMessage}
+              </div>
+              {/* Coverage bar */}
+              <div className="flex items-center gap-2">
+                <div className="w-32 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-200 ${
+                    pondFillPct >= 50 ? "bg-green-400" : pondFillPct >= 25 ? "bg-yellow-400" : "bg-red-400"
+                  }`} style={{ width: `${Math.min(pondFillPct * 2, 100)}%` }} />
+                </div>
+                <span className="text-[10px] text-white/60 font-bold">{pondFillPct}% coverage</span>
+              </div>
+            </div>
+
+            {/* ── Snap Button bottom ── */}
+            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3">
+              <button
+                onClick={handleScanPondWithAI}
+                disabled={isAnalyzingPond}
+                className={`w-20 h-20 rounded-full border-[5px] shadow-2xl flex items-center justify-center cursor-pointer active:scale-90 transition-all ${
+                  guideStatus === "good"
+                    ? "border-green-400 bg-green-500 shadow-green-500/40"
+                    : guideStatus === "bad"
+                    ? "border-red-400/60 bg-red-500/50"
+                    : "border-white bg-white/20"
+                }`}
+              >
+                <div className="w-13 h-13 rounded-full bg-white/25 flex items-center justify-center">
+                  {isAnalyzingPond
+                    ? <RefreshCw className="w-7 h-7 text-white animate-spin" />
+                    : <Camera className="w-7 h-7 text-white" />}
+                </div>
+              </button>
+              <span className={`text-xs font-extrabold px-4 py-1.5 rounded-full border backdrop-blur-md ${
+                guideStatus === "good" ? "bg-green-500/25 border-green-400/50 text-green-300"
+                : "bg-black/60 border-white/20 text-white"
+              }`}>
+                {isAnalyzingPond ? "⏳ Measuring..." : guideStatus === "good" ? "✅ Tap to Scan!" : "Align pond in frame first"}
+              </span>
+            </div>
           </div>
 
-          {/* Full Screen Captured Snapshot & Measurement Result Modal */}
+          {/* ── Full-Screen Scan Result ── */}
           {capturedSnapshot && (
-            <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center animate-in zoom-in-95">
-              {/* Full Screen Image displaying White Line & Numbers */}
-              <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
-                <img src={capturedSnapshot} alt="Full Scanned Pond" className="w-full h-full object-contain" />
+            <div className="absolute inset-0 z-50 bg-black flex flex-col">
+              {/* Annotated image */}
+              <div className="flex-1 flex items-center justify-center overflow-hidden">
+                <img src={capturedSnapshot} alt="Scanned Pond" className="w-full h-full object-contain" />
               </div>
 
-              {/* Floating Bottom Action Sheet */}
-              <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black via-black/90 to-transparent z-30 space-y-3 max-w-md mx-auto">
-                <div className="flex items-center justify-between text-white border-b border-white/20 pb-2">
-                  <span className="font-extrabold text-sm flex items-center gap-1.5 text-emerald-400">
-                    <Sparkles className="w-4 h-4 text-emerald-400" /> Full Photo Scan Verified
+              {/* Results bottom sheet */}
+              <div className="bg-gradient-to-t from-black via-black/98 to-transparent px-5 pb-8 pt-4 space-y-4">
+                <div className="flex items-center justify-between border-b border-white/15 pb-3">
+                  <span className="font-extrabold text-sm text-emerald-400 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4" /> Scan Complete ✓
                   </span>
-                  <button
-                    onClick={() => setCapturedSnapshot(null)}
-                    className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full text-white cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
+                  <button onClick={() => { setCapturedSnapshot(null); setScanResult(null); }}
+                    className="p-1.5 bg-white/15 rounded-full text-white cursor-pointer hover:bg-white/25">
+                    <X className="w-4.5 h-4.5" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-white">
-                  <div className="bg-white/10 backdrop-blur-md p-2.5 rounded-2xl border border-white/20 text-center">
-                    <div className="text-[10px] font-extrabold text-emerald-300 uppercase">Width</div>
-                    <div className="text-lg font-black text-white">{targetWidth.toFixed(1)} m</div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-md p-2.5 rounded-2xl border border-white/20 text-center">
-                    <div className="text-[10px] font-extrabold text-emerald-300 uppercase">Height</div>
-                    <div className="text-lg font-black text-white">{targetLength.toFixed(1)} m</div>
-                  </div>
+                {/* Measurement grid */}
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  {[
+                    { label: "Width", val: `${(scanResult?.widthM ?? targetWidth).toFixed(1)} m` },
+                    { label: "Height", val: `${(scanResult?.heightM ?? targetLength).toFixed(1)} m` },
+                    { label: "Depth", val: `${(scanResult?.depthM ?? targetDepth).toFixed(1)} m` },
+                    { label: "Volume", val: `${((scanResult?.volL ?? liveVolumeLiters) / 1000).toFixed(1)} kL` },
+                    { label: "Max Stock", val: `${(scanResult?.stockCap ?? estimatedFishCapacity).toLocaleString()}` },
+                    { label: "Daily Feed", val: `${scanResult?.dailyFeed?.toFixed(1) ?? "—"} kg` },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="bg-white/10 rounded-2xl p-2.5 border border-white/15">
+                      <div className="text-[9px] font-extrabold text-emerald-400 uppercase mb-0.5">{label}</div>
+                      <div className="text-sm font-black text-white">{val}</div>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={handleSaveCameraPond}
-                    className="flex-1 h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
-                  >
+                <div className="text-[10px] text-gray-400 font-medium text-center">
+                  Pond Type: <span className="text-emerald-400 font-bold">{scanResult?.pondType ?? pondType}</span>
+                </div>
+
+                {/* Name input */}
+                <input type="text" value={pondName} onChange={(e) => setPondName(e.target.value)}
+                  placeholder="Give this pond a name (optional)"
+                  className="w-full h-10 bg-white/15 border border-white/20 rounded-xl px-3.5 text-white text-xs font-bold placeholder-white/40 outline-none" />
+
+                <div className="flex gap-2.5">
+                  <button onClick={handleSaveCameraPond}
+                    className="flex-1 h-12 bg-[#0F6236] hover:bg-[#0B4D29] text-white font-extrabold text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95">
                     <Check className="w-4 h-4" /> Save Pond Record
                   </button>
-                  <button
-                    onClick={() => setCapturedSnapshot(null)}
-                    className="px-4 h-12 bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs rounded-2xl cursor-pointer"
-                  >
+                  <button onClick={() => { setCapturedSnapshot(null); setScanResult(null); }}
+                    className="px-5 h-12 bg-white/15 hover:bg-white/25 text-white font-extrabold text-xs rounded-2xl cursor-pointer">
                     Retake
                   </button>
                 </div>
@@ -568,35 +592,19 @@ export function MyFarmPage() {
                 <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
-
             <form onSubmit={handleAddStandardPond} className="space-y-3 text-xs">
               <div>
                 <label className="font-bold text-gray-700 block mb-1">Pond Name</label>
-                <input
-                  type="text"
-                  required
-                  value={pondName}
-                  onChange={(e) => setPondName(e.target.value)}
+                <input type="text" required value={pondName} onChange={(e) => setPondName(e.target.value)}
                   placeholder="e.g. Earth Pond 2"
-                  className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-gray-50 font-bold"
-                />
+                  className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-gray-50 font-bold" />
               </div>
-
               <div>
                 <label className="font-bold text-gray-700 block mb-1">Fish Count</label>
-                <input
-                  type="number"
-                  required
-                  value={fishCount}
-                  onChange={(e) => setFishCount(Number(e.target.value) || 0)}
-                  className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-gray-50 font-bold"
-                />
+                <input type="number" required value={fishCount} onChange={(e) => setFishCount(Number(e.target.value) || 0)}
+                  className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-gray-50 font-bold" />
               </div>
-
-              <button
-                type="submit"
-                className="w-full h-11 bg-[#0F6236] text-white font-extrabold rounded-xl shadow-md cursor-pointer"
-              >
+              <button type="submit" className="w-full h-11 bg-[#0F6236] text-white font-extrabold rounded-xl shadow-md cursor-pointer">
                 Save Pond
               </button>
             </form>
