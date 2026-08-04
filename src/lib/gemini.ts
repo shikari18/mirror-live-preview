@@ -487,102 +487,88 @@ export async function synthesizeSpeechKhayaAI(text: string, lang: string = "tw")
   return "";
 }
 
-// ── Google Translate TTS — plays real Twi/Ghanaian audio via Audio element ──
-// Audio src loading bypasses CORS; this gives real Ghanaian Twi pronunciation
-async function playGoogleTTS(text: string, lang: string, onStart?: () => void, onEnd?: () => void): Promise<boolean> {
-  return new Promise((resolve) => {
-    try {
-      const q = encodeURIComponent(text.slice(0, 180));
-      // Use the unofficial gTTS endpoint — Audio element loads directly, no CORS block
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${q}`;
-      const audio = new Audio(url);
-      let started = false;
-      const timeout = setTimeout(() => {
-        // If nothing starts in 4s, fallback
-        if (!started) { audio.pause(); resolve(false); }
-      }, 4000);
-      audio.oncanplaythrough = () => {
-        started = true;
-        clearTimeout(timeout);
-        if (onStart) onStart();
-        audio.play().catch(() => { if (onEnd) onEnd(); resolve(false); });
-      };
-      audio.onended = () => { if (onEnd) onEnd(); resolve(true); };
-      audio.onerror = () => { clearTimeout(timeout); if (onEnd) onEnd(); resolve(false); };
-      audio.load();
-    } catch {
-      resolve(false);
-    }
-  });
-}
-
-export async function speakTextInstant(
+export function speakTextInstant(
   text: string,
   language: string = "English",
   onStart?: () => void,
   onEnd?: () => void
 ) {
-  if (typeof window === "undefined") { if (onEnd) onEnd(); return; }
+  if (typeof window === "undefined") {
+    if (onEnd) onEnd();
+    return;
+  }
 
-  const cleanText = text.replace(/[#*`_\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
-  if (!cleanText) { if (onEnd) onEnd(); return; }
+  const cleanText = text.replace(/[#*`_\n]/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleanText) {
+    if (onEnd) onEnd();
+    return;
+  }
 
   const langLower = language.toLowerCase();
-  const isTwi   = langLower.includes("twi") || langLower.includes("akan");
-  const isEwe   = langLower.includes("ewe");
+  const isTwi = langLower.includes("twi") || langLower.includes("akan");
+  const isEwe = langLower.includes("ewe");
   const isHausa = langLower.includes("hausa");
 
-  // ── 1. Twi: Google Translate TTS with tl=tw (actual Twi voice) ──────────
+  let spokenText = cleanText;
+
   if (isTwi) {
-    // Build a short Twi summary rather than the raw English medical text
-    const twiGreeting = "Akwaaba! ";
-    const shortText = twiGreeting + cleanText.slice(0, 150);
-    const ok = await playGoogleTTS(shortText, "tw", onStart, onEnd);
-    if (ok) return;
-    // Fallback: try Ghanaian English at minimum
-    const ok2 = await playGoogleTTS(cleanText, "en", onStart, onEnd);
-    if (ok2) return;
+    // Translate key diagnosis & health terms to Twi
+    spokenText = cleanText
+      .replace(/Identified species:/gi, "Mmoa ahodoɔ:")
+      .replace(/Healthy/gi, "Ho wɔ yɛ, kɔso hwɛ no yie")
+      .replace(/Needs Attention/gi, "Hwɛ no yie, ɛyɛ yareɛ ketewa")
+      .replace(/Critical/gi, "Amaneɛ kɛseɛ! Yareɛ kɛseɛ wɔ mmoa no ho")
+      .replace(/Bacterial Hemorrhagic Septicemia/gi, "Nsuomnam honam nkyenkyen yareɛ")
+      .replace(/Aeromonas Ulcer Disease/gi, "Nsuomnam honam akuru yareɛ")
+      .replace(/Flavobacterium Columnaris/gi, "Nsuomnam ti ne akyi kuro yareɛ")
+      .replace(/Caudal Tail Rot/gi, "Dua rot amaneɛ")
+      .replace(/Frayed Fin Decay/gi, "Ntaban porɔeɛ")
+      .replace(/Treatment:/gi, "Aduro ne ayaresa:")
+      .replace(/Water quality/gi, "Nsuo no mu pa");
+
+    if (!spokenText.startsWith("Akwaaba")) {
+      spokenText = "Akwaaba okuafoɔ! " + spokenText;
+    }
+  } else if (isEwe) {
+    if (!spokenText.startsWith("Woezɔ")) {
+      spokenText = "Woezɔ agbledela! " + spokenText;
+    }
+  } else if (isHausa) {
+    if (!spokenText.startsWith("Sannu")) {
+      spokenText = "Sannu manomi! " + spokenText;
+    }
   }
 
-  // ── 2. Ewe: Google Translate with ee (Ewe) ──────────────────────────────
-  if (isEwe) {
-    const ok = await playGoogleTTS(cleanText, "ee", onStart, onEnd);
-    if (ok) return;
-  }
-
-  // ── 3. Hausa: Google Translate with ha ──────────────────────────────────
-  if (isHausa) {
-    const ok = await playGoogleTTS(cleanText, "ha", onStart, onEnd);
-    if (ok) return;
-  }
-
-  // ── 4. English / fallback: Web Speech API with best available voice ──────
   if ("speechSynthesis" in window) {
     try {
       window.speechSynthesis.cancel();
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
 
-      const utterance = new SpeechSynthesisUtterance(cleanText);
+      const utterance = new SpeechSynthesisUtterance(spokenText);
       utterance.volume = 1.0;
-      utterance.rate   = 0.88;
-      utterance.pitch  = 1.1;
+      utterance.rate = isTwi ? 0.85 : 0.92;
+      utterance.pitch = 1.15;
 
       const allVoices = window.speechSynthesis.getVoices();
-      const voice =
-        allVoices.find((v) => v.lang === "en-GH") ||
-        allVoices.find((v) => v.name.toLowerCase().includes("ghana") || v.name.toLowerCase().includes("african")) ||
-        allVoices.find((v) => v.name.includes("Google") && v.lang.startsWith("en")) ||
+      const matchedVoice =
+        allVoices.find((v) => v.lang.includes("ak") || v.lang.includes("tw") || v.lang.includes("gh")) ||
+        allVoices.find((v) => v.lang === "en-GH" || v.name.toLowerCase().includes("ghana")) ||
+        allVoices.find((v) => v.name.toLowerCase().includes("african")) ||
+        allVoices.find((v) => (v.name.includes("Google") || v.name.includes("Natural")) && (v.name.includes("Female") || v.name.includes("Woman"))) ||
         allVoices.find((v) => ["Samantha", "Karen", "Victoria", "Fiona", "Hazel", "Zira"].some((n) => v.name.includes(n))) ||
         allVoices.find((v) => v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("woman")) ||
         allVoices.find((v) => v.lang.startsWith("en"));
 
-      if (voice) utterance.voice = voice;
+      if (matchedVoice) utterance.voice = matchedVoice;
+
       utterance.onstart = () => { if (onStart) onStart(); };
-      utterance.onend   = () => { if (onEnd) onEnd(); };
+      utterance.onend = () => { if (onEnd) onEnd(); };
       utterance.onerror = () => { if (onEnd) onEnd(); };
+
       window.speechSynthesis.speak(utterance);
       if (onStart) onStart();
-    } catch {
+    } catch (e) {
+      console.warn("SpeechSynthesis error:", e);
       if (onEnd) onEnd();
     }
   } else {
