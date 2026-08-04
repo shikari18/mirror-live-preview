@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Waves, MapPin, ArrowLeft, Trash2, Plus, RotateCcw, X, Check } from "lucide-react";
+import { Waves, MapPin, ArrowLeft, Trash2, Plus, RotateCcw, Undo2, Ruler, SlidersHorizontal, Check, X } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { useLanguage } from "@/lib/languageContext";
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/my-farm")({
   component: MyFarmPage,
   head: () => ({
     meta: [
-      { title: "My Farm & Pond Measurement — Fish Doctor" },
-      { name: "description", content: "Measure pond with AR GPS line like iPhone Measure." },
+      { title: "My Farm & Pond AR Measure — Fish Doctor" },
+      { name: "description", content: "Measure pond dimensions with Apple Measure AR style." },
     ],
   }),
 });
@@ -29,39 +29,61 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 }
 
 interface GpsFix { lat: number; lon: number; acc: number }
-interface Measurement { id: string; label: string; meters: number }
-type Phase = "calibrating" | "ready" | "measuring";
+
+interface LockedPoint {
+  x: number;
+  y: number;
+  lat: number;
+  lon: number;
+}
+
+interface CompletedSegment {
+  id: string;
+  p1: LockedPoint;
+  p2: LockedPoint;
+  meters: number;
+  label: string;
+}
+
+type Mode = "measure" | "level";
 
 export function MyFarmPage() {
   const { t } = useLanguage();
   const [ponds, setPonds] = useState<PondRecord[]>(getFarmProfile().ponds || []);
   const [userLocation, setUserLocation] = useState<string>("Accra & Ashanti Region, Ghana");
 
-  // AR Scanner
+  // AR Scanner UI state
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [phase, setPhase] = useState<Phase>("calibrating");
+  const [mode, setMode] = useState<Mode>("measure");
   const [currentGps, setCurrentGps] = useState<GpsFix | null>(null);
-  const [startFix, setStartFix] = useState<GpsFix | null>(null);
-  const [liveDist, setLiveDist] = useState(0);
-  const [measurements, setMeasurements] = useState<Measurement[]>([]);
-  const [calDots, setCalDots] = useState(0);
+  
+  // Measurement tracking
+  const [startPoint, setStartPoint] = useState<LockedPoint | null>(null);
+  const [segments, setSegments] = useState<CompletedSegment[]>([]);
+  const [liveDist, setLiveDist] = useState<number>(0);
 
-  // Save panel
-  const [showSave, setShowSave] = useState(false);
-  const [depthM, setDepthM] = useState(1.2);
-  const [pondType, setPondType] = useState("Earthen");
-  const [pondName, setPondName] = useState("");
+  // Save Modal
+  const [showSavePanel, setShowSavePanel] = useState<boolean>(false);
+  const [depthM, setDepthM] = useState<number>(1.2);
+  const [pondType, setPondType] = useState<string>("Earthen");
+  const [pondName, setPondName] = useState<string>("");
 
-  // Refs
+  // Refs for HTML5 Canvas & Camera
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const watchRef = useRef<number | null>(null);
-  const calTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rafRef = useRef<number | null>(null);
+  const startPointRef = useRef<LockedPoint | null>(null);
+  const segmentsRef = useRef<CompletedSegment[]>([]);
 
-  // Point A screen anchor (left-center of canvas)
-  const ptARef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    startPointRef.current = startPoint;
+  }, [startPoint]);
+
+  useEffect(() => {
+    segmentsRef.current = segments;
+  }, [segments]);
 
   useEffect(() => {
     const f = getFarmProfile();
@@ -74,134 +96,175 @@ export function MyFarmPage() {
 
   const refreshPonds = () => setPonds(getFarmProfile().ponds || []);
 
-  // ── Draw live AR line on canvas ────────────────────────────────────────────
-  const drawLine = (canvas: HTMLCanvasElement, dist: number) => {
+  // ── Render Apple Measure Canvas ──────────────────────────────────────────
+  const drawMeasureCanvas = (canvas: HTMLCanvasElement, currentDist: number) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const W = canvas.width;
     const H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    // Reticle center (always screen centre)
     const cx = W / 2;
     const cy = H / 2;
 
-    if (phase === "calibrating") return;
-
-    // Draw reticle circle
-    const ringR = 36;
+    // 1. Draw Apple-style Circle Reticle in center
+    const reticleRadius = Math.min(W, H) * 0.22;
     ctx.save();
-    ctx.strokeStyle = phase === "measuring" ? "rgba(52,211,153,1)" : "rgba(255,255,255,0.9)";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.lineWidth = 2.5;
+
+    // Draw 4 curved arcs for the ring
+    const gap = Math.PI / 16;
+    for (let i = 0; i < 4; i++) {
+      const startAngle = i * (Math.PI / 2) + gap;
+      const endAngle = (i + 1) * (Math.PI / 2) - gap;
+      ctx.beginPath();
+      ctx.arc(cx, cy, reticleRadius, startAngle, endAngle);
+      ctx.stroke();
+    }
+
+    // Center white dot
+    ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
-    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-    ctx.stroke();
-    // Cross hairs
-    ctx.strokeStyle = "rgba(255,255,255,0.35)";
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(cx, cy - ringR - 8); ctx.lineTo(cx, cy + ringR + 8); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx - ringR - 8, cy); ctx.lineTo(cx + ringR + 8, cy); ctx.stroke();
-    // Inner dot
-    ctx.fillStyle = phase === "measuring" ? "rgba(52,211,153,1)" : "rgba(255,255,255,0.9)";
-    ctx.beginPath();
-    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    if (phase !== "measuring" || !ptARef.current) return;
+    // 2. Draw Locked Segments
+    segmentsRef.current.forEach((seg) => {
+      ctx.save();
+      // Draw solid white line
+      ctx.strokeStyle = "#FFFFFF";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(seg.p1.x, seg.p1.y);
+      ctx.lineTo(seg.p2.x, seg.p2.y);
+      ctx.stroke();
 
-    const ax = ptARef.current.x;
-    const ay = ptARef.current.y;
+      // Start dot & end dot
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath(); ctx.arc(seg.p1.x, seg.p1.y, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(seg.p2.x, seg.p2.y, 6, 0, Math.PI * 2); ctx.fill();
 
-    // ── White line from Point A → reticle centre ─────────────────────────
+      // Label Pill
+      const mx = (seg.p1.x + seg.p2.x) / 2;
+      const my = (seg.p1.y + seg.p2.y) / 2;
+      drawCapsulePill(ctx, mx, my, `${seg.meters.toFixed(1)} m`);
+      ctx.restore();
+    });
+
+    // 3. Draw Active Dotted Line (from startPoint to center reticle)
+    const sp = startPointRef.current;
+    if (sp) {
+      ctx.save();
+
+      // Calculate distance between sp and (cx, cy)
+      const dx = cx - sp.x;
+      const dy = cy - sp.y;
+      const lengthPx = Math.sqrt(dx * dx + dy * dy);
+
+      // Draw spaced dots • • • • • •
+      const dotSpacing = 14;
+      const numDots = Math.floor(lengthPx / dotSpacing);
+
+      ctx.fillStyle = "#FFFFFF";
+      for (let i = 0; i <= numDots; i++) {
+        const t = numDots === 0 ? 0 : i / numDots;
+        const px = sp.x + dx * t;
+        const py = sp.y + dy * t;
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Start point dot
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Capsule Pill positioned near the start of the line (Apple Measure style)
+      const pillT = lengthPx > 100 ? 0.3 : 0.5;
+      const pillX = sp.x + dx * pillT;
+      const pillY = sp.y + dy * pillT;
+
+      const labelText = currentDist >= 1 ? `${currentDist.toFixed(1)} m` : `${Math.round(currentDist * 100)} cm`;
+      drawCapsulePill(ctx, pillX, pillY, labelText);
+
+      ctx.restore();
+    }
+  };
+
+  const drawCapsulePill = (ctx: CanvasRenderingContext2D, x: number, y: number, text: string) => {
     ctx.save();
-    ctx.strokeStyle = "rgba(255,255,255,0.95)";
-    ctx.lineWidth = 2;
-    ctx.shadowColor = "rgba(255,255,255,0.6)";
-    ctx.shadowBlur = 6;
-    ctx.beginPath();
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(cx, cy);
-    ctx.stroke();
-    ctx.restore();
+    ctx.font = "bold 15px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    const textWidth = ctx.measureText(text).width;
+    const paddingX = 14;
+    const paddingY = 8;
+    const width = textWidth + paddingX * 2;
+    const height = 30;
+    const radius = 15;
 
-    // Point A dot
-    ctx.save();
-    ctx.fillStyle = "white";
-    ctx.shadowColor = "rgba(255,255,255,0.8)";
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.arc(ax, ay, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    const rectX = x - width / 2;
+    const rectY = y - height / 2;
 
-    // Distance pill at midpoint
-    const mx = (ax + cx) / 2;
-    const my = (ay + cy) / 2;
-    const label = dist >= 1 ? `${dist.toFixed(1)} m` : `${Math.round(dist * 100)} cm`;
-    ctx.save();
-    ctx.font = "bold 14px -apple-system, sans-serif";
-    const tw = ctx.measureText(label).width;
-    const pw = tw + 20;
-    const ph = 28;
-    const rx = mx - pw / 2;
-    const ry = my - ph / 2;
-    const r = 14;
-    ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.shadowColor = "rgba(0,0,0,0.3)";
+    // Draw white capsule background with shadow
+    ctx.shadowColor = "rgba(0, 0, 0, 0.25)";
     ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 2;
+    ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
-    ctx.roundRect(rx, ry, pw, ph, r);
+    ctx.roundRect(rectX, rectY, width, height, radius);
     ctx.fill();
-    ctx.fillStyle = "#111";
-    ctx.shadowBlur = 0;
+
+    // Draw black text inside pill
+    ctx.shadowColor = "transparent";
+    ctx.fillStyle = "#000000";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(label, mx, my);
+    ctx.fillText(text, x, y + 1);
     ctx.restore();
   };
 
-  // Continuously redraw canvas
+  // Loop requestAnimationFrame for smooth canvas updates
   useEffect(() => {
     const loop = () => {
-      if (canvasRef.current) drawLine(canvasRef.current, liveDist);
+      if (canvasRef.current) {
+        drawMeasureCanvas(canvasRef.current, liveDist);
+      }
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [phase, liveDist]);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [liveDist]);
 
-  // ── Open scanner ──────────────────────────────────────────────────────────
+  // ── Open Scanner ──────────────────────────────────────────────────────────
   const openScanner = async () => {
-    setMeasurements([]);
-    setStartFix(null);
+    setSegments([]);
+    setStartPoint(null);
     setLiveDist(0);
-    setPhase("calibrating");
-    setCalDots(0);
-    setShowSave(false);
-    ptARef.current = null;
+    setShowSavePanel(false);
     setIsScannerOpen(true);
 
+    // Open Camera
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       mediaRef.current = stream;
-      if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
-    } catch { /* camera optional */ }
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
+    } catch { /* Camera optional fallback */ }
 
-    calTimerRef.current = setInterval(() => {
-      setCalDots((d) => { if (d >= 30) { clearInterval(calTimerRef.current!); return d; } return d + 1; });
-    }, 60);
-
+    // Start watching GPS
     if ("geolocation" in navigator) {
       watchRef.current = navigator.geolocation.watchPosition(
         (pos) => {
           const fix: GpsFix = { lat: pos.coords.latitude, lon: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) };
           setCurrentGps(fix);
-          if (pos.coords.accuracy < 30) {
-            setPhase((prev) => prev === "calibrating" ? "ready" : prev);
-          }
         },
         () => {},
         { enableHighAccuracy: true, maximumAge: 0 }
@@ -210,86 +273,103 @@ export function MyFarmPage() {
   };
 
   const closeScanner = () => {
-    if (calTimerRef.current) clearInterval(calTimerRef.current);
     if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
     mediaRef.current?.getTracks().forEach((t) => t.stop());
     mediaRef.current = null;
     setIsScannerOpen(false);
-    setPhase("calibrating");
-    setStartFix(null);
+    setStartPoint(null);
+    setSegments([]);
     setLiveDist(0);
-    setMeasurements([]);
-    ptARef.current = null;
   };
 
-  // Update live distance while measuring
+  // Update live distance when moving camera while measuring
   useEffect(() => {
-    if (phase === "measuring" && startFix && currentGps) {
-      const d = haversine(startFix.lat, startFix.lon, currentGps.lat, currentGps.lon);
-      setLiveDist(Math.round(d * 10) / 10);
+    if (startPoint && currentGps) {
+      const dist = haversine(startPoint.lat, startPoint.lon, currentGps.lat, currentGps.lon);
+      setLiveDist(Math.round(dist * 10) / 10);
     }
-  }, [currentGps, phase, startFix]);
+  }, [currentGps, startPoint]);
 
-  // Force ready after calibration dots fill
-  useEffect(() => {
-    if (calDots >= 30 && phase === "calibrating" && currentGps) {
-      setPhase("ready");
-    }
-  }, [calDots, phase, currentGps]);
-
-  // ── Mark start point (tap + on ready) ────────────────────────────────────
-  const handleMarkStart = () => {
-    if (!currentGps) return;
-    setStartFix(currentGps);
-    setLiveDist(0);
-    // Place Point A at left-center of canvas
+  // ── Handle Big '+' Button Click ───────────────────────────────────────────
+  const handlePlusClick = () => {
     const canvas = canvasRef.current;
-    if (canvas) {
-      ptARef.current = { x: canvas.width * 0.15, y: canvas.height * 0.5 };
+    const cx = canvas ? canvas.width / 2 : window.innerWidth / 2;
+    const cy = canvas ? canvas.height / 2 : window.innerHeight / 2;
+
+    const lat = currentGps ? currentGps.lat : 5.6037;
+    const lon = currentGps ? currentGps.lon : -0.1870;
+
+    const newPt: LockedPoint = { x: cx, y: cy, lat, lon };
+
+    if (!startPoint) {
+      // First click: anchor start point at current reticle location
+      setStartPoint(newPt);
+      setLiveDist(0.1);
+    } else {
+      // Second click: lock segment from startPoint to current reticle location
+      const calculatedDist = haversine(startPoint.lat, startPoint.lon, lat, lon);
+      const finalMeters = Math.max(0.5, Math.round(calculatedDist * 10) / 10);
+      const label = segments.length === 0 ? "Length" : segments.length === 1 ? "Width" : `Side ${segments.length + 1}`;
+
+      const newSeg: CompletedSegment = {
+        id: `seg_${Date.now()}`,
+        p1: startPoint,
+        p2: newPt,
+        meters: finalMeters,
+        label,
+      };
+
+      setSegments((prev) => [...prev, newSeg]);
+      setStartPoint(null);
+      setLiveDist(0);
     }
-    setPhase("measuring");
   };
 
-  // ── Lock end point (tap + on measuring) ──────────────────────────────────
-  const handleLockEnd = () => {
-    if (!startFix || !currentGps) return;
-    const dist = Math.max(0.5, haversine(startFix.lat, startFix.lon, currentGps.lat, currentGps.lon));
-    const label = measurements.length === 0 ? "Length" : measurements.length === 1 ? "Width" : `M${measurements.length + 1}`;
-    setMeasurements((prev) => [...prev, { id: `m_${Date.now()}`, label, meters: Math.round(dist * 10) / 10 }]);
-    setStartFix(null);
+  // Undo last action
+  const handleUndo = () => {
+    if (startPoint) {
+      setStartPoint(null);
+      setLiveDist(0);
+    } else if (segments.length > 0) {
+      setSegments((prev) => prev.slice(0, -1));
+    }
+  };
+
+  // Clear all
+  const handleClearAll = () => {
+    setStartPoint(null);
+    setSegments([]);
     setLiveDist(0);
-    ptARef.current = null;
-    setPhase("ready");
   };
 
-  const deleteMeasurement = (id: string) => setMeasurements((prev) => prev.filter((m) => m.id !== id));
-
-  // Calculated results
-  const lengthM = measurements.find((m) => m.label === "Length")?.meters ?? 0;
-  const widthM  = measurements.find((m) => m.label === "Width")?.meters ?? 0;
-  const volL    = Math.round(lengthM * widthM * depthM * 1000);
+  // Calculated specs
+  const lengthM = segments.find((s) => s.label === "Length")?.meters || (segments[0]?.meters ?? 0);
+  const widthM = segments.find((s) => s.label === "Width")?.meters || (segments[1]?.meters ?? 0);
+  const volL = Math.round(lengthM * widthM * depthM * 1000);
   const density = pondType.includes("Concrete") ? 80 : 50;
-  const stockCap  = Math.round(lengthM * widthM * depthM * density);
+  const stockCap = Math.round(lengthM * widthM * depthM * density);
   const dailyFeed = Number((stockCap * 0.4 * 0.03).toFixed(1));
 
   const handleSavePond = () => {
     if (!lengthM || !widthM) return;
-    addPondToMemory({ name: pondName || `Pond ${ponds.length + 1}`, type: pondType, widthMeters: widthM, lengthMeters: lengthM, depthMeters: depthM, volumeLiters: volL, fishCount: stockCap, fishType: "Catfish (Clarias)", measuredViaCamera: true });
+    addPondToMemory({
+      name: pondName || `Pond ${ponds.length + 1}`,
+      type: pondType,
+      widthMeters: widthM,
+      lengthMeters: lengthM,
+      depthMeters: depthM,
+      volumeLiters: volL,
+      fishCount: stockCap,
+      fishType: "Catfish (Clarias)",
+      measuredViaCamera: true,
+    });
     refreshPonds();
     closeScanner();
   };
 
-  const gpsOk = currentGps && currentGps.acc <= 25;
-
-  const phaseHint =
-    phase === "calibrating" ? "Move phone slowly to calibrate…" :
-    phase === "ready"       ? "Point at start edge — tap + to begin" :
-    phase === "measuring"   ? "Walk to other end — line follows live" : "";
-
-  const fmtDist = (m: number) => m >= 1 ? `${m.toFixed(1)} m` : `${Math.round(m * 100)} cm`;
-
   return (
     <PhoneFrame>
+      {/* Page Header */}
       <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-[#0F6236]/10 bg-white/80 backdrop-blur-md sticky top-0 z-30 shadow-xs">
         <div className="flex items-center gap-3">
           <Link to="/home" className="p-1 hover:bg-emerald-50 rounded-full">
@@ -305,191 +385,172 @@ export function MyFarmPage() {
         <img src={farmerImg} alt="Kofi" className="w-9 h-9 rounded-full object-cover border-2 border-[#0F6236]" />
       </header>
 
+      {/* Launch Card */}
       <section className="mx-5 mt-4">
         <div className="p-5 rounded-3xl bg-gradient-to-br from-[#09341D] via-[#0F6236] to-[#082917] text-white shadow-xl shadow-[#0F6236]/30 space-y-3">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">AR GPS Measure</div>
+          <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">Apple Measure AR Style</div>
           <h2 className="text-lg font-black">Measure Pond Like iPhone</h2>
-          <p className="text-xs text-emerald-100 leading-relaxed">Tap + at start edge → a line follows your camera live → tap + at end → real GPS distance shown on screen.</p>
-          <button onClick={openScanner} className="w-full h-12 rounded-2xl bg-white text-[#0F6236] font-black text-xs cursor-pointer active:scale-95">
-            Open AR Measure
+          <p className="text-xs text-emerald-100 leading-relaxed font-medium">
+            Tap + to place start point → walk to end while dotted line follows live → tap + to complete measurement.
+          </p>
+          <button onClick={openScanner} className="w-full h-12 rounded-2xl bg-white text-[#0F6236] font-black text-xs cursor-pointer active:scale-95 shadow-md flex items-center justify-center gap-2">
+            <Ruler className="w-4 h-4" /> Open AR Measure
           </button>
         </div>
       </section>
 
+      {/* Saved Ponds List */}
       <section className="mx-5 mt-5 space-y-3 mb-24">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-extrabold text-gray-900">Saved Ponds ({ponds.length})</h2>
-          {ponds.length > 0 && <button onClick={() => { if (confirm("Clear all?")) { clearAllPondsFromMemory(); refreshPonds(); } }} className="text-xs font-bold text-red-500">Clear All</button>}
+          {ponds.length > 0 && (
+            <button onClick={() => { if (confirm("Clear all?")) { clearAllPondsFromMemory(); refreshPonds(); } }} className="text-xs font-bold text-red-500">
+              Clear All
+            </button>
+          )}
         </div>
         {ponds.length === 0 ? (
           <div className="bg-gray-50 border border-gray-200 p-6 rounded-3xl text-center">
             <Waves className="w-8 h-8 text-[#0F6236]/30 mx-auto mb-2" />
-            <p className="text-xs font-extrabold text-gray-400">No ponds yet — tap Open AR Measure</p>
+            <p className="text-xs font-extrabold text-gray-400">No ponds saved yet — tap Open AR Measure</p>
           </div>
-        ) : ponds.map((pond) => (
-          <div key={pond.id} className="bg-white p-4 rounded-3xl border border-gray-200 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div className="space-y-2 flex-1">
-                <h3 className="font-extrabold text-sm text-gray-900">{pond.name}</h3>
-                <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
-                  {[{ l: "Length", v: `${pond.lengthMeters}m` }, { l: "Width", v: `${pond.widthMeters}m` }, { l: "Depth", v: `${pond.depthMeters}m` }].map(({ l, v }) => (
-                    <div key={l} className="bg-emerald-50 rounded-xl p-1.5 border border-emerald-100">
-                      <div className="text-gray-400 font-bold">{l}</div>
-                      <div className="font-black text-[#0F6236]">{v}</div>
-                    </div>
-                  ))}
+        ) : (
+          ponds.map((pond) => (
+            <div key={pond.id} className="bg-white p-4 rounded-3xl border border-gray-200 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div className="space-y-2 flex-1">
+                  <h3 className="font-extrabold text-sm text-gray-900">{pond.name}</h3>
+                  <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
+                    {[{ l: "Length", v: `${pond.lengthMeters}m` }, { l: "Width", v: `${pond.widthMeters}m` }, { l: "Depth", v: `${pond.depthMeters}m` }].map(({ l, v }) => (
+                      <div key={l} className="bg-emerald-50 rounded-xl p-1.5 border border-emerald-100">
+                        <div className="text-gray-400 font-bold">{l}</div>
+                        <div className="font-black text-[#0F6236]">{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-400">{(pond.volumeLiters / 1000).toFixed(1)}kL · Max {pond.fishCount.toLocaleString()} fish · {pond.type}</p>
                 </div>
-                <p className="text-[10px] text-gray-400">{(pond.volumeLiters / 1000).toFixed(1)}kL · Max {pond.fishCount.toLocaleString()} fish · {pond.type}</p>
+                <button onClick={() => { deletePondFromMemory(pond.id); refreshPonds(); }} className="p-2 text-red-400 hover:bg-red-50 rounded-xl cursor-pointer">
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
-              <button onClick={() => { deletePondFromMemory(pond.id); refreshPonds(); }} className="p-2 text-red-400 hover:bg-red-50 rounded-xl cursor-pointer">
-                <Trash2 className="w-4 h-4" />
-              </button>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </section>
 
-      {/* ═══════════════ AR MEASURE OVERLAY ═══════════════ */}
+      {/* ════════════════════ APPLE MEASURE AR MODAL ════════════════════ */}
       {isScannerOpen && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
-
-          {/* Camera feed */}
+        <div className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden select-none">
+          
+          {/* Camera View */}
           <video
             ref={(el) => {
               videoRef.current = el;
-              if (el && mediaRef.current && !el.srcObject) { el.srcObject = mediaRef.current; el.play().catch(() => {}); }
+              if (el && mediaRef.current && !el.srcObject) {
+                el.srcObject = mediaRef.current;
+                el.play().catch(() => {});
+              }
             }}
             autoPlay playsInline muted
             className="absolute inset-0 w-full h-full object-cover"
           />
 
-          {/* AR Canvas — draws line + reticle on top of camera */}
+          {/* AR Overlay Canvas */}
           <canvas
-            ref={(el) => { canvasRef.current = el; if (el) { el.width = window.innerWidth; el.height = window.innerHeight; } }}
-            className="absolute inset-0 w-full h-full"
+            ref={(el) => {
+              canvasRef.current = el;
+              if (el) {
+                el.width = window.innerWidth;
+                el.height = window.innerHeight;
+              }
+            }}
+            className="absolute inset-0 w-full h-full pointer-events-none"
             style={{ zIndex: 10 }}
           />
 
-          {/* Dark gradient overlays */}
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/65 to-transparent pointer-events-none" style={{ zIndex: 11 }} />
-          <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/75 to-transparent pointer-events-none" style={{ zIndex: 11 }} />
-
-          {/* Top bar */}
-          <div className="relative flex items-center justify-between px-5 pt-12 pb-3" style={{ zIndex: 20 }}>
-            <button onClick={() => { setMeasurements([]); setStartFix(null); setLiveDist(0); ptARef.current = null; setPhase("ready"); setShowSave(false); }}
-              className="w-10 h-10 rounded-full bg-white/20 backdrop-blur border border-white/25 flex items-center justify-center text-white cursor-pointer active:scale-90">
-              <RotateCcw className="w-4.5 h-4.5" />
+          {/* Top Control Bar (Undo & Trash Buttons - Exact Apple Layout) */}
+          <div className="relative flex items-center justify-between px-6 pt-12 z-20 pointer-events-auto">
+            <button
+              onClick={handleUndo}
+              disabled={!startPoint && segments.length === 0}
+              className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white cursor-pointer active:scale-90 disabled:opacity-30">
+              <Undo2 className="w-5 h-5" />
             </button>
-            <span className="text-white text-xs font-extrabold bg-black/40 backdrop-blur px-3 py-1.5 rounded-full border border-white/15">
-              AR Pond Measure
-            </span>
-            <button onClick={closeScanner}
-              className="w-10 h-10 rounded-full bg-white/20 backdrop-blur border border-white/25 flex items-center justify-center text-white cursor-pointer active:scale-90">
-              <X className="w-4.5 h-4.5" />
-            </button>
-          </div>
 
-          {/* Calibration screen */}
-          {phase === "calibrating" && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ zIndex: 15 }}>
-              <div className="relative w-60 h-44 border-2 border-white/80 rounded-2xl overflow-hidden bg-black/10">
-                <div className="absolute inset-0 flex flex-wrap content-center justify-center gap-2 p-5">
-                  {Array.from({ length: 30 }).map((_, i) => (
-                    <div key={i} className={`w-2 h-2 rounded-full transition-all duration-300 ${i < calDots ? "bg-white scale-100" : "bg-white/15 scale-75"}`} />
-                  ))}
-                </div>
-                {/* Corner brackets */}
-                <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-white rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-white rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-white rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-white rounded-br-xl" />
-              </div>
-              <p className="text-white font-extrabold text-sm mt-4">
-                {currentGps ? `GPS locking… ±${currentGps.acc}m` : "Move phone slowly to calibrate"}
-              </p>
-            </div>
-          )}
-
-          {/* Bottom controls */}
-          <div className="absolute bottom-0 left-0 right-0 px-5 pb-10 space-y-4" style={{ zIndex: 20 }}>
-
-            {/* GPS bar */}
-            {currentGps && phase !== "calibrating" && (
-              <div className="flex items-center justify-center gap-2">
-                {[5, 10, 20, 30].map((threshold, i) => (
-                  <div key={i} className={`w-1.5 rounded-full transition-all ${currentGps.acc <= threshold ? "bg-emerald-400 h-4" : "bg-white/20 h-3"}`} />
-                ))}
-                <span className={`text-[10px] font-bold ml-1 ${currentGps.acc <= 10 ? "text-emerald-400" : currentGps.acc <= 20 ? "text-yellow-400" : "text-orange-400"}`}>
-                  ±{currentGps.acc}m
-                </span>
-              </div>
-            )}
-
-            {/* Instruction */}
-            {phaseHint && phase !== "calibrating" && (
-              <p className="text-white text-center text-xs font-extrabold">{phaseHint}</p>
-            )}
-
-            {/* Locked measurement chips */}
-            {measurements.length > 0 && (
-              <div className="flex flex-wrap gap-2 justify-center">
-                {measurements.map((m) => (
-                  <div key={m.id} className="bg-white/15 backdrop-blur border border-white/20 rounded-full px-3 py-1.5 flex items-center gap-2">
-                    <span className="text-xs font-extrabold text-white">{m.label}: {fmtDist(m.meters)}</span>
-                    <button onClick={() => deleteMeasurement(m.id)} className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center cursor-pointer">
-                      <X className="w-2.5 h-2.5 text-white" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Main + / ✓ button */}
-            {(phase === "ready" || phase === "measuring") && (
-              <div className="flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              {segments.length >= 2 && !showSavePanel && (
                 <button
-                  onClick={phase === "ready" ? handleMarkStart : handleLockEnd}
-                  disabled={phase === "ready" && !gpsOk}
-                  className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl cursor-pointer active:scale-90 transition-all border-4 ${
-                    phase === "measuring"
-                      ? "bg-emerald-500 border-emerald-300 shadow-emerald-500/40"
-                      : gpsOk
-                        ? "bg-white/25 backdrop-blur border-white/60"
-                        : "bg-white/10 border-white/20 opacity-50"
-                  }`}
-                >
-                  {phase === "measuring"
-                    ? <Check className="w-8 h-8 text-white" />
-                    : <Plus className="w-8 h-8 text-white" />}
+                  onClick={() => setShowSavePanel(true)}
+                  className="bg-emerald-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-full shadow-lg cursor-pointer active:scale-95">
+                  Done & Save
                 </button>
-              </div>
-            )}
-
-            {/* Save button after 2 measurements */}
-            {measurements.length >= 2 && !showSave && (
-              <button onClick={() => setShowSave(true)}
-                className="w-full h-12 bg-emerald-500 text-white font-extrabold text-sm rounded-2xl cursor-pointer active:scale-95 flex items-center justify-center gap-2">
-                <Check className="w-4.5 h-4.5" /> Done — Save Pond
+              )}
+              <button
+                onClick={closeScanner}
+                className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white cursor-pointer active:scale-90">
+                <Trash2 className="w-5 h-5" />
               </button>
-            )}
+            </div>
           </div>
 
-          {/* Save bottom sheet */}
-          {showSave && (
-            <div className="absolute inset-x-0 bottom-0 bg-[#07200F] rounded-t-3xl p-5 space-y-4 border-t border-white/10" style={{ zIndex: 30 }}>
+          {/* Bottom Control Bar (Big Plus, Shutter, Segmented Mode Bar - Exact Apple Layout) */}
+          <div className="absolute bottom-0 left-0 right-0 z-20 pb-8 pt-4 flex flex-col items-center gap-5 pointer-events-auto bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+            
+            {/* Center '+' Button & Shutter Button */}
+            <div className="flex items-center justify-center gap-8 w-full px-8">
+              <button
+                onClick={handlePlusClick}
+                className="w-20 h-20 rounded-full bg-[#1C1C1E]/80 backdrop-blur-xl border border-white/30 flex items-center justify-center text-white shadow-2xl cursor-pointer active:scale-90 transition-transform">
+                <Plus className="w-10 h-10 text-white stroke-[2.5]" />
+              </button>
+
+              <button
+                onClick={() => {
+                  if (segments.length >= 2) setShowSavePanel(true);
+                  else handlePlusClick();
+                }}
+                className="w-14 h-14 rounded-full bg-white border-4 border-black/40 shadow-xl cursor-pointer active:scale-90"
+              />
+            </div>
+
+            {/* Apple Measure Segmented Mode Switcher */}
+            <div className="flex items-center bg-[#1C1C1E]/80 backdrop-blur-xl rounded-full p-1 border border-white/15 w-64 shadow-xl">
+              <button
+                onClick={() => setMode("measure")}
+                className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  mode === "measure" ? "bg-white/25 text-white shadow-sm" : "text-white/60"
+                }`}>
+                <Ruler className="w-4 h-4" /> Measure
+              </button>
+              <button
+                onClick={() => setMode("level")}
+                className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  mode === "level" ? "bg-white/25 text-white shadow-sm" : "text-white/60"
+                }`}>
+                <SlidersHorizontal className="w-4 h-4" /> Level
+              </button>
+            </div>
+          </div>
+
+          {/* Save Bottom Sheet Modal */}
+          {showSavePanel && (
+            <div className="absolute inset-x-0 bottom-0 z-30 bg-[#07200F] rounded-t-3xl p-5 space-y-4 border-t border-white/10 pointer-events-auto">
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <span className="text-emerald-400 font-extrabold text-sm">Measurement Results</span>
-                <button onClick={() => setShowSave(false)} className="text-white/50 cursor-pointer"><X className="w-4.5 h-4.5" /></button>
+                <span className="text-emerald-400 font-extrabold text-sm">Pond Measurement Specs</span>
+                <button onClick={() => setShowSavePanel(false)} className="text-white/50 cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center">
                 {[
-                  { l: "Length",    v: `${lengthM.toFixed(1)} m` },
-                  { l: "Width",     v: `${widthM.toFixed(1)} m` },
-                  { l: "Depth",     v: `${depthM.toFixed(1)} m` },
-                  { l: "Volume",    v: `${(volL / 1000).toFixed(1)} kL` },
+                  { l: "Length", v: `${lengthM.toFixed(1)} m` },
+                  { l: "Width", v: `${widthM.toFixed(1)} m` },
+                  { l: "Depth", v: `${depthM.toFixed(1)} m` },
+                  { l: "Volume", v: `${(volL / 1000).toFixed(1)} kL` },
                   { l: "Max Stock", v: stockCap.toLocaleString() },
-                  { l: "Daily Feed",v: `${dailyFeed} kg` },
+                  { l: "Daily Feed", v: `${dailyFeed} kg` },
                 ].map(({ l, v }) => (
                   <div key={l} className="bg-white/8 rounded-xl p-2.5 border border-white/10">
                     <div className="text-[8.5px] text-white/40 font-bold uppercase">{l}</div>
@@ -518,10 +579,11 @@ export function MyFarmPage() {
                 <button onClick={handleSavePond} className="flex-1 h-12 bg-emerald-500 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95">
                   <Check className="w-4.5 h-4.5" /> Save Pond Record
                 </button>
-                <button onClick={() => setShowSave(false)} className="px-5 h-12 bg-white/12 text-white font-extrabold text-xs rounded-2xl cursor-pointer">Back</button>
+                <button onClick={() => setShowSavePanel(false)} className="px-5 h-12 bg-white/12 text-white font-extrabold text-xs rounded-2xl cursor-pointer">Back</button>
               </div>
             </div>
           )}
+
         </div>
       )}
 
