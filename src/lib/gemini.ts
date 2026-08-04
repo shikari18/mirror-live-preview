@@ -487,7 +487,109 @@ export async function synthesizeSpeechKhayaAI(text: string, lang: string = "tw")
   return "";
 }
 
-export function speakTextInstant(
+// ── Helper to convert 24kHz 16-bit PCM base64 to WAV Blob ───────────────────
+function pcmToWavBlob(pcmBase64: string, sampleRate = 24000): Blob {
+  const binary = atob(pcmBase64);
+  const len = binary.length;
+  const buffer = new ArrayBuffer(44 + len);
+  const view = new DataView(buffer);
+
+  // "RIFF" header
+  view.setUint32(0, 0x52494646, false);
+  view.setUint32(4, 36 + len, true);
+  view.setUint32(8, 0x57415645, false);
+  view.setUint32(12, 0x666d7420, false);
+  view.setUint32(16, 16, true);       // Subchunk1Size
+  view.setUint16(20, 1, true);        // AudioFormat 1 = PCM
+  view.setUint16(22, 1, true);        // NumChannels 1 = Mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // ByteRate
+  view.setUint16(32, 2, true);        // BlockAlign
+  view.setUint16(34, 16, true);       // BitsPerSample
+  view.setUint32(36, 0x64617461, false); // "data"
+  view.setUint32(40, len, true);
+
+  const bytes = new Uint8Array(buffer, 44);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+// ── Gemini Native Speech Synthesizer (Realistic Neural Voice) ────────────────
+async function speakWithGeminiVoice(
+  text: string,
+  targetLang: string = "Twi",
+  onStart?: () => void,
+  onEnd?: () => void
+): Promise<boolean> {
+  try {
+    const key = getGeminiKey();
+    if (!key) return false;
+
+    const isTwi = targetLang.toLowerCase().includes("twi") || targetLang.toLowerCase().includes("akan");
+    const isEwe = targetLang.toLowerCase().includes("ewe");
+    const isHausa = targetLang.toLowerCase().includes("hausa");
+
+    let promptText = `Speak this text in a warm, natural, human voice: "${text}"`;
+    if (isTwi) {
+      promptText = `Translate and speak this text in clear, fluent, authentic Ghanaian Akan Twi (Asante Twi): "${text}"`;
+    } else if (isEwe) {
+      promptText = `Translate and speak this text in clear, fluent, authentic Ewe language: "${text}"`;
+    } else if (isHausa) {
+      promptText = `Translate and speak this text in clear, fluent, authentic Hausa language: "${text}"`;
+    }
+
+    const models = ["gemini-2.5-flash-preview-tts", "gemini-2.0-flash"];
+
+    for (const m of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: promptText }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: "Aoede" // Warm female voice
+                  }
+                }
+              }
+            }
+          })
+        });
+
+        if (!res.ok) continue;
+
+        const data = await res.json();
+        const inlineData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+        if (inlineData?.data) {
+          const wavBlob = pcmToWavBlob(inlineData.data, 24000);
+          const audioUrl = URL.createObjectURL(wavBlob);
+          const audio = new Audio(audioUrl);
+
+          if (onStart) onStart();
+          audio.onended = () => { URL.revokeObjectURL(audioUrl); if (onEnd) onEnd(); };
+          audio.onerror = () => { URL.revokeObjectURL(audioUrl); if (onEnd) onEnd(); };
+
+          await audio.play();
+          return true;
+        }
+      } catch {
+        continue;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export async function speakTextInstant(
   text: string,
   language: string = "English",
   onStart?: () => void,
@@ -509,33 +611,23 @@ export function speakTextInstant(
   const isEwe = langLower.includes("ewe");
   const isHausa = langLower.includes("hausa");
 
+  // 1. Try Gemini Real Neural Voice (Generates authentic speech directly)
+  const geminiAudioSuccess = await speakWithGeminiVoice(cleanText, language, onStart, onEnd);
+  if (geminiAudioSuccess) return;
+
+  // 2. WebSpeech Fallback if offline / API timeout
   let spokenText = cleanText;
 
   if (isTwi) {
-    // Translate key diagnosis & health terms to Twi
     spokenText = cleanText
       .replace(/Identified species:/gi, "Mmoa ahodoɔ:")
       .replace(/Healthy/gi, "Ho wɔ yɛ, kɔso hwɛ no yie")
       .replace(/Needs Attention/gi, "Hwɛ no yie, ɛyɛ yareɛ ketewa")
       .replace(/Critical/gi, "Amaneɛ kɛseɛ! Yareɛ kɛseɛ wɔ mmoa no ho")
-      .replace(/Bacterial Hemorrhagic Septicemia/gi, "Nsuomnam honam nkyenkyen yareɛ")
-      .replace(/Aeromonas Ulcer Disease/gi, "Nsuomnam honam akuru yareɛ")
-      .replace(/Flavobacterium Columnaris/gi, "Nsuomnam ti ne akyi kuro yareɛ")
-      .replace(/Caudal Tail Rot/gi, "Dua rot amaneɛ")
-      .replace(/Frayed Fin Decay/gi, "Ntaban porɔeɛ")
-      .replace(/Treatment:/gi, "Aduro ne ayaresa:")
-      .replace(/Water quality/gi, "Nsuo no mu pa");
+      .replace(/Treatment:/gi, "Aduro ne ayaresa:");
 
     if (!spokenText.startsWith("Akwaaba")) {
       spokenText = "Akwaaba okuafoɔ! " + spokenText;
-    }
-  } else if (isEwe) {
-    if (!spokenText.startsWith("Woezɔ")) {
-      spokenText = "Woezɔ agbledela! " + spokenText;
-    }
-  } else if (isHausa) {
-    if (!spokenText.startsWith("Sannu")) {
-      spokenText = "Sannu manomi! " + spokenText;
     }
   }
 
