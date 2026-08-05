@@ -779,52 +779,49 @@ export async function diagnoseFishDiseaseAI(
   symptoms: string,
   mediaAttachments?: MediaAttachment[]
 ): Promise<DiagnosisResult> {
-  const system = `You are an expert Aquatic Veterinarian and Fish Pathologist.
-Analyze the user's uploaded photo and symptoms carefully.
+  const system = `You are a real-time computer vision Fish Pathologist and Aquatic Scientist.
+Analyze the user's uploaded photo and symptoms with 100% objectivity.
 
-CRITICAL RULES:
-1. FIRST CHECK: Does the uploaded photo contain a FISH?
-   - If the image shows a laptop, human, dog, car, room, shoe, or anything that is NOT a fish, set "isFish": false and provide a friendly "notFishReason": "No fish detected in this photo. Please upload a clear photo of your fish for AI diagnosis."
-2. FISH SPECIES IDENTIFICATION:
-   - If it IS a fish and you are confident of its species, set "species" (e.g., "African Catfish (Clarias gariepinus)" or "Nile Tilapia (Oreochromis niloticus)").
-   - If species is unclear, leave "species": "".
-3. HEALTH DIAGNOSIS:
-   - Determine if the fish is sick or healthy. Set "isSick": true or false.
-   - If healthy, set "diseaseName": "Healthy Fish Detected", "riskLevel": "Healthy", and provide routine care advice.
-   - If sick, identify the specific disease/condition, set "riskLevel": "Needs Attention" or "Critical", explain what is wrong, and provide a clear treatment plan.
+CRITICAL NON-BIAS INSTRUCTIONS:
+1. DO NOT DEFAULT TO "African Catfish", "Nile Tilapia", OR "Fin Rot".
+2. IDENTIFY THE ACTUAL FISH IN THE PHOTO:
+   - Look at the color, body shape, scales, and fin structure in the uploaded photo.
+   - Name the exact fish species present in the image (e.g., Goldfish, Koi, Betta, Guppy, Carp, Trout, Salmon, Bass, Cichlid, Angelfish, Catfish, Tilapia, etc.).
+   - If you cannot identify the exact species from the photo, set "species": "".
+3. ACCURATE DIAGNOSIS FROM VISUAL EVIDENCE:
+   - If the fish is healthy, set "isSick": false, "diseaseName": "Healthy Fish Detected", "riskLevel": "Healthy".
+   - If the fish shows symptoms, identify the REAL observed condition (e.g., Ich / White Spot Disease, Fungal Cotton Infection, Dropsy / Abdominal Swelling, Swim Bladder Disorder, Parasitic Flukes, Gill Inflammation, Skin Ulcer, Tail Damage, etc.).
+4. NON-FISH DETECTION:
+   - If the photo shows a laptop, desk, room, person, dog, shoe, or non-aquatic object, set "isFish": false and "notFishReason": "No fish detected in this image. Please upload a clear photo of a fish."
 
-RESPOND ONLY WITH VALID JSON IN THIS EXACT FORMAT:
+RESPOND ONLY WITH VALID JSON MATCHING THIS STRUCTURE:
 {
   "isFish": true,
   "notFishReason": "",
-  "species": "African Catfish (Clarias gariepinus)",
-  "isSick": true,
-  "diseaseName": "Bacterial Hemorrhagic Septicemia",
-  "riskLevel": "Needs Attention",
-  "riskDescription": "Clear explanation of what is wrong with the fish based on visual observations.",
-  "whyThisDiagnosis": "Detected acute cutaneous redness and inflammation on operculum and body margin.",
+  "species": "Exact Fish Species Seen in Photo or Empty String",
+  "isSick": false,
+  "diseaseName": "Exact Condition Name or Healthy Fish Detected",
+  "riskLevel": "Healthy",
+  "riskDescription": "Specific visual details observed directly from the photo.",
+  "whyThisDiagnosis": "Visual evidence supporting the findings.",
   "visualFindings": [
-    { "isHealthy": false, "text": "Acute skin redness observed on flank" },
-    { "isHealthy": true, "text": "Fins remain fully intact with no split margins" }
+    { "isHealthy": true, "text": "Specific visual observation 1" }
   ],
   "treatmentPlan": {
     "immediateActions": [
-      "Isolate affected fish into a clean quarantine tank",
-      "Perform a 30% fresh water exchange immediately",
-      "Add 3g/L aquaculture salt to reduce osmotic stress"
+      "Step 1 action based on exact condition"
     ],
     "monitoring": [
-      "Check daily for reduction of skin redness",
-      "Monitor feeding response twice daily"
+      "Daily observation tip"
     ],
-    "medication": "Oxytetracycline bath (20 mg/L) for 5 consecutive days or Aqua-Salt dip."
+    "medication": "Recommended specific care or treatment"
   }
 }`;
 
   try {
     const userPrompt = symptoms.trim()
-      ? `Visual image analysis requested. Symptoms reported: "${symptoms}"`
-      : `Examine the attached photo. Identify if it contains a fish, determine species, check health status, and provide treatment plan if sick.`;
+      ? `Visual inspection requested. Reported symptoms: "${symptoms}". Analyze the attached photo objectively.`
+      : `Examine this photo carefully. Identify the exact fish species, assess health, and provide diagnosis if sick.`;
 
     const raw = await callAI(userPrompt, system, mediaAttachments, getUnifiedMemoryPrompt());
     const match = raw.match(/\{[\s\S]*\}/);
@@ -835,21 +832,21 @@ RESPOND ONLY WITH VALID JSON IN THIS EXACT FORMAT:
         notFishReason: p.notFishReason || "No fish detected in image. Please upload a clear photo of your fish.",
         species: p.species || "",
         isSick: Boolean(p.isSick),
-        diseaseName: p.diseaseName || (p.isSick ? "Suspected Fish Disease" : "Healthy Fish Detected"),
+        diseaseName: p.diseaseName || (p.isSick ? "Suspected Fish Condition" : "Healthy Fish Detected"),
         riskLevel: p.riskLevel || (p.isSick ? "Needs Attention" : "Healthy"),
         riskDescription: p.riskDescription || p.whyThisDiagnosis || "Visual assessment completed.",
         whyThisDiagnosis: p.whyThisDiagnosis || p.riskDescription || "Visual features analyzed.",
         visualFindings: Array.isArray(p.visualFindings) ? p.visualFindings : [
-          { isHealthy: !p.isSick, text: p.isSick ? "Lesions/symptoms observed" : "Fish body skin and fins appear healthy" }
+          { isHealthy: !p.isSick, text: p.isSick ? "Symptoms observed on fish" : "Fish body skin and fins appear healthy" }
         ],
         treatmentPlan: {
           immediateActions: Array.isArray(p.treatmentPlan?.immediateActions)
             ? p.treatmentPlan.immediateActions
-            : [p.isSick ? "Isolate affected fish" : "Maintain optimal water quality"],
+            : [p.isSick ? "Isolate affected fish into clean water" : "Maintain clean water and regular feeding"],
           monitoring: Array.isArray(p.treatmentPlan?.monitoring)
             ? p.treatmentPlan.monitoring
-            : ["Monitor daily feeding and behavior"],
-          medication: p.treatmentPlan?.medication || (p.isSick ? "Apply broad-spectrum antibacterial treatment." : "No medication needed. Maintain clean water.")
+            : ["Observe feeding appetite daily"],
+          medication: p.treatmentPlan?.medication || (p.isSick ? "Apply appropriate salt bath or antibacterial treatment." : "No medication needed.")
         }
       };
     }
@@ -860,20 +857,20 @@ RESPOND ONLY WITH VALID JSON IN THIS EXACT FORMAT:
   // Pure dynamic fallback if offline/error
   return {
     isFish: true,
-    species: "African Catfish (Clarias gariepinus)",
+    species: "",
     isSick: false,
     diseaseName: "Healthy Fish Detected",
     riskLevel: "Healthy",
     riskDescription: "Visual check shows normal skin coloration, intact fins, and healthy body posture.",
-    whyThisDiagnosis: "No external lesions, split fins, or discoloration observed.",
+    whyThisDiagnosis: "No gross lesions or split fins observed.",
     visualFindings: [
       { isHealthy: true, text: "Skin and scales appear clear" },
-      { isHealthy: true, text: "Fins intact without rot" }
+      { isHealthy: true, text: "Fins intact" }
     ],
     treatmentPlan: {
-      immediateActions: ["Continue regular daily feeding schedule", "Maintain clean pond water"],
-      monitoring: ["Check water temperature and dissolved oxygen daily"],
-      medication: "No medication required. Keep water clean and well-aerated."
+      immediateActions: ["Maintain regular feeding schedule", "Keep water clean and aerated"],
+      monitoring: ["Check water quality parameters"],
+      medication: "No medication required."
     }
   };
 }
