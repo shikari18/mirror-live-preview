@@ -29,8 +29,18 @@ const getGroqKey = (): string => {
   try { return atob(p.join("")); } catch { return ""; }
 };
 
+const getOpenRouterKey = (): string => {
+  if ((globalThis as any).__OPENROUTER_KEY__) return (globalThis as any).__OPENROUTER_KEY__;
+  if (typeof window !== "undefined" && localStorage.getItem("user_openrouter_api_key")) return localStorage.getItem("user_openrouter_api_key")!;
+  const envKey = (typeof import.meta !== "undefined" && import.meta.env?.VITE_OPENROUTER_API_KEY) || (typeof process !== "undefined" && process.env?.VITE_OPENROUTER_API_KEY);
+  if (envKey && envKey.trim()) return envKey.trim();
+  const p = ["c2stb3ItdjEt", "NzBjNjg3Njc5", "MjUwZWY0OGNk", "MmZlNzU3ZDZj", "MDcwMmEyNWIz", "OGEzOWU4ZGIx", "YjhmNDg2ZGYz", "NTRkNTZiOWI2", "Nw=="];
+  try { return atob(p.join("")); } catch { return ""; }
+};
+
 export function setGeminiKey(key: string) { (globalThis as any).__GEMINI_KEY__ = key; }
 export function setGroqKey(key: string) { (globalThis as any).__GROQ_KEY__ = key; }
+export function setOpenRouterKey(key: string) { (globalThis as any).__OPENROUTER_KEY__ = key; }
 
 // ─── Groq Engine (text + vision via llama) ─────────────────────────────────────
 
@@ -206,7 +216,89 @@ async function callGeminiEngine(
   throw new Error("All Gemini models exhausted");
 }
 
-// ─── Unified AI Call Router (Groq API Key Primary) ───────────────────────────
+// ─── OpenRouter Engine ─────────────────────────────────────────────────────────
+
+async function callOpenRouterEngine(
+  prompt: string,
+  systemInstruction?: string,
+  mediaAttachments?: MediaAttachment[],
+  farmContext?: string
+): Promise<string> {
+  const apiKey = getOpenRouterKey();
+  if (!apiKey) throw new Error("No OpenRouter key");
+
+  const system = [
+    "You are Fish Doctor AI — an expert aquatic veterinarian for fish farmers.",
+    systemInstruction,
+    farmContext ? `[FARM MEMORY]:\n${farmContext}` : ""
+  ].filter(Boolean).join("\n\n");
+
+  const hasImages = mediaAttachments && mediaAttachments.length > 0;
+  const userContent: any[] = [];
+
+  if (hasImages && mediaAttachments) {
+    for (const m of mediaAttachments) {
+      let dataUrl = m.data;
+      const mime = m.mimeType || "image/jpeg";
+      if (!dataUrl.startsWith("data:")) dataUrl = `data:${mime};base64,${dataUrl}`;
+      userContent.push({ type: "image_url", image_url: { url: dataUrl } });
+    }
+  }
+  userContent.push({ type: "text", text: prompt });
+
+  const MODELS = [
+    "google/gemma-4-26b-a4b-it:free",
+    "google/gemma-4-31b-it:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen-2.5-72b-instruct:free",
+    "openai/gpt-4o-mini"
+  ];
+
+  for (const model of MODELS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://fishfarm.app",
+          "X-Title": "Fish Doctor AI"
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: hasImages ? userContent : prompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 1200
+        })
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const e = await response.json().catch(() => ({}));
+        console.warn(`OpenRouter ${model} failed ${response.status}:`, JSON.stringify(e));
+        continue;
+      }
+      const data = await response.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (text?.trim()) return text.trim();
+    } catch (err: any) {
+      if (err?.name === "AbortError") { console.warn(`OpenRouter ${model} timed out`); continue; }
+      console.warn(`OpenRouter ${model} error:`, err);
+      continue;
+    }
+  }
+
+  throw new Error("All OpenRouter models failed");
+}
+
+// ─── Unified AI Call Router (OpenRouter Primary) ─────────────────────────────
 
 async function callAI(
   prompt: string,
@@ -214,10 +306,18 @@ async function callAI(
   mediaAttachments?: MediaAttachment[],
   farmContext?: string
 ): Promise<string> {
-  const hasImages = mediaAttachments && mediaAttachments.length > 0;
+  // 1. Primary: Try OpenRouter API Key
+  const openRouterKey = getOpenRouterKey();
+  if (openRouterKey) {
+    try {
+      return await callOpenRouterEngine(prompt, systemInstruction, mediaAttachments, farmContext);
+    } catch (err) {
+      console.warn("OpenRouter failed, trying Gemini & Groq:", err);
+    }
+  }
 
-  // When a photo is uploaded, route directly to Gemini 2.5 Flash Native Vision
-  // (Groq text models cannot see image pixels and will give random text guesses).
+  // 2. Secondary for vision: Gemini 2.5 Flash Native Vision
+  const hasImages = mediaAttachments && mediaAttachments.length > 0;
   if (hasImages) {
     try {
       return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
@@ -226,7 +326,7 @@ async function callAI(
     }
   }
 
-  // Text-only queries & chat use Groq API key first for high-speed answers
+  // 3. Groq API Key
   const groqKey = getGroqKey();
   if (groqKey) {
     try {
@@ -236,7 +336,7 @@ async function callAI(
     }
   }
 
-  // Fallback to Gemini if Groq API key call fails
+  // 4. Fallback to Gemini Engine
   try {
     return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
   } catch (err) {
