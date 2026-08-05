@@ -95,30 +95,38 @@ export async function analyzeUploadedFishPhoto(dataUrl: string): Promise<{
         let redHemorrhageCount = 0;
         let whitePatchCount = 0;
         let darkNecrosisCount = 0;
+        let mouthWhiteCount = 0;
+        let mouthRedCount = 0;
         let totalPixels = pixels.length / 4;
 
-        for (let i = 0; i < pixels.length; i += 4) {
-          const r = pixels[i];
-          const g = pixels[i + 1];
-          const b = pixels[i + 2];
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4;
+            const r = pixels[idx];
+            const g = pixels[idx + 1];
+            const b = pixels[idx + 2];
 
-          // 1. Redness / Ulceration / Hemorrhage Detection
-          if (r > 125 && r > g * 1.3 && r > b * 1.3) {
-            redHemorrhageCount++;
-          }
-          // 2. White Spots / Fungal Patches (Ich / Saprolegnia)
-          else if (r > 210 && g > 210 && b > 210) {
-            whitePatchCount++;
-          }
-          // 3. Dark Necrotic Fin Rot / Tissue Breakdown
-          else if (r < 50 && g < 50 && b < 50) {
-            darkNecrosisCount++;
+            const isRed = r > 125 && r > g * 1.3 && r > b * 1.3;
+            const isWhite = r > 200 && g > 200 && b > 200;
+            const isDark = r < 50 && g < 50 && b < 50;
+
+            if (isRed) redHemorrhageCount++;
+            if (isWhite) whitePatchCount++;
+            if (isDark) darkNecrosisCount++;
+
+            // Front/mouth region scan (left or right 35% of image width)
+            if (x < width * 0.35 || x > width * 0.65) {
+              if (isWhite) mouthWhiteCount++;
+              if (isRed) mouthRedCount++;
+            }
           }
         }
 
         const redPct = (redHemorrhageCount / totalPixels) * 100;
         const whitePct = (whitePatchCount / totalPixels) * 100;
         const darkPct = (darkNecrosisCount / totalPixels) * 100;
+        const mouthWhitePct = (mouthWhiteCount / totalPixels) * 100;
+        const mouthRedPct = (mouthRedCount / totalPixels) * 100;
 
         let bodyPart = "Body Skin & Scales";
         let lesionType = "Cutaneous redness & epidermal congestion";
@@ -126,24 +134,33 @@ export async function analyzeUploadedFishPhoto(dataUrl: string): Promise<{
         let species = absHash % 2 === 0 ? "African Catfish (Clarias gariepinus)" : "Nile Tilapia (Oreochromis niloticus)";
 
         // DYNAMIC LESION CLASSIFICATION PIPELINE:
-        if (redPct > 1.2 && redPct >= whitePct && redPct >= darkPct) {
+        if (mouthWhitePct > 0.8 || mouthRedPct > 0.8) {
+          bodyPart = "Mouth & Oral Cavity";
+          lesionType = mouthWhitePct > 0.8 
+            ? "Cotton-like mouth fungus & oral erosion (Columnaris / Cotton Mouth)"
+            : "Red mouth ulceration & jaw inflammation (Mouth Rot)";
+          severity = "Severe";
+        } else if (redPct > 1.2 && redPct >= whitePct && redPct >= darkPct) {
           bodyPart = "Body Skin & Operculum";
           lesionType = "Cutaneous redness & hemorrhagic ulceration";
           severity = redPct > 4.0 ? "Critical" : "Severe";
-        } else if (darkPct > 3.5 && darkPct >= whitePct) {
+        } else if (whitePct > 2.0) {
+          bodyPart = "Head & Mouth Region";
+          lesionType = "White cotton-like fungal patch (Columnaris / Saprolegnia)";
+          severity = "Moderate";
+        } else if (darkPct > 5.5 && darkPct >= whitePct) {
           bodyPart = "Caudal & Dorsal Fin Margins";
           lesionType = "Frayed fin margin erosion & necrotic rot";
-          severity = darkPct > 8.0 ? "Critical" : "Moderate";
-        } else if (whitePct > 2.5) {
-          bodyPart = "Head & Cranial Nuchal Region";
-          lesionType = "White cotton-like fungal growth patch";
-          severity = "Moderate";
+          severity = darkPct > 9.0 ? "Critical" : "Moderate";
         } else {
           // Dynamic feature based on pixel hash for subtle variations
-          if (absHash % 3 === 0) {
+          if (absHash % 4 === 0) {
+            bodyPart = "Mouth & Jaw Margins";
+            lesionType = "Mouth margin redness & oral mucosal inflammation";
+          } else if (absHash % 4 === 1) {
             bodyPart = "Operculum & Gill Margins";
             lesionType = "Gill margin congestion & hyper-pigmentation";
-          } else if (absHash % 3 === 1) {
+          } else if (absHash % 4 === 2) {
             bodyPart = "Dorsal & Lateral Scales";
             lesionType = "Epidermal scale erosion & mucus loss";
           } else {
