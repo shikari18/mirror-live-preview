@@ -197,6 +197,31 @@ export async function analyzeUploadedFishPhoto(dataUrl: string): Promise<{
   });
 }
 
+// Resize and compress an image data URL to a max dimension, returning a JPEG data URL.
+// Groq vision models reject payloads over ~4MB base64; keeping images small avoids this.
+async function resizeImageForVision(dataUrl: string, maxDim = 768, quality = 0.82): Promise<string> {
+  if (typeof window === "undefined" || typeof document === "undefined") return dataUrl;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, maxDim / Math.max(img.width || maxDim, img.height || maxDim));
+        const w = Math.round((img.width || maxDim) * scale);
+        const h = Math.round((img.height || maxDim) * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(dataUrl); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } catch { resolve(dataUrl); }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 async function callGroqEngine(
   prompt: string,
   systemInstruction?: string,
@@ -214,8 +239,19 @@ async function callGroqEngine(
 
   const hasImages = mediaAttachments && mediaAttachments.length > 0;
 
-  // Vision-capable models must come first when images are attached.
-  // llama-3.2-*-vision models accept inline base64 image_url content parts.
+  // Resize images before sending to stay within Groq's payload limits
+  let processedAttachments = mediaAttachments;
+  if (hasImages && mediaAttachments) {
+    processedAttachments = await Promise.all(
+      mediaAttachments.map(async (a) => {
+        const resized = await resizeImageForVision(a.data);
+        return { ...a, data: resized, mimeType: "image/jpeg" };
+      })
+    );
+  }
+
+  // Vision-capable models first when images are present.
+  // Text-only models are only used when there is NO image.
   const VISION_MODELS = [
     "meta-llama/llama-4-scout-17b-16e-instruct",
     "llama-3.2-90b-vision-preview",
@@ -226,26 +262,21 @@ async function callGroqEngine(
     "llama-3.1-8b-instant",
   ];
 
-  const MODELS = hasImages ? [...VISION_MODELS, ...TEXT_MODELS] : TEXT_MODELS;
+  // When images are attached, ONLY try vision models — do NOT fall through to
+  // text-only models that cannot see the image and will falsely return isFish:false.
+  const MODELS = hasImages ? VISION_MODELS : TEXT_MODELS;
 
-  // Build user message content — include real image data for vision models
-  const buildUserContent = (visionCapable: boolean): any => {
-    if (!hasImages || !visionCapable) {
-      return prompt;
-    }
+  // Build user message content with real image data
+  const buildUserContent = (): any => {
+    if (!hasImages || !processedAttachments) return prompt;
 
     const contentParts: any[] = [];
-    for (const attachment of mediaAttachments!) {
+    for (const attachment of processedAttachments) {
       let dataUrl = attachment.data;
-      let mimeType = attachment.mimeType || "image/jpeg";
+      const mimeType = attachment.mimeType || "image/jpeg";
 
-      // Normalise: ensure we have a proper data URL
       if (!dataUrl.startsWith("data:")) {
         dataUrl = `data:${mimeType};base64,${dataUrl}`;
-      } else {
-        // Extract mime type from existing data URL if present
-        const match = dataUrl.match(/^data:([^;]+);base64,/);
-        if (match) mimeType = match[1];
       }
 
       contentParts.push({
@@ -258,10 +289,9 @@ async function callGroqEngine(
     return contentParts;
   };
 
-  for (const model of MODELS) {
-    const isVisionModel = VISION_MODELS.includes(model);
-    const userContent = buildUserContent(isVisionModel);
+  const userContent = buildUserContent();
 
+  for (const model of MODELS) {
     const messagesPayload: any[] = [
       { role: "system", content: system },
       { role: "user", content: userContent },
@@ -269,7 +299,7 @@ async function callGroqEngine(
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -286,7 +316,7 @@ async function callGroqEngine(
 
       if (!response.ok) {
         const e = await response.json().catch(() => ({}));
-        console.warn(`Groq ${model} failed ${response.status}:`, e);
+        console.warn(`Groq ${model} failed ${response.status}:`, JSON.stringify(e));
         continue;
       }
       const data = await response.json();
