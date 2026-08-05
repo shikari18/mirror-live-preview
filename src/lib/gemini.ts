@@ -89,133 +89,6 @@ async function resizeImageForVision(dataUrl: string, maxDim = 768, quality = 0.8
   });
 }
 
-async function callGroqEngine(
-  prompt: string,
-  systemInstruction?: string,
-  _mediaAttachments?: MediaAttachment[],
-  farmContext?: string
-): Promise<string> {
-  const apiKey = getGroqKey();
-  if (!apiKey) throw new Error("No Groq key");
-
-  const system = [
-    "You are Fish Doctor AI — an expert aquatic veterinarian for fish farmers.",
-    systemInstruction,
-    farmContext ? `[FARM MEMORY]:\n${farmContext}` : ""
-  ].filter(Boolean).join("\n\n");
-
-  const MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
-    "groq/compound",
-  ];
-
-  for (const model of MODELS) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
-
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: prompt },
-          ],
-          temperature: 0.3,
-          max_tokens: 1200,
-        }),
-      });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const e = await response.json().catch(() => ({}));
-        console.warn(`Groq ${model} failed ${response.status}:`, JSON.stringify(e));
-        continue;
-      }
-      const data = await response.json();
-      const text = data?.choices?.[0]?.message?.content;
-      if (text?.trim()) return text.trim();
-    } catch (err: any) {
-      if (err?.name === "AbortError") { console.warn(`Groq ${model} timed out`); continue; }
-      console.warn(`Groq ${model} error:`, err);
-      continue;
-    }
-  }
-
-  throw new Error("All Groq models failed");
-}
-
-// ─── Gemini Engine ─────────────────────────────────────────────────────────────
-
-async function callGeminiEngine(
-  prompt: string,
-  systemInstruction?: string,
-  mediaAttachments?: MediaAttachment[],
-  farmContext?: string
-): Promise<string> {
-  const apiKey = getGeminiKey();
-  if (!apiKey) throw new Error("No Gemini key");
-
-  const system = [
-    "You are Fish Doctor AI — an expert aquatic veterinarian for fish farmers.",
-    systemInstruction,
-    farmContext ? `[FARM MEMORY]:\n${farmContext}` : ""
-  ].filter(Boolean).join("\n\n");
-
-  const parts: any[] = [];
-  if (mediaAttachments?.length) {
-    for (const m of mediaAttachments) {
-      let base64 = m.data;
-      let mime = m.mimeType || "image/jpeg";
-      if (base64.startsWith("data:")) {
-        const match = base64.match(/^data:([^;]+);base64,(.+)$/);
-        if (match) { mime = match[1]; base64 = match[2]; }
-      }
-      parts.push({ inlineData: { mimeType: mime, data: base64 } });
-    }
-  }
-  parts.push({ text: prompt });
-
-  const body = {
-    systemInstruction: { parts: [{ text: system }] },
-    contents: [{ role: "user", parts }],
-    generationConfig: { temperature: 0.2, maxOutputTokens: 1200 }
-  };
-
-  const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
-
-  for (const model of MODELS) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 18000);
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal }
-      );
-      clearTimeout(timeoutId);
-      if (response.status === 429 || response.status === 503 || response.status === 404) {
-        console.warn(`Gemini ${model} unavailable (${response.status})`); continue;
-      }
-      if (!response.ok) { console.warn(`Gemini ${model} failed (${response.status})`); continue; }
-      const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text?.trim()) return text.trim();
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (err?.name === "AbortError") { continue; }
-      console.warn(`Gemini ${model} error:`, err);
-      continue;
-    }
-  }
-  throw new Error("All Gemini models exhausted");
-}
-
 // ─── OpenRouter Engine ─────────────────────────────────────────────────────────
 
 async function callOpenRouterEngine(
@@ -298,7 +171,7 @@ async function callOpenRouterEngine(
   throw new Error("All OpenRouter models failed");
 }
 
-// ─── Unified AI Call Router (OpenRouter Primary) ─────────────────────────────
+// ─── Unified AI Call Router (OpenRouter Primary + Gemini Fallback) ────────────
 
 async function callAI(
   prompt: string,
@@ -306,41 +179,21 @@ async function callAI(
   mediaAttachments?: MediaAttachment[],
   farmContext?: string
 ): Promise<string> {
-  // 1. Primary: Try OpenRouter API Key
+  // 1. Primary Engine: OpenRouter
   const openRouterKey = getOpenRouterKey();
   if (openRouterKey) {
     try {
       return await callOpenRouterEngine(prompt, systemInstruction, mediaAttachments, farmContext);
     } catch (err) {
-      console.warn("OpenRouter failed, trying Gemini & Groq:", err);
+      console.warn("OpenRouter failed, falling back to Gemini:", err);
     }
   }
 
-  // 2. Secondary for vision: Gemini 2.5 Flash Native Vision
-  const hasImages = mediaAttachments && mediaAttachments.length > 0;
-  if (hasImages) {
-    try {
-      return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
-    } catch (geminiErr) {
-      console.warn("Gemini vision failed, falling back to Groq:", geminiErr);
-    }
-  }
-
-  // 3. Groq API Key
-  const groqKey = getGroqKey();
-  if (groqKey) {
-    try {
-      return await callGroqEngine(prompt, systemInstruction, mediaAttachments, farmContext);
-    } catch (err) {
-      console.warn("Groq failed, falling back to Gemini:", err);
-    }
-  }
-
-  // 4. Fallback to Gemini Engine
+  // 2. Secondary Engine: Gemini (text + native vision)
   try {
     return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
   } catch (err) {
-    console.warn("Gemini also failed:", err);
+    console.warn("Gemini fallback also failed:", err);
   }
 
   return "Fish Doctor AI is temporarily unavailable. Please check your internet connection and try again.";
