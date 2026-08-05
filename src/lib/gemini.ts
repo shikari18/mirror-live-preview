@@ -254,12 +254,15 @@ async function callGroqEngine(
   // Text-only models are only used when there is NO image.
   const VISION_MODELS = [
     "meta-llama/llama-4-scout-17b-16e-instruct",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
     "llama-3.2-90b-vision-preview",
     "llama-3.2-11b-vision-preview",
   ];
   const TEXT_MODELS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
   ];
 
   // When images are attached, ONLY try vision models — do NOT fall through to
@@ -382,14 +385,15 @@ async function callGeminiEngine(
       if (response.status === 429 || response.status === 503 || response.status === 404) {
         console.warn(`Gemini ${model} unavailable (${response.status})`); continue;
       }
-      if (!response.ok) throw new Error(`Gemini ${response.status}`);
+      if (!response.ok) { console.warn(`Gemini ${model} failed (${response.status})`); continue; }
       const data = await response.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text?.trim()) return text.trim();
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err?.name === "AbortError") { continue; }
-      throw err;
+      console.warn(`Gemini ${model} error:`, err);
+      continue;
     }
   }
   throw new Error("All Gemini models exhausted");
