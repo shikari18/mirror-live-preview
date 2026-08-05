@@ -197,10 +197,6 @@ export async function analyzeUploadedFishPhoto(dataUrl: string): Promise<{
   });
 }
 
-function extractImageVisualFeatures(base64Data: string): string {
-  return "[VISUAL INSPECTION]: Decompressed pixel analysis provided in prompt.";
-}
-
 async function callGroqEngine(
   prompt: string,
   systemInstruction?: string,
@@ -217,35 +213,63 @@ async function callGroqEngine(
   ].filter(Boolean).join("\n\n");
 
   const hasImages = mediaAttachments && mediaAttachments.length > 0;
-  let visualAnalysisPrompt = "";
-  if (hasImages && mediaAttachments) {
-    visualAnalysisPrompt = extractImageVisualFeatures(mediaAttachments[0].data);
-  }
 
-  const MODELS = [
+  // Vision-capable models must come first when images are attached.
+  // llama-3.2-*-vision models accept inline base64 image_url content parts.
+  const VISION_MODELS = [
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "llama-3.2-90b-vision-preview",
+    "llama-3.2-11b-vision-preview",
+  ];
+  const TEXT_MODELS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
-    "openai/gpt-oss-120b"
   ];
 
-  let messagesPayload: any[];
-  if (hasImages) {
-    const combinedPrompt = `${system}\n\n${visualAnalysisPrompt}\n\nIMPORTANT VETERINARY INSTRUCTION: Inspect the uploaded fish photo features above. If skin redness, ulcers, fin erosion, white spots, or lesions are present, YOU MUST DIAGNOSE THE SPECIFIC DISEASE (e.g. "Bacterial Fin Rot", "White Spot Disease (Ich)", "Ulcerative Disease") and set riskLevel to "Needs Attention" or "Critical". DO NOT report Healthy if lesions/redness exist!\n\n[USER INPUT & SYMPTOMS]:\n${prompt}`;
-    messagesPayload = [
-      { role: "system", content: system },
-      { role: "user", content: combinedPrompt }
-    ];
-  } else {
-    messagesPayload = [
-      { role: "system", content: system },
-      { role: "user", content: prompt }
-    ];
-  }
+  const MODELS = hasImages ? [...VISION_MODELS, ...TEXT_MODELS] : TEXT_MODELS;
+
+  // Build user message content — include real image data for vision models
+  const buildUserContent = (visionCapable: boolean): any => {
+    if (!hasImages || !visionCapable) {
+      return prompt;
+    }
+
+    const contentParts: any[] = [];
+    for (const attachment of mediaAttachments!) {
+      let dataUrl = attachment.data;
+      let mimeType = attachment.mimeType || "image/jpeg";
+
+      // Normalise: ensure we have a proper data URL
+      if (!dataUrl.startsWith("data:")) {
+        dataUrl = `data:${mimeType};base64,${dataUrl}`;
+      } else {
+        // Extract mime type from existing data URL if present
+        const match = dataUrl.match(/^data:([^;]+);base64,/);
+        if (match) mimeType = match[1];
+      }
+
+      contentParts.push({
+        type: "image_url",
+        image_url: { url: dataUrl },
+      });
+    }
+
+    contentParts.push({ type: "text", text: prompt });
+    return contentParts;
+  };
 
   for (const model of MODELS) {
+    const isVisionModel = VISION_MODELS.includes(model);
+    const userContent = buildUserContent(isVisionModel);
+
+    const messagesPayload: any[] = [
+      { role: "system", content: system },
+      { role: "user", content: userContent },
+    ];
+
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
