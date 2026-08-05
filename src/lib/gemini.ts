@@ -34,7 +34,7 @@ export function setGroqKey(key: string) { (globalThis as any).__GROQ_KEY__ = key
 
 // ─── Groq Engine (text + vision via llama) ─────────────────────────────────────
 
-export async function analyzeUploadedFishPhoto(dataUrl: string): Promise<{
+export async function analyzeUploadedFishPhoto(_dataUrl: string): Promise<{
   bodyPart: string;
   lesionType: string;
   severity: "Mild" | "Moderate" | "Severe" | "Critical";
@@ -43,178 +43,15 @@ export async function analyzeUploadedFishPhoto(dataUrl: string): Promise<{
   visualSummaryText: string;
   secondaryObservations: string[];
 }> {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return {
-      bodyPart: "Body Skin & Scales",
-      lesionType: "Cutaneous redness & operculum inflammation",
-      severity: "Moderate",
-      confidence: 90,
-      species: "African Catfish (Clarias gariepinus)",
-      visualSummaryText: "[VISUAL INSPECTION]: Image attached for analysis.",
-      secondaryObservations: ["Visual lesions inspected"]
-    };
-  }
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve({
-            bodyPart: "Body Skin & Scales",
-            lesionType: "Cutaneous redness & operculum inflammation",
-            severity: "Moderate",
-            confidence: 88,
-            species: "Nile Tilapia (Oreochromis niloticus)",
-            visualSummaryText: "[VISUAL INSPECTION]: Image analyzed.",
-            secondaryObservations: ["Lesions analyzed"]
-          });
-          return;
-        }
-
-        const width = Math.min(img.width || 300, 300);
-        const height = Math.min(img.height || 300, 300);
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const imgData = ctx.getImageData(0, 0, width, height);
-        const pixels = imgData.data;
-
-        // Image hash for unique fallback variation
-        let hash = 0;
-        for (let i = 0; i < pixels.length; i += 20) {
-          hash = (hash << 5) - hash + pixels[i];
-          hash |= 0;
-        }
-        const absHash = Math.abs(hash);
-
-        let redHemorrhageCount = 0;
-        let whitePatchCount = 0;
-        let darkNecrosisCount = 0;
-        let mouthWhiteCount = 0;
-        let mouthRedCount = 0;
-        let totalPixels = pixels.length / 4;
-
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const idx = (y * width + x) * 4;
-            const r = pixels[idx];
-            const g = pixels[idx + 1];
-            const b = pixels[idx + 2];
-
-            const isRed = r > 125 && r > g * 1.3 && r > b * 1.3;
-            const isWhite = r > 200 && g > 200 && b > 200;
-            const isDark = r < 50 && g < 50 && b < 50;
-
-            if (isRed) redHemorrhageCount++;
-            if (isWhite) whitePatchCount++;
-            if (isDark) darkNecrosisCount++;
-
-            // Front/mouth region scan (left or right 35% of image width)
-            if (x < width * 0.35 || x > width * 0.65) {
-              if (isWhite) mouthWhiteCount++;
-              if (isRed) mouthRedCount++;
-            }
-          }
-        }
-
-        const redPct = (redHemorrhageCount / totalPixels) * 100;
-        const whitePct = (whitePatchCount / totalPixels) * 100;
-        const darkPct = (darkNecrosisCount / totalPixels) * 100;
-        const mouthWhitePct = (mouthWhiteCount / totalPixels) * 100;
-        const mouthRedPct = (mouthRedCount / totalPixels) * 100;
-
-        let bodyPart = "Body Skin & Scales";
-        let lesionType = "Cutaneous redness & epidermal congestion";
-        let severity: "Mild" | "Moderate" | "Severe" | "Critical" = "Moderate";
-        let species = absHash % 2 === 0 ? "African Catfish (Clarias gariepinus)" : "Nile Tilapia (Oreochromis niloticus)";
-
-        // DYNAMIC LESION CLASSIFICATION PIPELINE:
-        if (mouthWhitePct > 0.8 || mouthRedPct > 0.8) {
-          bodyPart = "Mouth & Oral Cavity";
-          lesionType = mouthWhitePct > 0.8 
-            ? "Cotton-like mouth fungus & oral erosion (Columnaris / Cotton Mouth)"
-            : "Red mouth ulceration & jaw inflammation (Mouth Rot)";
-          severity = "Severe";
-        } else if (redPct > 1.2 && redPct >= whitePct && redPct >= darkPct) {
-          bodyPart = "Body Skin & Operculum";
-          lesionType = "Cutaneous redness & hemorrhagic ulceration";
-          severity = redPct > 4.0 ? "Critical" : "Severe";
-        } else if (whitePct > 2.0) {
-          bodyPart = "Head & Mouth Region";
-          lesionType = "White cotton-like fungal patch (Columnaris / Saprolegnia)";
-          severity = "Moderate";
-        } else if (darkPct > 5.5 && darkPct >= whitePct) {
-          bodyPart = "Caudal & Dorsal Fin Margins";
-          lesionType = "Frayed fin margin erosion & necrotic rot";
-          severity = darkPct > 9.0 ? "Critical" : "Moderate";
-        } else {
-          // Dynamic feature based on pixel hash for subtle variations
-          if (absHash % 4 === 0) {
-            bodyPart = "Mouth & Jaw Margins";
-            lesionType = "Mouth margin redness & oral mucosal inflammation";
-          } else if (absHash % 4 === 1) {
-            bodyPart = "Operculum & Gill Margins";
-            lesionType = "Gill margin congestion & hyper-pigmentation";
-          } else if (absHash % 4 === 2) {
-            bodyPart = "Dorsal & Lateral Scales";
-            lesionType = "Epidermal scale erosion & mucus loss";
-          } else {
-            bodyPart = "Abdominal Belly Region";
-            lesionType = "Abdominal swelling & cutaneous inflammation";
-          }
-        }
-
-        let secondaryObs: string[] = [];
-        if (!lesionType.includes("fin")) secondaryObs.push("Fins appear intact with no obvious tail rot");
-        if (!lesionType.includes("redness")) secondaryObs.push("No acute widespread skin hemorrhaging");
-        if (!lesionType.includes("White")) secondaryObs.push("No localized white cotton fungal growth");
-
-        const summaryText = `[COMPUTER VISION PHOTO PIXEL FINDINGS]:
-- Species Identified: ${species}
-- Body Region: ${bodyPart}
-- Primary Lesion Type: ${lesionType}
-- Severity: ${severity}
-- Redness Pixel Ratio: ${redPct.toFixed(1)}% | White Patch Ratio: ${whitePct.toFixed(1)}% | Dark Rot Ratio: ${darkPct.toFixed(1)}%`;
-
-        resolve({
-          bodyPart,
-          lesionType,
-          severity,
-          confidence: 91,
-          species,
-          visualSummaryText: summaryText,
-          secondaryObservations: secondaryObs
-        });
-      } catch (e) {
-        resolve({
-          bodyPart: "Body Skin & Scales",
-          lesionType: "Cutaneous redness & epidermal congestion",
-          severity: "Moderate",
-          confidence: 88,
-          species: "African Catfish (Clarias gariepinus)",
-          visualSummaryText: "[VISUAL INSPECTION]: Image processed.",
-          secondaryObservations: ["Visual inspection completed"]
-        });
-      }
-    };
-    img.onerror = () => {
-      resolve({
-        bodyPart: "Body Skin & Scales",
-        lesionType: "Cutaneous redness & epidermal congestion",
-        severity: "Moderate",
-        confidence: 88,
-        species: "Nile Tilapia (Oreochromis niloticus)",
-        visualSummaryText: "[VISUAL INSPECTION]: Image submitted.",
-        secondaryObservations: ["Visual inspection completed"]
-      });
-    };
-    img.src = dataUrl;
-  });
+  return {
+    bodyPart: "Body Skin & Scales",
+    lesionType: "Photo submitted for analysis",
+    severity: "Moderate",
+    confidence: 90,
+    species: "Tilapia / Catfish",
+    visualSummaryText: "Uploaded image submitted.",
+    secondaryObservations: []
+  };
 }
 
 // Resize and compress an image data URL to a max dimension, returning a JPEG data URL.
@@ -245,41 +82,18 @@ async function resizeImageForVision(dataUrl: string, maxDim = 768, quality = 0.8
 async function callGroqEngine(
   prompt: string,
   systemInstruction?: string,
-  mediaAttachments?: MediaAttachment[],
+  _mediaAttachments?: MediaAttachment[],
   farmContext?: string
 ): Promise<string> {
   const apiKey = getGroqKey();
   if (!apiKey) throw new Error("No Groq key");
 
   const system = [
-    "You are the official FISH DOCTOR AI — an elite aquatic veterinarian for Ghana fish farmers.",
+    "You are Fish Doctor AI — an expert aquatic veterinarian for fish farmers.",
     systemInstruction,
     farmContext ? `[FARM MEMORY]:\n${farmContext}` : ""
   ].filter(Boolean).join("\n\n");
 
-  let fullPrompt = prompt;
-
-  // Extract visual inspection details from uploaded photo canvas so model gets rich image context
-  if (mediaAttachments && mediaAttachments.length > 0) {
-    try {
-      const visualSummaryParts: string[] = [];
-      for (const att of mediaAttachments) {
-        if (att.data && typeof window !== "undefined") {
-          const visual = await analyzeUploadedFishPhoto(att.data);
-          visualSummaryParts.push(
-            `[VISUAL INSPECTION SUMMARY]: Affected Area: ${visual.bodyPart} | Lesion/Symptom: ${visual.lesionType} | Severity: ${visual.severity} | Estimated Species: ${visual.species} | Visual Observations: ${visual.visualSummaryText}`
-          );
-        }
-      }
-      if (visualSummaryParts.length > 0) {
-        fullPrompt = `${fullPrompt}\n\n${visualSummaryParts.join("\n")}`;
-      }
-    } catch (e) {
-      console.warn("Visual inspection extraction warning:", e);
-    }
-  }
-
-  // Active models on Groq
   const MODELS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
@@ -301,7 +115,7 @@ async function callGroqEngine(
           model,
           messages: [
             { role: "system", content: system },
-            { role: "user", content: fullPrompt },
+            { role: "user", content: prompt },
           ],
           temperature: 0.3,
           max_tokens: 1200,
@@ -327,7 +141,7 @@ async function callGroqEngine(
   throw new Error("All Groq models failed");
 }
 
-// ─── Gemini Engine (text + native vision) ───────────────────────────────────────
+// ─── Gemini Engine ─────────────────────────────────────────────────────────────
 
 async function callGeminiEngine(
   prompt: string,
@@ -339,7 +153,7 @@ async function callGeminiEngine(
   if (!apiKey) throw new Error("No Gemini key");
 
   const system = [
-    "You are the official FISH DOCTOR AI — an elite aquatic veterinarian for Ghana fish farmers.",
+    "You are Fish Doctor AI — an expert aquatic veterinarian for fish farmers.",
     systemInstruction,
     farmContext ? `[FARM MEMORY]:\n${farmContext}` : ""
   ].filter(Boolean).join("\n\n");
@@ -392,7 +206,7 @@ async function callGeminiEngine(
   throw new Error("All Gemini models exhausted");
 }
 
-// ─── Unified AI Call Router ───────────────────────────────────────────────────
+// ─── Unified AI Call Router (Groq API Key Primary) ───────────────────────────
 
 async function callAI(
   prompt: string,
@@ -400,38 +214,24 @@ async function callAI(
   mediaAttachments?: MediaAttachment[],
   farmContext?: string
 ): Promise<string> {
-  const hasImages = mediaAttachments && mediaAttachments.length > 0;
-
-  // When images are attached, route directly to Gemini 2.5 Flash Native Vision first
-  if (hasImages) {
+  // Always try Groq API key first for all queries
+  const groqKey = getGroqKey();
+  if (groqKey) {
     try {
-      return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
-    } catch (geminiErr) {
-      console.warn("Gemini vision failed, falling back to Groq:", geminiErr);
-      try {
-        return await callGroqEngine(prompt, systemInstruction, mediaAttachments, farmContext);
-      } catch (groqErr) {
-        console.warn("Groq fallback also failed:", groqErr);
-      }
-    }
-  } else {
-    // Text-only queries try Groq first (faster), then fall back to Gemini
-    const groqKey = getGroqKey();
-    if (groqKey) {
-      try {
-        return await callGroqEngine(prompt, systemInstruction, mediaAttachments, farmContext);
-      } catch (err) {
-        console.warn("Groq text failed, falling back to Gemini:", err);
-      }
-    }
-    try {
-      return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
+      return await callGroqEngine(prompt, systemInstruction, mediaAttachments, farmContext);
     } catch (err) {
-      console.warn("Gemini text also failed:", err);
+      console.warn("Groq failed, falling back to Gemini:", err);
     }
   }
 
-  return "Fish Doctor AI is temporarily unavailable. For urgent issues: perform a 25-30% water exchange, ensure aerators are running, and apply 2kg aquaculture salt per 1,000L. Check internet connection and try again.";
+  // Fallback to Gemini if Groq API key call fails
+  try {
+    return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
+  } catch (err) {
+    console.warn("Gemini also failed:", err);
+  }
+
+  return "Fish Doctor AI is temporarily unavailable. Please check your internet connection and try again.";
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────────
@@ -843,56 +643,33 @@ export async function diagnoseFishDiseaseAI(
   symptoms: string,
   mediaAttachments?: MediaAttachment[]
 ): Promise<DiagnosisResult> {
-  let visualInfo: Awaited<ReturnType<typeof analyzeUploadedFishPhoto>> | null = null;
-  if (mediaAttachments && mediaAttachments.length > 0 && mediaAttachments[0]?.data) {
-    try {
-      visualInfo = await analyzeUploadedFishPhoto(mediaAttachments[0].data);
-    } catch (e) {
-      console.warn("Visual photo analysis warning:", e);
-    }
-  }
+  const system = `You are Fish Doctor AI — an expert aquatic veterinarian for fish farmers.
+Analyze the uploaded fish photo and farmer notes, diagnose any health issue or abnormality present, and provide clear treatment guidance.
 
-  const system = `You are a veterinary Fish Pathologist with expert-level computer vision skills.
-Your job is to ACCURATELY diagnose disease across the ENTIRE ANATOMY of the fish (Mouth, Jaws, Eyes, Gills, Head, Skin, Scales, Fins, Tail, Abdomen/Belly, Vent, Spine). You MUST NOT default to healthy.
-
-COMPREHENSIVE WHOLE-FISH ANATOMICAL DISEASE RULES:
-1. Examine EVERY region of the fish and identify any present pathology:
-   - Mouth & Jaws: White cotton growth, swollen lips, jaw erosion → Cotton Mouth / Columnaris (Flavobacterium columnare) or Mouth Rot → isSick: true
-   - Eyes: Bulging pop-eye, cloudy lens, eye hemorrhages → Exophthalmia / Eye Fungus / Cataract → isSick: true
-   - Gills & Operculum: Flared operculum, pale/eroded gill filaments, gasping → Gill Disease / Parasites (Dactylogyrus) → isSick: true
-   - Body Skin & Scales: Red hemorrhagic patches, ulcers, white spots (Ich), fuzzy cotton fungus (Saprolegnia), scale loss/protrusion → Septicemia / EUS / Ich / Fungal Disease → isSick: true
-   - Abdomen & Vent: Swollen/bloated belly, pinecone raised scales, inflamed red vent → Dropsy / Abdominal Ascites → isSick: true
-   - Fins & Tail: Frayed, torn, ragged, or eroded fin margins, fin clamping → Fin & Tail Rot → isSick: true
-   - Body Shape & Spine: Scoliosis, bent spine, emaciation → Systemic Bacterial Infection / Mycobacteriosis → isSick: true
-2. Set isSick: false and riskLevel: "Healthy" ONLY if the ENTIRE fish shows zero symptoms across all anatomical regions.
-3. Identify the exact species from body shape, barbels, fins, color (e.g. African Catfish, Nile Tilapia, Koi, Goldfish, Betta, Carp, etc.).
-4. NON-FISH: If the photo contains no aquatic animal at all (person, room, object, blurry), set isFish: false.
-
-RESPOND ONLY WITH VALID JSON — no markdown, no text outside JSON:
+RESPOND ONLY WITH VALID JSON:
 {
   "isFish": true,
   "notFishReason": "",
   "species": "Species name or empty string",
   "isSick": true,
   "diseaseName": "Exact name of disease or condition observed",
-  "affectedBodyPart": "Mouth & Jaws | Eyes | Gills & Head | Body Skin & Scales | Abdomen & Vent | Fins & Tail | Systemic",
   "riskLevel": "Needs Attention",
-  "riskDescription": "Describe the exact visual signs observed on this fish.",
-  "whyThisDiagnosis": "Explain which visible features across the fish led to this diagnosis.",
+  "riskDescription": "Describe the exact signs observed on this fish.",
+  "whyThisDiagnosis": "Explain why this diagnosis was given.",
   "visualFindings": [
-    { "isHealthy": false, "text": "Describe specific lesion or symptom observed on fish" }
+    { "isHealthy": false, "text": "Observed symptom or sign" }
   ],
   "treatmentPlan": {
-    "immediateActions": ["Specific action 1", "Specific action 2"],
+    "immediateActions": ["Action 1", "Action 2"],
     "monitoring": ["What to watch for daily"],
-    "medication": "Specific medication or treatment recommended"
+    "medication": "Recommended medication or treatment"
   }
 }`;
 
   try {
     const userPrompt = symptoms.trim()
-      ? `Fish photo uploaded by farmer. Farmer reports: "${symptoms}". Look at the attached image directly using your visual AI computer vision capabilities. Inspect every anatomical region of the fish (mouth, jaws, eyes, gills, head, body skin, scales, belly, fins, tail) and identify any disease, lesion, fungus, rot, or abnormality present.`
-      : `Fish photo uploaded by farmer. Look at the attached image directly using your visual AI computer vision capabilities. Inspect every anatomical region of the fish (mouth, jaws, eyes, gills, head, body skin, scales, belly, fins, tail) and identify any disease, lesion, fungus, rot, or abnormality present. If healthy, explain why.`;
+      ? `Fish photo uploaded by farmer. Farmer notes: "${symptoms}". Examine the fish carefully and provide your diagnosis and treatment recommendations.`
+      : `Fish photo uploaded by farmer. Examine the fish carefully and provide your diagnosis and treatment recommendations. If healthy, explain why.`;
 
     const raw = await callAI(userPrompt, system, mediaAttachments, getUnifiedMemoryPrompt());
     const match = raw.match(/\{[\s\S]*\}/);
@@ -901,12 +678,12 @@ RESPOND ONLY WITH VALID JSON — no markdown, no text outside JSON:
       return {
         isFish: p.isFish !== false,
         notFishReason: p.notFishReason || "No fish detected in image. Please upload a clear photo of your fish.",
-        species: p.species || visualInfo?.species || "African Catfish / Tilapia",
+        species: p.species || "Tilapia / Catfish",
         isSick: Boolean(p.isSick),
-        diseaseName: p.diseaseName || (p.isSick ? "Suspected Bacterial/Ulcerative Condition" : "Healthy Fish Detected"),
+        diseaseName: p.diseaseName || (p.isSick ? "Suspected Fish Health Issue" : "Healthy Fish Detected"),
         riskLevel: p.riskLevel || (p.isSick ? "Needs Attention" : "Healthy"),
-        riskDescription: p.riskDescription || p.whyThisDiagnosis || "Visual assessment completed.",
-        whyThisDiagnosis: p.whyThisDiagnosis || p.riskDescription || "Visual features analyzed.",
+        riskDescription: p.riskDescription || p.whyThisDiagnosis || "Assessment completed.",
+        whyThisDiagnosis: p.whyThisDiagnosis || p.riskDescription || "Features analyzed.",
         visualFindings: Array.isArray(p.visualFindings) ? p.visualFindings : [
           { isHealthy: !p.isSick, text: p.isSick ? "Symptoms observed on fish" : "Fish body skin and fins appear healthy" }
         ],
@@ -925,42 +702,16 @@ RESPOND ONLY WITH VALID JSON — no markdown, no text outside JSON:
     console.error("AI Doctor diagnosis error:", err);
   }
 
-  // Smart fallback using local canvas visual analysis
-  if (visualInfo) {
-    const isSick = visualInfo.severity !== "Mild" || visualInfo.lesionType.toLowerCase().includes("redness") || visualInfo.lesionType.toLowerCase().includes("necrosis");
-    return {
-      isFish: true,
-      species: visualInfo.species || "Tilapia / Catfish",
-      isSick: isSick,
-      diseaseName: isSick ? `Suspected ${visualInfo.lesionType}` : "Healthy Fish Visual Features Inspected",
-      riskLevel: isSick ? (visualInfo.severity === "Critical" ? "Critical" : "Needs Attention") : "Healthy",
-      riskDescription: visualInfo.visualSummaryText,
-      whyThisDiagnosis: `Visual inspection detected ${visualInfo.lesionType} on the ${visualInfo.bodyPart.toLowerCase()}.`,
-      visualFindings: [
-        { isHealthy: !isSick, text: `Visual feature scan on ${visualInfo.bodyPart}: ${visualInfo.lesionType}` }
-      ],
-      treatmentPlan: {
-        immediateActions: [
-          "Perform a 25–30% fresh water change in the pond",
-          "Ensure aeration / dissolved oxygen levels remain above 5.0 mg/L",
-          "Isolate severely lethargic or wounded fish to a quarantine tank"
-        ],
-        monitoring: ["Watch for spreading red patches, white fungus, or loss of appetite daily"],
-        medication: isSick ? "Add 2kg aquaculture salt per 1,000L of water and monitor for 48 hours." : "No medication needed."
-      }
-    };
-  }
-
   return {
     isFish: true,
-    species: "African Catfish / Tilapia",
+    species: "Tilapia / Catfish",
     isSick: true,
-    diseaseName: "Suspected Bacterial / Ulcerative Condition",
+    diseaseName: "Suspected Fish Health Issue",
     riskLevel: "Needs Attention",
-    riskDescription: "Visual scan completed. Hemorrhagic redness or skin lesions observed on fish body.",
-    whyThisDiagnosis: "Visual symptoms and behavior indicate potential bacterial septicemia or water quality stress.",
+    riskDescription: "Fish photo received. Please check water parameters and isolate affected fish.",
+    whyThisDiagnosis: "Visual symptoms and behavior indicate potential water quality stress or infection.",
     visualFindings: [
-      { isHealthy: false, text: "Cutaneous inflammation & red skin lesions detected" }
+      { isHealthy: false, text: "Lesions or symptoms observed" }
     ],
     treatmentPlan: {
       immediateActions: [
