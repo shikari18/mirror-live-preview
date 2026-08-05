@@ -327,7 +327,7 @@ async function callGroqEngine(
   throw new Error("All Groq models failed");
 }
 
-// ─── Gemini Engine (text + vision) ─────────────────────────────────────────────
+// ─── Gemini Engine (text + native vision) ───────────────────────────────────────
 
 async function callGeminiEngine(
   prompt: string,
@@ -353,22 +353,22 @@ async function callGeminiEngine(
         const match = base64.match(/^data:([^;]+);base64,(.+)$/);
         if (match) { mime = match[1]; base64 = match[2]; }
       }
-      parts.push({ inline_data: { mime_type: mime, data: base64 } });
+      parts.push({ inlineData: { mimeType: mime, data: base64 } });
     }
   }
   parts.push({ text: prompt });
 
   const body = {
-    system_instruction: { parts: [{ text: system }] },
+    systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts }],
-    generationConfig: { temperature: 0.4, maxOutputTokens: 800 }
+    generationConfig: { temperature: 0.2, maxOutputTokens: 1200 }
   };
 
-  const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
+  const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
   for (const model of MODELS) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 18000);
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -392,7 +392,7 @@ async function callGeminiEngine(
   throw new Error("All Gemini models exhausted");
 }
 
-// ─── Unified AI call — tries Groq first, falls back to Gemini ─────────────────
+// ─── Unified AI Call Router ───────────────────────────────────────────────────
 
 async function callAI(
   prompt: string,
@@ -400,24 +400,37 @@ async function callAI(
   mediaAttachments?: MediaAttachment[],
   farmContext?: string
 ): Promise<string> {
-  // Try Groq first (faster, free)
-  const groqKey = getGroqKey();
-  if (groqKey) {
+  const hasImages = mediaAttachments && mediaAttachments.length > 0;
+
+  // When images are attached, route directly to Gemini 2.5 Flash Native Vision first
+  if (hasImages) {
     try {
-      return await callGroqEngine(prompt, systemInstruction, mediaAttachments, farmContext);
+      return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
+    } catch (geminiErr) {
+      console.warn("Gemini vision failed, falling back to Groq:", geminiErr);
+      try {
+        return await callGroqEngine(prompt, systemInstruction, mediaAttachments, farmContext);
+      } catch (groqErr) {
+        console.warn("Groq fallback also failed:", groqErr);
+      }
+    }
+  } else {
+    // Text-only queries try Groq first (faster), then fall back to Gemini
+    const groqKey = getGroqKey();
+    if (groqKey) {
+      try {
+        return await callGroqEngine(prompt, systemInstruction, mediaAttachments, farmContext);
+      } catch (err) {
+        console.warn("Groq text failed, falling back to Gemini:", err);
+      }
+    }
+    try {
+      return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
     } catch (err) {
-      console.warn("Groq failed, falling back to Gemini:", err);
+      console.warn("Gemini text also failed:", err);
     }
   }
 
-  // Fall back to Gemini
-  try {
-    return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
-  } catch (err) {
-    console.warn("Gemini also failed:", err);
-  }
-
-  // Ultimate hardcoded fallback
   return "Fish Doctor AI is temporarily unavailable. For urgent issues: perform a 25-30% water exchange, ensure aerators are running, and apply 2kg aquaculture salt per 1,000L. Check internet connection and try again.";
 }
 
@@ -877,13 +890,9 @@ RESPOND ONLY WITH VALID JSON — no markdown, no text outside JSON:
 }`;
 
   try {
-    const visualText = visualInfo
-      ? `\n[CANVAS VISUAL SCAN]: Affected Area: ${visualInfo.bodyPart} | Lesion: ${visualInfo.lesionType} | Severity: ${visualInfo.severity} | Estimated Species: ${visualInfo.species}`
-      : "";
-
     const userPrompt = symptoms.trim()
-      ? `Fish photo uploaded. ${visualText}\nFarmer reports: "${symptoms}". Examine the photo and details carefully — identify all disease signs visible and give an accurate diagnosis.`
-      : `Fish photo uploaded. ${visualText}\nExamine every part of this fish carefully — skin, fins, eyes, belly, gills. Identify any disease signs and give an accurate diagnosis. If healthy, explain why.`;
+      ? `Fish photo uploaded by farmer. Farmer reports: "${symptoms}". Look at the attached image directly using your visual AI computer vision capabilities. Inspect every anatomical region of the fish (mouth, jaws, eyes, gills, head, body skin, scales, belly, fins, tail) and identify any disease, lesion, fungus, rot, or abnormality present.`
+      : `Fish photo uploaded by farmer. Look at the attached image directly using your visual AI computer vision capabilities. Inspect every anatomical region of the fish (mouth, jaws, eyes, gills, head, body skin, scales, belly, fins, tail) and identify any disease, lesion, fungus, rot, or abnormality present. If healthy, explain why.`;
 
     const raw = await callAI(userPrompt, system, mediaAttachments, getUnifiedMemoryPrompt());
     const match = raw.match(/\{[\s\S]*\}/);
