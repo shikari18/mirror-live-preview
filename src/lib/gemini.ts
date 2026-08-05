@@ -214,7 +214,19 @@ async function callAI(
   mediaAttachments?: MediaAttachment[],
   farmContext?: string
 ): Promise<string> {
-  // Always try Groq API key first for all queries
+  const hasImages = mediaAttachments && mediaAttachments.length > 0;
+
+  // When a photo is uploaded, route directly to Gemini 2.5 Flash Native Vision
+  // (Groq text models cannot see image pixels and will give random text guesses).
+  if (hasImages) {
+    try {
+      return await callGeminiEngine(prompt, systemInstruction, mediaAttachments, farmContext);
+    } catch (geminiErr) {
+      console.warn("Gemini vision failed, falling back to Groq:", geminiErr);
+    }
+  }
+
+  // Text-only queries & chat use Groq API key first for high-speed answers
   const groqKey = getGroqKey();
   if (groqKey) {
     try {
