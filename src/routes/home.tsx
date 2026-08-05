@@ -78,16 +78,16 @@ export function HomePage() {
   });
 
   useEffect(() => {
-    const savedName = localStorage.getItem("user_name");
-    if (savedName) setUserName(savedName);
+    const profile = getFarmProfile();
+    const savedFarmName = localStorage.getItem("user_farm_name") || profile.farmName || (profile.name ? `${profile.name}'s Farm` : "My Fish Farm");
+    setFarmName(savedFarmName);
 
-    const savedFarmName = localStorage.getItem("user_farm_name");
-    if (savedFarmName) setFarmName(savedFarmName);
+    const savedName = localStorage.getItem("user_name") || profile.name || "";
+    if (savedName) setUserName(savedName);
 
     const savedPic = localStorage.getItem("user_profile_image");
     if (savedPic) setUserProfilePic(savedPic);
 
-    const profile = getFarmProfile();
     if (profile.ponds && profile.ponds.length > 0) {
       setPondsCount(profile.ponds.length);
       setTotalFish(profile.ponds.reduce((sum, p) => sum + (p.fishCount || 0), 0));

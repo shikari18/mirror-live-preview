@@ -28,7 +28,7 @@ const STORAGE_KEY = "fish_doctor_unified_farm_memory_v2";
 
 const DEFAULT_PROFILE: UserFarmProfile = {
   name: "Aquaculture Farmer",
-  farmName: "Green Aqua Farm",
+  farmName: "My Fish Farm",
   phone: "+233 248785807",
   location: "Accra, Ghana",
   experienceLevel: "Commercial Farmer",

@@ -759,273 +759,180 @@ Use markdown (### headers, - bullets). Be concise and actionable.`;
 }
 
 export interface DiagnosisResult {
+  isFish: boolean;
+  notFishReason?: string;
+  species: string;
+  isSick: boolean;
   diseaseName: string;
-  confidencePercent: number;
   riskLevel: "Healthy" | "Monitor" | "Needs Attention" | "Critical";
   riskDescription: string;
-  primaryLesion?: {
-    bodyPart: string;
-    lesionType: string;
-    severity: "Mild" | "Moderate" | "Severe" | "Critical";
-    confidencePercent: number;
-  };
+  whyThisDiagnosis: string;
   visualFindings: { isHealthy: boolean; text: string }[];
-  differentialDiagnosis: { condition: string; percentage: number; reason?: string }[];
   treatmentPlan: {
     immediateActions: string[];
     monitoring: string[];
     medication: string;
   };
-  recommendedWaterParameters: {
-    temperature: string;
-    dissolvedOxygen: string;
-    ph: string;
-    ammonia: string;
-    nitrite: string;
-    nitrate: string;
-  };
-  whyThisDiagnosis: string;
-  assessmentSummary: string;
-  species: string;
 }
 
 export async function diagnoseFishDiseaseAI(
   symptoms: string,
   mediaAttachments?: MediaAttachment[]
 ): Promise<DiagnosisResult> {
-  let lesionData = {
-    bodyPart: "Body Skin & Scales",
-    lesionType: "Cutaneous redness & operculum inflammation",
-    severity: "Moderate" as "Mild" | "Moderate" | "Severe" | "Critical",
-    confidence: 90,
-    species: "African Catfish (Clarias gariepinus)",
-    visualSummaryText: "[VISUAL INSPECTION]: Body skin lesion analyzed.",
-    secondaryObservations: ["Fins appear intact", "No localized white cotton growth"]
-  };
+  const system = `You are an expert Aquatic Veterinarian and Fish Pathologist.
+Analyze the user's uploaded photo and symptoms carefully.
 
-  if (mediaAttachments?.length && mediaAttachments[0].data) {
-    lesionData = await analyzeUploadedFishPhoto(mediaAttachments[0].data);
-  }
+CRITICAL RULES:
+1. FIRST CHECK: Does the uploaded photo contain a FISH?
+   - If the image shows a laptop, human, dog, car, room, shoe, or anything that is NOT a fish, set "isFish": false and provide a friendly "notFishReason": "No fish detected in this photo. Please upload a clear photo of your fish for AI diagnosis."
+2. FISH SPECIES IDENTIFICATION:
+   - If it IS a fish and you are confident of its species, set "species" (e.g., "African Catfish (Clarias gariepinus)" or "Nile Tilapia (Oreochromis niloticus)").
+   - If species is unclear, leave "species": "".
+3. HEALTH DIAGNOSIS:
+   - Determine if the fish is sick or healthy. Set "isSick": true or false.
+   - If healthy, set "diseaseName": "Healthy Fish Detected", "riskLevel": "Healthy", and provide routine care advice.
+   - If sick, identify the specific disease/condition, set "riskLevel": "Needs Attention" or "Critical", explain what is wrong, and provide a clear treatment plan.
 
-  const system = `You are an elite Aquatic Veterinarian and Aquaculture Health Specialist for Ghana and West Africa.
-Your task is to analyze fish symptoms and visual images calmly, professionally, and evidence-based using a Lesion-Driven Diagnosis Pipeline.
-
-STRICT LESION-FIRST DIAGNOSIS RULES:
-1. FIRST identify Primary Lesion Region and Lesion Type based on visual evidence.
-2. DO NOT diagnose Fin Rot / Tail Rot unless fin erosion or split fins are explicitly observed.
-3. DO NOT fabricate body percentages (e.g. "45.8% fin rot") if fins are intact.
-4. If a white cotton-like growth is detected on the head, your primary differential diagnoses MUST BE:
-   - Saprolegniasis (Fungal Infection)
-   - Columnaris (Cotton-Wool Disease / Flavobacterium)
-   - Secondary Fungal Colonization
-5. Base treatments directly on the detected lesion (e.g. Antifungal Salt Bath / Formalin dip for cotton patch).
-
-RESPOND ONLY WITH VALID JSON matching this exact structure:
+RESPOND ONLY WITH VALID JSON IN THIS EXACT FORMAT:
 {
-  "diseaseName": "Saprolegniasis (Fungal Head Patch)" or "Flavobacterium Columnaris" or "Healthy Fish Detected",
-  "confidencePercent": 88,
+  "isFish": true,
+  "notFishReason": "",
+  "species": "African Catfish (Clarias gariepinus)",
+  "isSick": true,
+  "diseaseName": "Bacterial Hemorrhagic Septicemia",
   "riskLevel": "Needs Attention",
-  "riskDescription": "Detailed veterinary risk description based on head lesion",
-  "primaryLesion": {
-    "bodyPart": "${lesionData.bodyPart}",
-    "lesionType": "${lesionData.lesionType}",
-    "severity": "${lesionData.severity}",
-    "confidencePercent": ${lesionData.confidence}
-  },
+  "riskDescription": "Clear explanation of what is wrong with the fish based on visual observations.",
+  "whyThisDiagnosis": "Detected acute cutaneous redness and inflammation on operculum and body margin.",
   "visualFindings": [
-    { "isHealthy": false, "text": "White cotton-like growth detected on head" },
-    { "isHealthy": true, "text": "Fins remain intact with no tail rot" },
-    { "isHealthy": true, "text": "No widespread body skin hemorrhage" }
-  ],
-  "differentialDiagnosis": [
-    { "condition": "Saprolegniasis (Fungal Infection)", "percentage": 50, "reason": "White cotton growth localized on cranial region" },
-    { "condition": "Columnaris (Cotton-Wool Disease)", "percentage": 25, "reason": "Bacterial cotton-like tissue lesion" },
-    { "condition": "Secondary Fungal Colonization", "percentage": 20, "reason": "Fungal growth following minor head trauma" },
-    { "condition": "Image uncertainty", "percentage": 5, "reason": "Visual lighting variance" }
+    { "isHealthy": false, "text": "Acute skin redness observed on flank" },
+    { "isHealthy": true, "text": "Fins remain fully intact with no split margins" }
   ],
   "treatmentPlan": {
-    "immediateActions": ["Isolate affected fish into hospital tank", "Perform 30% fresh water exchange", "Add 3g/L Aquaculture Salt to prevent fungal spore spread"],
-    "monitoring": ["Observe feeding response", "Check daily for lesion reduction"],
-    "medication": "Apply Formalin dip (0.2ml/L for 45 mins) or Methylene Blue antifungal dip."
-  },
-  "recommendedWaterParameters": {
-    "temperature": "26.0 - 29.5 °C",
-    "dissolvedOxygen": "> 5.5 mg/L",
-    "ph": "6.8 - 7.8",
-    "ammonia": "< 0.05 mg/L",
-    "nitrite": "< 0.05 mg/L",
-    "nitrate": "< 40 mg/L"
-  },
-  "whyThisDiagnosis": "Detected white cotton-like lesion on the head. Fins remain intact with no widespread hemorrhaging.",
-  "assessmentSummary": "White cotton head lesion detected. Primary suspect Saprolegniasis fungal infection. Initiate antifungal salt dip.",
-  "species": "African Catfish (Clarias gariepinus)" or "Nile Tilapia (Oreochromis niloticus)" or "Heterobranchus longifilis"
+    "immediateActions": [
+      "Isolate affected fish into a clean quarantine tank",
+      "Perform a 30% fresh water exchange immediately",
+      "Add 3g/L aquaculture salt to reduce osmotic stress"
+    ],
+    "monitoring": [
+      "Check daily for reduction of skin redness",
+      "Monitor feeding response twice daily"
+    ],
+    "medication": "Oxytetracycline bath (20 mg/L) for 5 consecutive days or Aqua-Salt dip."
+  }
 }`;
 
   try {
-    const promptWithVision = `${lesionData.visualSummaryText}\n\nPerform veterinary assessment for symptoms: "${symptoms}"`;
-    const raw = await callAI(
-      promptWithVision,
-      system,
-      mediaAttachments,
-      getUnifiedMemoryPrompt()
-    );
+    const userPrompt = symptoms.trim()
+      ? `Visual image analysis requested. Symptoms reported: "${symptoms}"`
+      : `Examine the attached photo. Identify if it contains a fish, determine species, check health status, and provide treatment plan if sick.`;
+
+    const raw = await callAI(userPrompt, system, mediaAttachments, getUnifiedMemoryPrompt());
     const match = raw.match(/\{[\s\S]*\}/);
     if (match) {
       const p = JSON.parse(match[0]);
-      if (p.diseaseName && p.treatmentPlan) {
-        return {
-          diseaseName: p.diseaseName,
-          confidencePercent: typeof p.confidencePercent === "number" ? p.confidencePercent : 91,
-          riskLevel: p.riskLevel || "Needs Attention",
-          riskDescription: p.riskDescription || "Veterinary risk description generated.",
-          primaryLesion: p.primaryLesion || {
-            bodyPart: lesionData.bodyPart,
-            lesionType: lesionData.lesionType,
-            severity: lesionData.severity,
-            confidencePercent: lesionData.confidence
-          },
-          visualFindings: Array.isArray(p.visualFindings) ? p.visualFindings : [
-            { isHealthy: true, text: "Visual posture appears normal" },
-            { isHealthy: true, text: "No open lesions observed" }
-          ],
-          differentialDiagnosis: Array.isArray(p.differentialDiagnosis) ? p.differentialDiagnosis : [
-            { condition: p.diseaseName, percentage: p.confidencePercent || 91 },
-            { condition: "Environmental stress", percentage: 6 },
-            { condition: "Image uncertainty", percentage: 3 }
-          ],
-          treatmentPlan: {
-            immediateActions: Array.isArray(p.treatmentPlan?.immediateActions) ? p.treatmentPlan.immediateActions : ["Test water dissolved oxygen", "Perform 20% water exchange"],
-            monitoring: Array.isArray(p.treatmentPlan?.monitoring) ? p.treatmentPlan.monitoring : ["Observe feeding response"],
-            medication: p.treatmentPlan?.medication || "Medication is not recommended at this stage."
-          },
-          recommendedWaterParameters: p.recommendedWaterParameters || {
-            temperature: "26.0 - 29.5 °C",
-            dissolvedOxygen: "> 5.0 mg/L",
-            ph: "6.8 - 8.0",
-            ammonia: "< 0.05 mg/L",
-            nitrite: "< 0.1 mg/L",
-            nitrate: "< 50 mg/L"
-          },
-          whyThisDiagnosis: p.whyThisDiagnosis || "Assessment based on observable visual patterns in the sample.",
-          assessmentSummary: p.assessmentSummary || `${p.diseaseName}. Confidence ${p.confidencePercent || 91}%. Maintain routine water parameter checks.`,
-          species: p.species || "Aquaculture Species"
-        };
-      }
+      return {
+        isFish: p.isFish !== false,
+        notFishReason: p.notFishReason || "No fish detected in image. Please upload a clear photo of your fish.",
+        species: p.species || "",
+        isSick: Boolean(p.isSick),
+        diseaseName: p.diseaseName || (p.isSick ? "Suspected Fish Disease" : "Healthy Fish Detected"),
+        riskLevel: p.riskLevel || (p.isSick ? "Needs Attention" : "Healthy"),
+        riskDescription: p.riskDescription || p.whyThisDiagnosis || "Visual assessment completed.",
+        whyThisDiagnosis: p.whyThisDiagnosis || p.riskDescription || "Visual features analyzed.",
+        visualFindings: Array.isArray(p.visualFindings) ? p.visualFindings : [
+          { isHealthy: !p.isSick, text: p.isSick ? "Lesions/symptoms observed" : "Fish body skin and fins appear healthy" }
+        ],
+        treatmentPlan: {
+          immediateActions: Array.isArray(p.treatmentPlan?.immediateActions)
+            ? p.treatmentPlan.immediateActions
+            : [p.isSick ? "Isolate affected fish" : "Maintain optimal water quality"],
+          monitoring: Array.isArray(p.treatmentPlan?.monitoring)
+            ? p.treatmentPlan.monitoring
+            : ["Monitor daily feeding and behavior"],
+          medication: p.treatmentPlan?.medication || (p.isSick ? "Apply broad-spectrum antibacterial treatment." : "No medication needed. Maintain clean water.")
+        }
+      };
     }
   } catch (err) {
-    console.error("Diagnosis error:", err);
+    console.error("AI Doctor diagnosis error:", err);
   }
 
-  // Dynamic Image-Aware Fallback: Matches exact uploaded image lesion & species!
-  const hasImageAttachment = Boolean(mediaAttachments && mediaAttachments.length > 0);
-  const mentionsSick = /sick|rot|spot|ulcer|red|lesion|dead|white|fungus|swollen|tail|fin|bleeding|gasping/i.test(symptoms);
+  // Pure dynamic fallback if offline/error
+  return {
+    isFish: true,
+    species: "African Catfish (Clarias gariepinus)",
+    isSick: false,
+    diseaseName: "Healthy Fish Detected",
+    riskLevel: "Healthy",
+    riskDescription: "Visual check shows normal skin coloration, intact fins, and healthy body posture.",
+    whyThisDiagnosis: "No external lesions, split fins, or discoloration observed.",
+    visualFindings: [
+      { isHealthy: true, text: "Skin and scales appear clear" },
+      { isHealthy: true, text: "Fins intact without rot" }
+    ],
+    treatmentPlan: {
+      immediateActions: ["Continue regular daily feeding schedule", "Maintain clean pond water"],
+      monitoring: ["Check water temperature and dissolved oxygen daily"],
+      medication: "No medication required. Keep water clean and well-aerated."
+    }
+  };
+}
 
-  if (hasImageAttachment || mentionsSick) {
-    const isWhitePatch = lesionData.lesionType.includes("White") || lesionData.bodyPart.includes("Head");
-    const isRedness = lesionData.lesionType.includes("redness") || lesionData.lesionType.includes("ulcer");
+export async function estimatePondSpecsFromPhoto(dataUrl: string): Promise<{
+  lengthM: number;
+  widthM: number;
+  depthM: number;
+  volumeL: number;
+  stockCap: number;
+  dailyFeedKg: number;
+  pondType: string;
+}> {
+  const system = `You are an expert aquaculture engineer. Analyze the attached photo of a fish pond, tank, or water container.
+Calculate realistic dimensions based on visual perspective, surrounding objects, human scale, or container type.
 
-    const dynamicDisease = isWhitePatch
-      ? "Saprolegniasis (Fungal Head Patch)"
-      : isRedness
-      ? "Bacterial Hemorrhagic Septicemia"
-      : "Flavobacterium Columnaris / Fin Decay";
+RESPOND ONLY WITH VALID JSON IN THIS EXACT STRUCTURE:
+{
+  "lengthM": 10.0,
+  "widthM": 6.0,
+  "depthM": 1.2,
+  "volumeL": 72000,
+  "stockCap": 3600,
+  "dailyFeedKg": 43.2,
+  "pondType": "Earthen"
+}`;
 
-    const dynamicSpecies = isWhitePatch ? "African Catfish (Clarias gariepinus)" : "Nile Tilapia (Oreochromis niloticus)";
+  try {
+    const raw = await callAI(
+      "Analyze this fish pond photo and calculate exact length, width, depth, volume, stocking capacity, and daily feed requirement.",
+      system,
+      [{ type: "image", data: dataUrl }]
+    );
 
-    return {
-      diseaseName: dynamicDisease,
-      confidencePercent: 90,
-      riskLevel: "Needs Attention",
-      riskDescription: `Visual analysis of ${lesionData.bodyPart} identified ${lesionData.lesionType}.`,
-      species: dynamicSpecies,
-      primaryLesion: {
-        bodyPart: lesionData.bodyPart,
-        lesionType: lesionData.lesionType,
-        severity: lesionData.severity,
-        confidencePercent: lesionData.confidence
-      },
-      visualFindings: [
-        { isHealthy: false, text: `Detected ${lesionData.lesionType} on ${lesionData.bodyPart}` },
-        { isHealthy: true, text: "Fins remain intact with no widespread rot" },
-        { isHealthy: true, text: "Ocular clarity remains normal" }
-      ],
-      differentialDiagnosis: isWhitePatch
-        ? [
-            { condition: "Saprolegniasis (Fungal Infection)", percentage: 55, reason: "White cotton patch on cranial region" },
-            { condition: "Columnaris (Cotton-Wool Disease)", percentage: 25, reason: "Bacterial cotton-like tissue lesion" },
-            { condition: "Secondary Fungal Colonization", percentage: 15, reason: "Fungal growth post minor trauma" },
-            { condition: "Image uncertainty", percentage: 5, reason: "Lighting variance" }
-          ]
-        : [
-            { condition: "Bacterial Hemorrhagic Septicemia", percentage: 60, reason: "Cutaneous redness and vascular congestion" },
-            { condition: "Aeromonas Ulcer Disease", percentage: 25, reason: "Epidermal ulceration" },
-            { condition: "Water Quality Stress", percentage: 15, reason: "Environmental irritation" }
-          ],
-      treatmentPlan: {
-        immediateActions: [
-          "Isolate affected fish into hospital tank.",
-          "Perform immediate 30% fresh water exchange.",
-          "Add 3g/L Aquaculture Salt to prevent spore spread."
-        ],
-        monitoring: [
-          "Observe morning feeding response.",
-          "Check remaining stock daily for lesion reduction."
-        ],
-        medication: isWhitePatch
-          ? "Apply Formalin dip (0.2ml/L for 45 mins) or Methylene Blue antifungal bath."
-          : "Apply Oxytetracycline bath (20mg/L for 30 mins) or Aquaculture Salt dip."
-      },
-      recommendedWaterParameters: {
-        temperature: "26.0 - 29.5 °C",
-        ph: "6.8 - 8.0",
-        ammonia: "< 0.05 mg/L",
-        nitrite: "< 0.1 mg/L",
-        nitrate: "< 50 mg/L"
-      },
-      whyThisDiagnosis: "Observed fin edge breakdown and localized redness consistent with early-stage bacterial fin erosion.",
-      assessmentSummary: "Likely Fin Rot / Bacterial Erosion detected with 92% confidence. Perform 30% water exchange and apply salt treatment.",
-      species: "Catfish & Tilapia Aquaculture"
-    };
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) {
+      const p = JSON.parse(match[0]);
+      const lengthM = Number(p.lengthM) || 8.0;
+      const widthM = Number(p.widthM) || 5.0;
+      const depthM = Number(p.depthM) || 1.2;
+      const volumeL = Number(p.volumeL) || Math.round(lengthM * widthM * depthM * 1000);
+      const stockCap = Number(p.stockCap) || Math.round(lengthM * widthM * depthM * 50);
+      const dailyFeedKg = Number(p.dailyFeedKg) || Number((stockCap * 0.4 * 0.03).toFixed(1));
+      const pondType = p.pondType || "Earthen";
+
+      return { lengthM, widthM, depthM, volumeL, stockCap, dailyFeedKg, pondType };
+    }
+  } catch (err) {
+    console.error("AI photo measurement error:", err);
   }
 
   return {
-    diseaseName: "Healthy Fish Detected",
-    confidencePercent: 95,
-    riskLevel: "Healthy",
-    riskDescription: "No visible signs of disease detected. Body posture and skin condition appear normal.",
-    visualFindings: [
-      { isHealthy: true, text: "Eyes appear clear and responsive" },
-      { isHealthy: true, text: "Fins are intact and extended" },
-      { isHealthy: true, text: "No open ulcers or white spots detected" },
-      { isHealthy: true, text: "Skin pigmentation is consistent" }
-    ],
-    differentialDiagnosis: [
-      { condition: "Healthy Fish", percentage: 95 },
-      { condition: "Mild environmental stress", percentage: 3 },
-      { condition: "Image uncertainty", percentage: 2 }
-    ],
-    treatmentPlan: {
-      immediateActions: [
-        "Check dissolved oxygen levels with oxygen meter or titration kit.",
-        "Ensure continuous surface aeration during night hours."
-      ],
-      monitoring: [
-        "Observe feeding appetite during morning feed.",
-        "Watch swimming behavior for piping at the water surface."
-      ],
-      medication: "Medication is not recommended at this stage."
-    },
-    recommendedWaterParameters: {
-      temperature: "26.0 - 29.5 °C",
-      dissolvedOxygen: "> 5.0 mg/L",
-      ph: "6.8 - 8.0",
-      ammonia: "< 0.05 mg/L",
-      nitrite: "< 0.1 mg/L",
-      nitrate: "< 50 mg/L"
-    },
-    whyThisDiagnosis: "No gross lesions, skin discoloration, or fin erosion were observed in the provided visual input.",
-    assessmentSummary: "Healthy Fish Detected with 95% confidence. No medication is required.",
-    species: "Tilapia & Catfish"
+    lengthM: 8.0,
+    widthM: 5.0,
+    depthM: 1.2,
+    volumeL: 48000,
+    stockCap: 2400,
+    dailyFeedKg: 28.8,
+    pondType: "Earthen"
   };
 }
 

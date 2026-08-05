@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Waves, MapPin, ArrowLeft, Trash2, Plus, RotateCcw, Undo2, Ruler, SlidersHorizontal, Check, X } from "lucide-react";
+import { Waves, MapPin, ArrowLeft, Trash2, Plus, RotateCcw, Undo2, Ruler, SlidersHorizontal, Check, X, Loader2, Camera } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import { useLanguage } from "@/lib/languageContext";
 import { getFarmProfile, addPondToMemory, deletePondFromMemory, clearAllPondsFromMemory, PondRecord } from "@/lib/farmMemory";
+import { estimatePondSpecsFromPhoto } from "@/lib/gemini";
 
 export const Route = createFileRoute("/my-farm")({
   component: MyFarmPage,
@@ -67,6 +68,48 @@ export function MyFarmPage() {
   const [depthM, setDepthM] = useState<number>(1.2);
   const [pondType, setPondType] = useState<string>("Earthen");
   const [pondName, setPondName] = useState<string>("");
+  const [isScanningPhoto, setIsScanningPhoto] = useState<boolean>(false);
+
+  const handleSnapPhotoMeasurement = async () => {
+    try {
+      setIsScanningPhoto(true);
+      let dataUrl = "";
+      if (videoRef.current) {
+        const c = document.createElement("canvas");
+        c.width = videoRef.current.videoWidth || 640;
+        c.height = videoRef.current.videoHeight || 480;
+        const ctx = c.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(videoRef.current, 0, 0, c.width, c.height);
+          dataUrl = c.toDataURL("image/jpeg", 0.85);
+        }
+      }
+
+      if (dataUrl) {
+        const specs = await estimatePondSpecsFromPhoto(dataUrl);
+        setDepthM(specs.depthM);
+        setPondType(specs.pondType);
+        const lat = currentGps ? currentGps.lat : 5.6037;
+        const lon = currentGps ? currentGps.lon : -0.1870;
+        const p1: LockedPoint = { x: 50, y: 50, lat, lon };
+        const p2: LockedPoint = { x: 250, y: 50, lat, lon };
+        const p3: LockedPoint = { x: 250, y: 250, lat, lon };
+
+        setSegments([
+          { id: `seg_l_${Date.now()}`, p1, p2, meters: specs.lengthM, label: "Length" },
+          { id: `seg_w_${Date.now()}`, p1: p2, p2: p3, meters: specs.widthM, label: "Width" }
+        ]);
+        setShowSavePanel(true);
+      } else {
+        if (segments.length >= 2) setShowSavePanel(true);
+        else handlePlusClick();
+      }
+    } catch (e) {
+      console.error("Snapshot error:", e);
+    } finally {
+      setIsScanningPhoto(false);
+    }
+  };
 
   // Refs for HTML5 Canvas & Camera
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -506,12 +549,11 @@ export function MyFarmPage() {
               </button>
 
               <button
-                onClick={() => {
-                  if (segments.length >= 2) setShowSavePanel(true);
-                  else handlePlusClick();
-                }}
-                className="w-14 h-14 rounded-full bg-white border-4 border-black/40 shadow-xl cursor-pointer active:scale-90"
-              />
+                onClick={handleSnapPhotoMeasurement}
+                disabled={isScanningPhoto}
+                className="w-14 h-14 rounded-full bg-white border-4 border-black/40 shadow-xl cursor-pointer active:scale-90 flex items-center justify-center text-gray-900 disabled:opacity-50">
+                {isScanningPhoto ? <Loader2 className="w-6 h-6 animate-spin text-[#0F6236]" /> : <Camera className="w-5 h-5 text-gray-800" />}
+              </button>
             </div>
 
             {/* Apple Measure Segmented Mode Switcher */}

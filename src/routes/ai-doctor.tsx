@@ -323,231 +323,122 @@ export function DiseasePage() {
           </form>
         )}
 
-        {/* ─── REDESIGNED DIAGNOSIS RESULT CARD ─── */}
+        {/* ─── 2-CARD DIAGNOSIS RESULT UI ─── */}
         {diagnosisResult && (
-          <div className="rounded-3xl overflow-hidden shadow-2xl animate-in fade-in duration-300 border border-gray-200">
+          <div className="space-y-4 animate-in fade-in duration-300">
 
-            {/* ── Dark Header Banner ── */}
-            <div className="bg-gradient-to-br from-[#07200F] via-[#0a2e17] to-[#071a0c] p-5 space-y-3">
-              {/* Top Row: Badge + Actions */}
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <span className="text-[9.5px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-full w-fit">
-                    <ShieldCheck className="w-3 h-3" /> AI Veterinary Assessment
-                  </span>
+            {/* IF NOT A FISH → SHOW 1 NOTICE CARD */}
+            {!diagnosisResult.isFish ? (
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-6 text-center space-y-3 shadow-lg">
+                <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto text-amber-700">
+                  <AlertTriangle className="w-7 h-7" />
+                </div>
+                <h3 className="text-base font-black text-amber-950">No Fish Detected</h3>
+                <p className="text-xs font-semibold text-amber-900 leading-relaxed">
+                  {diagnosisResult.notFishReason || "Please upload a clear photo of your fish so the AI Doctor can assess its health."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-2xl shadow-md cursor-pointer transition-all">
+                  Upload Fish Photo
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* ── CARD 1: FISH SPECIES & HEALTH CONDITION ── */}
+                <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-5 space-y-4">
+                  {/* Top Bar: Species Name (BOLD BLACK TEXT) & Actions */}
+                  <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
+                    <div>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Identified Fish Species</span>
+                      <h2 className="text-lg font-black text-black leading-tight mt-0.5">
+                        {diagnosisResult.species ? diagnosisResult.species : "Unspecified Fish"}
+                      </h2>
+                    </div>
 
-                  {/* Fish Species */}
-                  {diagnosisResult.species && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">🐟</span>
-                      <div>
-                        <span className="text-[9px] text-gray-400 font-bold uppercase block">Identified Species</span>
-                        <span className="text-sm font-black text-white leading-tight">{diagnosisResult.species}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={toggleAudio}
+                        className={`px-3 py-2 rounded-xl font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 border ${
+                          isPlayingAudio ? "bg-red-50 text-red-600 border-red-200" : "bg-emerald-50 text-[#0F6236] border-emerald-200"
+                        }`}>
+                        {isPlayingAudio ? <><VolumeX className="w-4 h-4" /> Stop</> : <><Volume2 className="w-4 h-4" /> Listen (Twi/EN)</>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const text = `🐟 Fish Doctor AI Assessment\n\nSpecies: ${diagnosisResult.species || "Fish"}\nCondition: ${diagnosisResult.diseaseName}\n\nFindings:\n${diagnosisResult.riskDescription}\n\nAction Plan:\n${diagnosisResult.treatmentPlan?.immediateActions?.join("\n")}\n\nGenerated via FishFarm OS Ghana`;
+                          window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                        }}
+                        className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 cursor-pointer">
+                        <Share2 className="w-4 h-4 text-gray-700" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Image Thumbnail if attached */}
+                  {uploadedMedia?.url && (
+                    <img src={uploadedMedia.url} alt="Fish scan" className="w-full h-44 object-cover rounded-2xl border border-gray-100 shadow-sm" />
+                  )}
+
+                  {/* Status Badge */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold text-gray-500">Status:</span>
+                    <span className={`text-xs font-black px-3 py-1 rounded-full border flex items-center gap-1.5 ${
+                      diagnosisResult.isSick
+                        ? "bg-red-50 text-red-700 border-red-200"
+                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    }`}>
+                      {diagnosisResult.isSick ? "🔴 Sick — Treatment Required" : "🟢 Healthy — No Disease Detected"}
+                    </span>
+                  </div>
+
+                  {/* Condition Details */}
+                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 space-y-2">
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">{diagnosisResult.diseaseName}</h3>
+                    <p className="text-xs text-gray-700 font-medium leading-relaxed">
+                      {diagnosisResult.riskDescription}
+                    </p>
+                  </div>
+                </div>
+
+                {/* ── CARD 2: WHAT TO DO / TREATMENT PLAN ── */}
+                <div className="bg-[#07200F] text-white rounded-3xl p-5 space-y-4 shadow-xl border border-[#0F6236]/30">
+                  <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+                    <Stethoscope className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                      {diagnosisResult.isSick ? "Treatment & Action Plan" : "Recommended Care & Water Maintenance"}
+                    </h3>
+                  </div>
+
+                  {/* Step by step actions */}
+                  <div className="space-y-2.5">
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block">Step-by-Step Actions</span>
+                    {diagnosisResult.treatmentPlan?.immediateActions?.map((act, idx) => (
+                      <div key={idx} className="flex items-start gap-2.5 bg-white/5 border border-white/10 p-3 rounded-2xl text-xs font-medium text-emerald-100">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
+                        <span>{act}</span>
                       </div>
+                    ))}
+                  </div>
+
+                  {/* Medication or Maintenance */}
+                  {diagnosisResult.treatmentPlan?.medication && (
+                    <div className="bg-emerald-950/60 border border-emerald-500/30 p-4 rounded-2xl space-y-1">
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Pill className="w-3.5 h-3.5" /> {diagnosisResult.isSick ? "Recommended Medication" : "Routine Water Care"}
+                      </span>
+                      <p className="text-xs font-extrabold text-emerald-200 leading-relaxed">
+                        {diagnosisResult.treatmentPlan.medication}
+                      </p>
                     </div>
                   )}
                 </div>
+              </>
+            )}
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button type="button"
-                    onClick={() => {
-                      if (!diagnosisResult) return;
-                      const text = `🐟 Fish Doctor AI Report\n\nSpecies: ${diagnosisResult.species || "Fish"}\nCondition: ${diagnosisResult.diseaseName}\nStatus: ${diagnosisResult.riskLevel}\n\n${diagnosisResult.whyThisDiagnosis}\n\nTreatment: ${diagnosisResult.treatmentPlan?.medication}\n\nGenerated via FishFarm OS Ghana`;
-                      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-                    }}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 cursor-pointer transition-all active:scale-95">
-                    <Share2 className="w-3.5 h-3.5 text-white" />
-                  </button>
-                  <button type="button" onClick={() => window.print()}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 cursor-pointer transition-all active:scale-95">
-                    <Printer className="w-3.5 h-3.5 text-white" />
-                  </button>
-                  <button onClick={toggleAudio}
-                    className={`px-3 py-2 rounded-xl font-extrabold text-[11px] flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 border ${isPlayingAudio ? "bg-red-500/20 border-red-400/30 text-red-300" : "bg-emerald-500/20 border-emerald-400/30 text-emerald-300"}`}>
-                    {isPlayingAudio ? <><VolumeX className="w-3.5 h-3.5" /> Stop</> : <><Volume2 className="w-3.5 h-3.5" /> Listen</>}
-                  </button>
-                </div>
-              </div>
-
-              {/* Disease Name */}
-              <div>
-                <h2 className="text-[22px] font-black text-white leading-tight">{diagnosisResult.diseaseName}</h2>
-                {scanTimestamp && (
-                  <span className="text-[10.5px] text-gray-400 font-medium mt-0.5 block">Scan completed: Today at {scanTimestamp}</span>
-                )}
-              </div>
-
-              {/* Risk Status Pill */}
-              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${getRiskColor(diagnosisResult.riskLevel).pill}`}>
-                <span>{getRiskEmoji(diagnosisResult.riskLevel)}</span>
-                <span>{diagnosisResult.riskLevel}</span>
-              </div>
-
-              {/* Uploaded image thumbnail */}
-              {uploadedMedia?.url && (
-                <div className="mt-1">
-                  <img src={uploadedMedia.url} alt="Scanned fish" className="w-full h-36 object-cover rounded-2xl border border-white/10 shadow-lg" />
-                </div>
-              )}
-            </div>
-
-            {/* ── White Body ── */}
-            <div className="bg-white p-5 space-y-5">
-
-              {/* Primary Lesion Card */}
-              {diagnosisResult.primaryLesion && (
-                <div className="bg-[#07200F]/5 border border-[#0F6236]/20 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10.5px] font-black text-[#0F6236] uppercase tracking-wider flex items-center gap-1.5">
-                      <Activity className="w-3.5 h-3.5" /> Lesion Localization
-                    </span>
-                    <span className={`text-[9.5px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-                      diagnosisResult.primaryLesion.severity === "Critical" ? "bg-red-50 text-red-700 border-red-200" :
-                      diagnosisResult.primaryLesion.severity === "Severe" ? "bg-orange-50 text-orange-700 border-orange-200" :
-                      "bg-amber-50 text-amber-700 border-amber-200"
-                    }`}>
-                      {diagnosisResult.primaryLesion.severity} Severity
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white rounded-xl p-3 border border-[#0F6236]/10">
-                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Affected Region</span>
-                      <span className="text-xs font-black text-gray-900">{diagnosisResult.primaryLesion.bodyPart}</span>
-                    </div>
-                    <div className="bg-white rounded-xl p-3 border border-[#0F6236]/10">
-                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Lesion Type</span>
-                      <span className="text-xs font-black text-[#0F6236]">{diagnosisResult.primaryLesion.lesionType}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Visual Findings */}
-              <div>
-                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2.5">Visual Findings</h3>
-                <div className="space-y-2">
-                  {diagnosisResult.visualFindings?.map((finding, idx) => (
-                    <div key={idx} className={`flex items-start gap-3 p-3 rounded-xl border text-xs font-medium ${finding.isHealthy ? "bg-emerald-50/60 border-emerald-100 text-gray-700" : "bg-red-50/60 border-red-100 text-gray-700"}`}>
-                      {finding.isHealthy
-                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                        : <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />}
-                      <span>{finding.text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Differential Diagnosis */}
-              {diagnosisResult.differentialDiagnosis && diagnosisResult.differentialDiagnosis.length > 0 && (
-                <div>
-                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2.5">Differential Diagnosis</h3>
-                  <div className="space-y-2">
-                    {diagnosisResult.differentialDiagnosis.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-bold text-gray-800">{item.condition}</span>
-                            <span className="text-xs font-black text-[#0F6236]">{item.percentage}%</span>
-                          </div>
-                          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full bg-gradient-to-r from-[#0F6236] to-emerald-400 transition-all duration-700"
-                              style={{ width: `${item.percentage}%` }} />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Treatment Plan */}
-              <div className="bg-[#07200F] rounded-2xl p-4 space-y-4">
-                <h3 className="text-[10.5px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Stethoscope className="w-3.5 h-3.5" /> Treatment Plan
-                </h3>
-
-                <div>
-                  <span className="text-[9.5px] font-black text-gray-400 uppercase tracking-wider block mb-2">Immediate Actions</span>
-                  <ul className="space-y-2">
-                    {diagnosisResult.treatmentPlan?.immediateActions?.map((act, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-xs text-gray-200 font-medium">
-                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 text-emerald-400 font-black text-[9px] mt-0.5">{idx + 1}</span>
-                        <span>{act}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <span className="text-[9.5px] font-black text-gray-400 uppercase tracking-wider block mb-2">Monitoring</span>
-                  <ul className="space-y-1.5">
-                    {diagnosisResult.treatmentPlan?.monitoring?.map((mon, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-xs text-gray-300 font-medium">
-                        <span className="text-emerald-400 shrink-0 mt-0.5">›</span>
-                        <span>{mon}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="border-t border-white/10 pt-3">
-                  <span className="text-[9.5px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                    <Pill className="w-3 h-3 text-emerald-400" /> Medication
-                  </span>
-                  <p className="text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl leading-relaxed">
-                    {diagnosisResult.treatmentPlan?.medication}
-                  </p>
-                </div>
-              </div>
-
-              {/* Water Parameters */}
-              {diagnosisResult.recommendedWaterParameters && (
-                <div>
-                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-2.5">
-                    <Droplets className="w-3.5 h-3.5 text-[#0F6236]" /> Target Water Parameters
-                  </h3>
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    {[
-                      { label: "Temp", val: diagnosisResult.recommendedWaterParameters.temperature },
-                      { label: "DO₂", val: diagnosisResult.recommendedWaterParameters.dissolvedOxygen },
-                      { label: "pH", val: diagnosisResult.recommendedWaterParameters.ph },
-                      { label: "Ammonia", val: diagnosisResult.recommendedWaterParameters.ammonia },
-                      { label: "Nitrite", val: diagnosisResult.recommendedWaterParameters.nitrite },
-                      { label: "Nitrate", val: diagnosisResult.recommendedWaterParameters.nitrate },
-                    ].map((p, i) => (
-                      <div key={i} className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
-                        <span className="text-[9px] text-gray-400 font-bold block mb-0.5">{p.label}</span>
-                        <span className="text-[10px] font-extrabold text-gray-900 leading-tight">{p.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Expandable Why Diagnosis */}
-              <div className="border-t border-gray-100 pt-3">
-                <button type="button" onClick={() => setShowExplanation(!showExplanation)}
-                  className="w-full flex items-center justify-between text-xs font-extrabold text-gray-600 hover:text-gray-900 cursor-pointer">
-                  <span className="flex items-center gap-1.5">
-                    <Info className="w-3.5 h-3.5 text-[#0F6236]" /> Why this diagnosis?
-                  </span>
-                  {showExplanation ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-                {showExplanation && (
-                  <div className="mt-2.5 p-3 rounded-2xl bg-gray-50 text-xs text-gray-700 font-medium border border-gray-200/80 leading-relaxed animate-in fade-in">
-                    {diagnosisResult.whyThisDiagnosis}
-                  </div>
-                )}
-              </div>
-
-              {/* Disclaimer */}
-              <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200/80 text-[10.5px] text-amber-900 font-medium leading-relaxed flex items-start gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                <span><span className="font-bold">Veterinary Disclaimer: </span>This AI assessment is a screening tool only. Laboratory testing and veterinary consultation may be required for a definitive diagnosis.</span>
-              </div>
-
-            </div>
           </div>
         )}
 
