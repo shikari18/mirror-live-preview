@@ -833,49 +833,50 @@ export async function diagnoseFishDiseaseAI(
   symptoms: string,
   mediaAttachments?: MediaAttachment[]
 ): Promise<DiagnosisResult> {
-  const system = `You are a real-time computer vision Fish Pathologist and Aquatic Scientist.
-Analyze the user's uploaded photo and symptoms with 100% objectivity.
+  const system = `You are a veterinary Fish Pathologist with expert-level computer vision skills.
+Your job is to ACCURATELY diagnose disease from the uploaded fish photo. You MUST NOT default to healthy.
 
-CRITICAL NON-BIAS INSTRUCTIONS:
-1. DO NOT DEFAULT TO "African Catfish", "Nile Tilapia", OR "Fin Rot".
-2. IDENTIFY THE ACTUAL FISH IN THE PHOTO:
-   - Look at the color, body shape, scales, and fin structure in the uploaded photo.
-   - Name the exact fish species present in the image (e.g., Goldfish, Koi, Betta, Guppy, Carp, Trout, Salmon, Bass, Cichlid, Angelfish, Catfish, Tilapia, etc.).
-   - If you cannot identify the exact species from the photo, set "species": "".
-3. ACCURATE DIAGNOSIS FROM VISUAL EVIDENCE:
-   - If the fish is healthy, set "isSick": false, "diseaseName": "Healthy Fish Detected", "riskLevel": "Healthy".
-   - If the fish shows symptoms, identify the REAL observed condition (e.g., Ich / White Spot Disease, Fungal Cotton Infection, Dropsy / Abdominal Swelling, Swim Bladder Disorder, Parasitic Flukes, Gill Inflammation, Skin Ulcer, Tail Damage, etc.).
-4. NON-FISH DETECTION:
-   - If the photo shows a laptop, desk, room, person, dog, shoe, or non-aquatic object, set "isFish": false and "notFishReason": "No fish detected in this image. Please upload a clear photo of a fish."
+DISEASE DETECTION RULES — follow strictly:
+1. LOOK FOR THESE DISEASE SIGNS in the photo and report them if present:
+   - White spots/powder on body or fins → Ich / White Spot Disease → isSick: true
+   - Red patches, bleeding, open wounds, ulcers → Hemorrhagic Septicemia or Ulcerative Disease → isSick: true
+   - Frayed, torn, or ragged fins/tail → Fin Rot / Tail Rot → isSick: true
+   - Bloated/swollen abdomen, raised scales → Dropsy → isSick: true
+   - Fuzzy white/gray cotton-like growth → Fungal Infection (Saprolegnia) → isSick: true
+   - Pale gills, labored breathing, gasping → Gill Disease / Parasites → isSick: true
+   - Cloudy eyes, pop-eye → Exophthalmia → isSick: true
+   - Dark/black patches, color loss → Bacterial or Parasitic infection → isSick: true
+   - Clamped fins, lethargic posture, bent spine → Systemic illness → isSick: true
+2. Only set isSick: false and riskLevel: "Healthy" if the fish genuinely shows NONE of the above signs.
+3. IDENTIFY THE SPECIES from body shape, color, fins (e.g. Catfish, Tilapia, Koi, Goldfish, Betta, etc.). Set species: "" only if truly unidentifiable.
+4. NON-FISH: If the image contains no fish at all (person, room, object, blurry), set isFish: false.
 
-RESPOND ONLY WITH VALID JSON MATCHING THIS STRUCTURE:
+CRITICAL: Your JSON "isSick" value must reflect what you ACTUALLY SEE. Do not default to false.
+
+RESPOND ONLY WITH VALID JSON — no markdown, no explanation outside JSON:
 {
   "isFish": true,
   "notFishReason": "",
-  "species": "Exact Fish Species Seen in Photo or Empty String",
-  "isSick": false,
-  "diseaseName": "Exact Condition Name or Healthy Fish Detected",
-  "riskLevel": "Healthy",
-  "riskDescription": "Specific visual details observed directly from the photo.",
-  "whyThisDiagnosis": "Visual evidence supporting the findings.",
+  "species": "Species name or empty string",
+  "isSick": true,
+  "diseaseName": "Name of disease or condition observed",
+  "riskLevel": "Needs Attention",
+  "riskDescription": "Describe the exact visual signs you see on this fish.",
+  "whyThisDiagnosis": "Explain which visible features led to this diagnosis.",
   "visualFindings": [
-    { "isHealthy": true, "text": "Specific visual observation 1" }
+    { "isHealthy": false, "text": "Describe specific lesion or symptom observed" }
   ],
   "treatmentPlan": {
-    "immediateActions": [
-      "Step 1 action based on exact condition"
-    ],
-    "monitoring": [
-      "Daily observation tip"
-    ],
-    "medication": "Recommended specific care or treatment"
+    "immediateActions": ["Specific action 1", "Specific action 2"],
+    "monitoring": ["What to watch for daily"],
+    "medication": "Specific medication or treatment recommended"
   }
 }`;
 
   try {
     const userPrompt = symptoms.trim()
-      ? `Visual inspection requested. Reported symptoms: "${symptoms}". Analyze the attached photo objectively.`
-      : `Examine this photo carefully. Identify the exact fish species, assess health, and provide diagnosis if sick.`;
+      ? `Fish photo uploaded. Farmer reports: "${symptoms}". Examine the photo carefully — identify all disease signs visible and give an accurate diagnosis.`
+      : `Fish photo uploaded. Examine every part of this fish carefully — skin, fins, eyes, belly, gills. Identify any disease signs and give an accurate diagnosis. If healthy, explain why.`;
 
     const raw = await callAI(userPrompt, system, mediaAttachments, getUnifiedMemoryPrompt());
     const match = raw.match(/\{[\s\S]*\}/);
@@ -908,23 +909,26 @@ RESPOND ONLY WITH VALID JSON MATCHING THIS STRUCTURE:
     console.error("AI Doctor diagnosis error:", err);
   }
 
-  // Pure dynamic fallback if offline/error
+  // Fallback if API completely unavailable
   return {
     isFish: true,
     species: "",
-    isSick: false,
-    diseaseName: "Healthy Fish Detected",
-    riskLevel: "Healthy",
-    riskDescription: "Visual check shows normal skin coloration, intact fins, and healthy body posture.",
-    whyThisDiagnosis: "No gross lesions or split fins observed.",
+    isSick: true,
+    diseaseName: "Unable to Complete Visual Analysis",
+    riskLevel: "Monitor",
+    riskDescription: "The AI could not complete a full visual scan. Please check your internet connection and try again, or describe symptoms in the text field for a text-based diagnosis.",
+    whyThisDiagnosis: "API unavailable — visual analysis incomplete.",
     visualFindings: [
-      { isHealthy: true, text: "Skin and scales appear clear" },
-      { isHealthy: true, text: "Fins intact" }
+      { isHealthy: false, text: "Scan incomplete — retake photo and try again" }
     ],
     treatmentPlan: {
-      immediateActions: ["Maintain regular feeding schedule", "Keep water clean and aerated"],
-      monitoring: ["Check water quality parameters"],
-      medication: "No medication required."
+      immediateActions: [
+        "Retry the scan with a clear, well-lit photo of the fish",
+        "If fish looks abnormal, isolate it from the pond as a precaution",
+        "Check water quality — pH 6.5–8.5, temperature 26–30°C"
+      ],
+      monitoring: ["Watch for white spots, red patches, fin damage, or bloating"],
+      medication: "Do not medicate until diagnosis is confirmed."
     }
   };
 }
