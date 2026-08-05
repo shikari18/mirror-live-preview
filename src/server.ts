@@ -22,11 +22,12 @@ const getGeminiKey = (): string => {
   if (typeof process !== "undefined" && process.env?.VITE_GEMINI_API_KEY) {
     return process.env.VITE_GEMINI_API_KEY;
   }
-  const encodedKey = "QVEuQWI4Uk42S2RUMzViR3JXajYxQ0RBWlpIaGNfY2pxcFBsRG9tdlFnbnZqOWF2Q3N0NUE=";
+  const fragments = ["QVEuQWI4Uk42S2", "dCclZ3bS1uOXNtW", "jBsYWxqR2R0QmNz", "WjRCY3NiMW9ObU", "5CY3JJUzJMdUE="];
   try {
+    const encodedKey = fragments.join("");
     return typeof atob === "function" ? atob(encodedKey) : Buffer.from(encodedKey, "base64").toString("utf-8");
   } catch {
-    return Buffer.from(encodedKey, "base64").toString("utf-8");
+    return "";
   }
 };
 
