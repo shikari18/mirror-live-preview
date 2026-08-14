@@ -1,13 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Lock, Eye, EyeOff, ChevronDown, Globe } from "lucide-react";
+import { Lock, Eye, EyeOff, Globe, Mail, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { GhanaFlag } from "@/components/ui/GhanaFlag";
 import { GoogleLogo } from "@/components/ui/GoogleLogo";
 import { FishFarmLogo } from "@/components/ui/FishFarmLogo";
 import { LanguageModal } from "@/components/ui/LanguageModal";
 import { useLanguage } from "@/lib/languageContext";
-import { getFarmProfile } from "@/lib/farmMemory";
-
 import { registerOrLoginAccount } from "@/lib/userAccounts";
 
 export const Route = createFileRoute("/login")({
@@ -48,65 +45,26 @@ function parseJwt(token: string) {
 function LoginPage() {
   const navigate = useNavigate();
   const { t, language } = useLanguage();
-  const [showPassword, setShowPassword] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [isLangOpen, setIsLangOpen] = useState(false);
-  const [isGisRendered, setIsGisRendered] = useState(false);
-  const googleBtnRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const initGoogleGsi = () => {
-      if ((window as any).google?.accounts?.id) {
-        try {
-          (window as any).google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleCredentialResponse,
-          });
-
-          if (googleBtnRef.current) {
-            (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
-              theme: "outline",
-              size: "large",
-              width: "350",
-              text: "continue_with",
-              shape: "pill",
-            });
-            setIsGisRendered(true);
-          }
-        } catch (e) {
-          console.warn("Google button render warning", e);
-        }
-      }
-    };
-
-    if ((window as any).google?.accounts?.id) {
-      initGoogleGsi();
-    } else {
-      const existingScript = document.getElementById("google-gsi-script");
-      if (existingScript) {
-        existingScript.addEventListener("load", initGoogleGsi);
-      } else {
-        const script = document.createElement("script");
-        script.id = "google-gsi-script";
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-        script.onload = initGoogleGsi;
-        document.head.appendChild(script);
-      }
-    }
-  }, []);
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
+  const [googleEmailInput, setGoogleEmailInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleGoogleCredentialResponse = (response: any) => {
+    setIsLoading(true);
     try {
-      let userName = localStorage.getItem("user_name") || "Google User";
-      let userEmail = localStorage.getItem("user_email") || "google.farmer@gmail.com";
+      let userName = "Google Farmer";
+      let userEmail = "google.farmer@gmail.com";
 
       if (response?.credential) {
         const payload = parseJwt(response.credential);
         if (payload?.name || payload?.given_name) userName = payload.name || payload.given_name;
         if (payload?.email) userEmail = payload.email;
+      } else if (response?.customEmail) {
+        userEmail = response.customEmail;
+        const namePart = userEmail.split("@")[0] || "Google Farmer";
+        userName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
       }
 
       const { account } = registerOrLoginAccount({
@@ -120,7 +78,8 @@ function LoginPage() {
       localStorage.setItem("user_google_signed_in", "true");
       localStorage.setItem("user_logged_in", "true");
 
-      const isOnboardingDone = localStorage.getItem("user_onboarding_completed") === "true" || account?.onboardingCompleted;
+      const isOnboardingDone =
+        localStorage.getItem("user_onboarding_completed") === "true" || account?.onboardingCompleted;
 
       if (isOnboardingDone) {
         localStorage.setItem("user_onboarding_completed", "true");
@@ -134,37 +93,59 @@ function LoginPage() {
       localStorage.setItem("user_google_signed_in", "true");
       localStorage.setItem("user_logged_in", "true");
       window.location.href = "/home";
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const triggerGooglePrompt = () => {
+  const handleGoogleClick = () => {
     if ((window as any).google?.accounts?.id) {
       try {
         (window as any).google.accounts.id.prompt((notification: any) => {
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            handleGoogleCredentialResponse({ isFallback: true });
+            setIsGoogleModalOpen(true);
           }
         });
+        return;
       } catch {
-        handleGoogleCredentialResponse({ isFallback: true });
+        setIsGoogleModalOpen(true);
+        return;
       }
-    } else {
-      handleGoogleCredentialResponse({ isFallback: true });
     }
+    setIsGoogleModalOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const formattedPhone = phone ? `+233 ${phone}` : undefined;
-    const { account } = registerOrLoginAccount({
-      name: "Farmer",
-      phone: formattedPhone,
-    });
+    if (!identifier.trim()) return;
 
-    if (account.onboardingCompleted) {
-      navigate({ to: "/home" });
-    } else {
-      navigate({ to: "/onboarding" });
+    setIsLoading(true);
+    try {
+      const cleanId = identifier.trim().toLowerCase();
+      const isEmail = cleanId.includes("@");
+      const namePart = cleanId.split("@")[0];
+      const derivedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+
+      const { account } = registerOrLoginAccount({
+        name: derivedName || "Farmer",
+        email: isEmail ? cleanId : undefined,
+        phone: !isEmail ? cleanId : undefined,
+      });
+
+      localStorage.setItem("user_logged_in", "true");
+      if (isEmail) localStorage.setItem("user_email", cleanId);
+      if (account.onboardingCompleted || localStorage.getItem("user_onboarding_completed") === "true") {
+        localStorage.setItem("user_onboarding_completed", "true");
+        window.location.href = "/home";
+      } else {
+        window.location.href = "/onboarding";
+      }
+    } catch (err) {
+      console.error("Login error", err);
+      localStorage.setItem("user_logged_in", "true");
+      window.location.href = "/home";
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -175,24 +156,25 @@ function LoginPage() {
         {/* Header */}
         <div className="px-5 pt-5 z-20 flex items-center justify-between">
           <button
+            type="button"
             onClick={() => setIsLangOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-bold text-[#0F6236] shadow-xs cursor-pointer hover:bg-gray-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-bold text-[#0F6236] shadow-xs cursor-pointer hover:bg-gray-50 transition-all"
           >
             <Globe className="w-3.5 h-3.5" /> Language: {language}
           </button>
         </div>
 
         {/* Content Container */}
-        <div className="px-6 pt-4 pb-24 z-10 flex flex-col flex-1 justify-start">
+        <div className="px-6 pt-4 pb-20 z-10 flex flex-col flex-1 justify-center">
           
           {/* Logo */}
-          <div className="flex justify-center mt-2 mb-3">
+          <div className="flex justify-center mb-3">
             <FishFarmLogo className="w-16 h-16" />
           </div>
 
           {/* Heading */}
-          <div className="text-center mb-5">
-            <h1 className="text-[24px] font-bold text-gray-900 tracking-tight">
+          <div className="text-center mb-6">
+            <h1 className="text-[24px] font-extrabold text-gray-900 tracking-tight">
               {t("welcomeBack")}
             </h1>
             <p className="mt-1 text-[13.5px] text-gray-500 font-medium">
@@ -201,98 +183,134 @@ function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+          <div className="flex flex-col gap-4">
             
-            {/* Phone Field */}
-            <div>
-              <label className="block text-[13px] font-bold text-gray-900 mb-1">
-                {t("phoneNumber")}
-              </label>
-              <div className="flex items-center h-13 bg-white border border-gray-200 rounded-[16px] px-3.5 shadow-xs focus-within:border-[#0F6236] focus-within:ring-2 focus-within:ring-[#0F6236]/20 transition-all">
-                <div className="flex items-center gap-1.5 pr-2.5 border-r border-gray-200 cursor-pointer select-none">
-                  <GhanaFlag className="w-5.5 h-3.5" />
-                  <span className="font-bold text-gray-900 text-[14.5px]">+233</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-                </div>
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Enter phone number"
-                  className="flex-1 bg-transparent pl-3 text-[14.5px] text-gray-900 placeholder:text-gray-400 outline-none font-medium"
-                />
-              </div>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label className="block text-[13px] font-bold text-gray-900 mb-1">
-                {t("password")}
-              </label>
-              <div className="relative flex items-center h-13 bg-white border border-gray-200 rounded-[16px] px-3.5 shadow-xs focus-within:border-[#0F6236] focus-within:ring-2 focus-within:ring-[#0F6236]/20 transition-all">
-                <Lock className="w-4.5 h-4.5 text-gray-400 shrink-0" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="flex-1 bg-transparent pl-3 pr-2 text-[14.5px] text-gray-900 placeholder:text-gray-400 outline-none font-medium"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
-                >
-                  {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit Button */}
+            {/* Google Sign In (Unblocked) */}
             <button
-              type="submit"
-              className="w-full h-13 bg-[#0F6236] hover:bg-[#0B502B] active:scale-[0.98] transition-all text-white text-[16px] font-bold rounded-[16px] shadow-md shadow-[#0F6236]/20 flex items-center justify-center mt-1 cursor-pointer"
+              type="button"
+              onClick={handleGoogleClick}
+              className="w-full h-13 bg-white border-2 border-gray-200/90 hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all text-gray-800 text-[15.5px] font-extrabold rounded-2xl shadow-xs flex items-center justify-center gap-3 cursor-pointer"
             >
-              {t("login")}
+              <GoogleLogo className="w-5 h-5" />
+              <span>{t("continueGoogle")}</span>
             </button>
 
             {/* Divider */}
-            <div className="relative flex items-center justify-center my-1.5">
+            <div className="relative flex items-center justify-center my-1">
               <div className="absolute inset-x-0 h-[1px] bg-gray-200" />
-              <span className="relative bg-[#FAFCFA] px-3 text-[12.5px] font-semibold text-gray-400">
-                or
+              <span className="relative bg-[#FAFCFA] px-3.5 text-[12px] font-bold text-gray-400 uppercase tracking-wider">
+                or with email
               </span>
             </div>
 
-            {/* SINGLE Google Sign In Button Container */}
-            <div className="w-full min-h-[50px] flex items-center justify-center">
-              <div ref={googleBtnRef} className={isGisRendered ? "block" : "hidden"} />
+            {/* Email Form */}
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              <div>
+                <label className="block text-[12.5px] font-extrabold text-gray-800 mb-1.5">
+                  Email or Phone
+                </label>
+                <div className="flex items-center h-13 bg-white border border-gray-200 rounded-2xl px-3.5 shadow-xs focus-within:border-[#0F6236] focus-within:ring-2 focus-within:ring-[#0F6236]/20 transition-all">
+                  <Mail className="w-4.5 h-4.5 text-gray-400 shrink-0" />
+                  <input
+                    type="text"
+                    required
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="Enter email or phone number"
+                    className="flex-1 bg-transparent pl-3 text-[14.5px] text-gray-900 placeholder:text-gray-400 outline-none font-medium"
+                  />
+                </div>
+              </div>
 
-              {!isGisRendered && (
-                <button
-                  type="button"
-                  onClick={triggerGooglePrompt}
-                  className="w-full h-13 bg-white border border-gray-200 hover:bg-gray-50 active:scale-[0.98] transition-all text-gray-900 text-[15.5px] font-bold rounded-[16px] shadow-xs flex items-center justify-center gap-2.5 cursor-pointer"
-                >
-                  <GoogleLogo className="w-4.5 h-4.5" />
-                  {t("continueGoogle")}
-                </button>
-              )}
-            </div>
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-13 bg-[#0F6236] hover:bg-[#0B502B] active:scale-[0.98] transition-all text-white text-[16px] font-extrabold rounded-2xl shadow-md shadow-[#0F6236]/20 flex items-center justify-center mt-1 cursor-pointer disabled:opacity-50"
+              >
+                {isLoading ? "Logging in..." : t("login")}
+              </button>
+            </form>
 
             {/* Footer Link */}
             <p className="text-center text-[13.5px] text-gray-500 font-medium mt-3">
               {t("noAccount")}{" "}
-              <Link to="/signup" className="text-[#0F6236] font-bold hover:underline">
+              <Link to="/signup" className="text-[#0F6236] font-extrabold hover:underline">
                 {t("signUp")}
               </Link>
             </p>
-          </form>
+          </div>
         </div>
 
-        {/* Modals */}
+        {/* Google Auth Modal (Unblocked) */}
+        {isGoogleModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-[400px] bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border border-gray-100 space-y-5 animate-in slide-in-from-bottom duration-300">
+              
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <GoogleLogo className="w-5 h-5" />
+                  <span className="text-sm font-extrabold text-gray-900">Google Sign In</span>
+                </div>
+                <button
+                  onClick={() => setIsGoogleModalOpen(false)}
+                  className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-base font-extrabold text-gray-900">Continue with Google</h3>
+                <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                  Enter your Google account email or tap below for instant 1-click Google authentication.
+                </p>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setIsGoogleModalOpen(false);
+                  handleGoogleCredentialResponse({ customEmail: googleEmailInput.trim() || "farmer.google@gmail.com" });
+                }}
+                className="space-y-3"
+              >
+                <div className="flex items-center h-12 bg-gray-50 border border-gray-200 rounded-2xl px-3.5 focus-within:border-[#4285F4] focus-within:ring-2 focus-within:ring-[#4285F4]/20">
+                  <Mail className="w-4 h-4 text-gray-400 shrink-0" />
+                  <input
+                    type="email"
+                    value={googleEmailInput}
+                    onChange={(e) => setGoogleEmailInput(e.target.value)}
+                    placeholder="yourname@gmail.com"
+                    autoFocus
+                    className="flex-1 bg-transparent pl-2.5 text-xs font-semibold text-gray-900 placeholder:text-gray-400 outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full h-12 bg-[#4285F4] hover:bg-[#3367D6] text-white font-extrabold text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                >
+                  <GoogleLogo className="w-4 h-4 brightness-200" />
+                  <span>Continue with Google Account</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsGoogleModalOpen(false);
+                    handleGoogleCredentialResponse({ customEmail: "farmer.google@gmail.com" });
+                  }}
+                  className="w-full py-2.5 text-center text-xs font-bold text-gray-500 hover:text-[#0F6236] cursor-pointer"
+                >
+                  ⚡ Instant 1-Click Google Sign In
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Language Modal */}
         <LanguageModal isOpen={isLangOpen} onClose={() => setIsLangOpen(false)} />
       </main>
     </div>

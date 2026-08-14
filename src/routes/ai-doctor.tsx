@@ -353,38 +353,30 @@ export function DiseasePage() {
                 <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-5 space-y-4">
                   {/* Top Bar: Species Name (BOLD BLACK TEXT) & Actions */}
                   <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
-                    <div className="space-y-1.5 flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Identified Fish Species</span>
-                        {diagnosisResult.isFullBodyVisible ? (
-                          <span className="inline-flex items-center gap-1 text-[9.5px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> Full Body Visible
-                          </span>
-                        ) : (
+                        {!diagnosisResult.isFullBodyVisible && (
                           <span className="inline-flex items-center gap-1 text-[9.5px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
-                            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" /> Full Body Missing — No Guesses
+                            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" /> Full Body Missing
                           </span>
                         )}
                       </div>
 
-                      <h2 className="text-lg font-black text-black leading-tight">
+                      <h2 className="text-lg font-black text-black leading-tight mt-0.5">
                         {diagnosisResult.isFullBodyVisible
                           ? (diagnosisResult.species || "Unspecified Fish Species")
                           : "Cannot identify — full body not visible"}
                       </h2>
 
-                      {!diagnosisResult.isFullBodyVisible ? (
-                        <div className="p-3 bg-amber-50/90 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1">
+                      {!diagnosisResult.isFullBodyVisible && (
+                        <div className="p-3 bg-amber-50/90 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1 mt-2">
                           <span className="font-extrabold block text-amber-950">⚠️ Full Body View Required</span>
                           <p className="text-[11px] leading-relaxed font-medium">
                             The AI Fish Doctor does not guess species from partial or cropped views. To identify the exact fish species, please upload a photo showing the entire fish from head to tail.
                           </p>
                         </div>
-                      ) : diagnosisResult.speciesExplanation ? (
-                        <p className="text-[11px] font-medium text-emerald-800 bg-emerald-50/70 p-2.5 rounded-2xl border border-emerald-100 leading-snug">
-                          🔍 {diagnosisResult.speciesExplanation}
-                        </p>
-                      ) : null}
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
