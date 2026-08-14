@@ -221,35 +221,117 @@ export function HomePage() {
         </div>
       )}
 
-      {/* Header Bar */}
-      <header className="px-5 pt-4 pb-3.5 flex items-center justify-between border-b border-[#0F6236]/10 bg-white/80 backdrop-blur-md sticky top-0 z-30">
+      {/* ─── REDESIGNED TOP APP BAR ─── */}
+      <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-[#0F6236]/10 bg-white/90 backdrop-blur-xl sticky top-0 z-30 shadow-2xs">
         <div className="flex items-center gap-3">
-          <Link to="/settings" className="p-2 text-gray-700 hover:text-[#0F6236] hover:bg-emerald-50 rounded-2xl transition-all cursor-pointer">
-            <Settings className="w-5.5 h-5.5" />
+          <Link to="/profile" className="relative group cursor-pointer">
+            <img
+              src={userProfilePic || farmerImg}
+              alt="Farmer avatar"
+              className="w-10 h-10 rounded-2xl object-cover border-2 border-[#0F6236] shadow-sm group-hover:scale-105 transition-all"
+            />
+            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-emerald-600/30" />
           </Link>
           <div>
-            <div className="text-[19px] font-extrabold text-gray-900 leading-tight flex items-center gap-1.5">
-              {userName ? `Welcome, ${userName} 👋` : "Welcome, Farmer 👋"}
+            <div className="text-[17.5px] font-black text-gray-900 leading-tight">
+              {userName ? `Welcome, ${userName}` : "Welcome back, Farmer"} <span className="inline-block animate-bounce">👋</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[#0F6236] text-[12px] font-bold mt-0.5">
-              <Building2 className="w-3.5 h-3.5" /> {farmName} {userLocation ? `• ${userLocation}` : ""}
+            <div className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#0F6236] mt-0.5">
+              <span className="flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5" />
+                <span>{farmName}</span>
+              </span>
+              {userLocation && (
+                <>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-gray-500 font-semibold truncate max-w-[130px]">{userLocation}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Link to="/notifications" className="relative p-2 rounded-2xl hover:bg-emerald-50 transition-all cursor-pointer">
-            <Bell className="w-5.5 h-5.5 text-gray-800" />
-            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-[#0F6236] border-2 border-white animate-pulse" />
+
+        <div className="flex items-center gap-1.5">
+          <Link to="/notifications" className="relative p-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-emerald-50 transition-all cursor-pointer">
+            <Bell className="w-5 h-5 text-gray-700" />
+            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-600 border-2 border-white" />
           </Link>
-          <Link to="/profile" className="cursor-pointer">
-            <img
-              src={userProfilePic || farmerImg}
-              alt="User profile"
-              className="w-10 h-10 rounded-2xl object-cover border-2 border-[#0F6236] shadow-md hover:scale-105 transition-all"
-            />
+          <Link to="/settings" className="p-2 rounded-xl text-gray-600 hover:text-[#0F6236] hover:bg-emerald-50 transition-all cursor-pointer">
+            <Settings className="w-5 h-5 text-gray-700" />
           </Link>
         </div>
       </header>
+
+      {/* ─── ELEGANT WELCOME & FARM OPERATIONS HERO CARD ─── */}
+      <section className="mx-5 mt-4 rounded-[28px] bg-gradient-to-br from-[#062414] via-[#0D4428] to-[#062414] text-white p-5 relative overflow-hidden shadow-xl shadow-[#0F6236]/25 border border-emerald-500/20">
+        {/* Subtle Background Art Watermark */}
+        <img src={fishDecor} alt="" aria-hidden="true" className="absolute -right-6 -bottom-6 w-44 h-44 object-cover opacity-10 pointer-events-none" />
+
+        <div className="relative z-10 space-y-4">
+          {/* Top Status & Weather Brief Row */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-400/15 border border-emerald-400/30 text-emerald-200 text-[10.5px] font-black uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              {pondsCount > 0 ? "Farm Operations Active" : "Farm Setup Ready"}
+            </span>
+
+            {/* Weather & 1-Tap Audio Brief */}
+            <button
+              onClick={handlePlayDailyVoiceAdvice}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-extrabold cursor-pointer transition-all active:scale-95 shadow-2xs"
+            >
+              <Volume2 className="w-3.5 h-3.5 text-emerald-300" />
+              <span>{isPlayingAudio ? "Playing..." : `${liveWeather.temp}°C Voice Brief`}</span>
+            </button>
+          </div>
+
+          {/* Headline & Overview */}
+          <div>
+            <h2 className="text-[22px] font-black text-white leading-tight tracking-tight">
+              {pondsCount > 0 ? `${pondsCount} Active Ponds Monitored` : "Smart Aquaculture Dashboard"}
+            </h2>
+            <p className="text-[12.5px] text-emerald-100/90 font-medium mt-1 leading-snug">
+              {pondsCount > 0
+                ? `${totalFish.toLocaleString()} total fish stocked • AI Health diagnosis ready`
+                : "Add your first pond or run an AI health scan on your fish"}
+            </p>
+          </div>
+
+          {/* Quick Metrics Bar Inside Hero */}
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center">
+            <div className="bg-white/5 rounded-2xl p-2 border border-white/5">
+              <span className="text-[10px] text-emerald-200/80 font-bold block">Ponds</span>
+              <span className="text-base font-black text-white">{pondsCount}</span>
+            </div>
+            <div className="bg-white/5 rounded-2xl p-2 border border-white/5">
+              <span className="text-[10px] text-emerald-200/80 font-bold block">Total Stock</span>
+              <span className="text-base font-black text-white">{totalFish > 0 ? totalFish.toLocaleString() : "—"}</span>
+            </div>
+            <div className="bg-white/5 rounded-2xl p-2 border border-white/5">
+              <span className="text-[10px] text-emerald-200/80 font-bold block">AI Status</span>
+              <span className="text-base font-black text-emerald-300">100% Ready</span>
+            </div>
+          </div>
+
+          {/* Hero Action CTA Buttons */}
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
+            <Link
+              to="/ai-doctor"
+              className="py-3 px-3.5 rounded-2xl bg-white text-[#0F6236] hover:bg-emerald-50 font-black text-xs shadow-lg shadow-black/20 flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer text-center"
+            >
+              <Stethoscope className="w-4 h-4 text-[#0F6236]" />
+              <span>AI Doctor Scan</span>
+            </Link>
+            <Link
+              to="/my-farm"
+              className="py-3 px-3.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-white font-extrabold text-xs border border-emerald-400/30 flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer text-center"
+            >
+              <Camera className="w-4 h-4 text-emerald-300" />
+              <span>Pond AR Scanner</span>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* Subscription / 23-Hour Free Trial Banner */}
       {subStatus.isPro ? (
@@ -292,28 +374,6 @@ export function HomePage() {
           </button>
         </div>
       )}
-
-      {/* Rich Emerald Hero Status Card */}
-      <section className="mx-5 mt-4 rounded-3xl bg-gradient-to-br from-[#09341D] via-[#0F6236] to-[#082917] text-white p-5 relative overflow-hidden shadow-2xl shadow-[#0F6236]/30 border border-emerald-500/20">
-        <img src={fishDecor} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-15" />
-        <div className="relative z-10">
-          <div className="text-[23px] font-extrabold leading-tight tracking-tight">
-            {pondsCount > 0 ? `${pondsCount} Active Ponds Monitored` : "Farm Profile Ready"}
-          </div>
-
-          <div className="mt-1 text-[13px] text-emerald-100 font-medium leading-relaxed">
-            {pondsCount > 0 ? `Total Stock: ${totalFish.toLocaleString()} Fish • AI Doctor Synced` : "Measure your pond with camera scanner to sync metrics"}
-          </div>
-          <div className="mt-4 flex gap-2.5">
-            <Link to="/my-farm" className="px-4 py-2.5 rounded-2xl bg-white text-[#0F6236] hover:bg-emerald-50 font-extrabold text-xs shadow-lg shadow-black/20 flex items-center gap-2 transition-all active:scale-95">
-              <Camera className="w-4 h-4 text-[#0F6236]" /> AR Camera Measure
-            </Link>
-            <Link to="/ai-doctor" className="px-4 py-2.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-white font-extrabold text-xs border border-emerald-400/30 flex items-center gap-2 transition-all active:scale-95">
-              <Stethoscope className="w-4 h-4 text-emerald-300" /> AI Doctor Scan
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* Big Prominent Live Farmers Chat Card (WhatsApp Style) */}
       <section className="mx-5 mt-4">

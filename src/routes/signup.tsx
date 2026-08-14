@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Mail, Globe, Sparkles, X, CheckCircle2, ArrowRight } from "lucide-react";
+import { Mail, Globe, ArrowRight, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { GoogleLogo } from "@/components/ui/GoogleLogo";
 import { FishFarmLogo } from "@/components/ui/FishFarmLogo";
@@ -47,8 +47,6 @@ function SignUpPage() {
   const { t, language } = useLanguage();
   const [email, setEmail] = useState("");
   const [isLangOpen, setIsLangOpen] = useState(false);
-  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState("");
   const [isGisRendered, setIsGisRendered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
@@ -65,17 +63,19 @@ function SignUpPage() {
           });
 
           if (googleBtnRef.current) {
+            googleBtnRef.current.innerHTML = "";
             (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
               theme: "outline",
               size: "large",
-              width: "350",
+              width: 320,
               text: "signup_with",
               shape: "pill",
+              logo_alignment: "left",
             });
             setIsGisRendered(true);
           }
         } catch (e) {
-          console.warn("Google button initialization notice:", e);
+          console.warn("Google button initialization error:", e);
         }
       }
     };
@@ -93,9 +93,6 @@ function SignUpPage() {
         script.async = true;
         script.defer = true;
         script.onload = initGoogleGsi;
-        script.onerror = () => {
-          console.info("Google GSI script offline/blocked by client; using integrated Google fallback.");
-        };
         document.head.appendChild(script);
       }
     }
@@ -111,10 +108,7 @@ function SignUpPage() {
         const payload = parseJwt(response.credential);
         if (payload?.name || payload?.given_name) userName = payload.name || payload.given_name;
         if (payload?.email) userEmail = payload.email;
-      } else if (response?.customEmail) {
-        userEmail = response.customEmail;
-        const namePart = userEmail.split("@")[0] || "Google Farmer";
-        userName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+        if (payload?.picture) localStorage.setItem("user_profile_image", payload.picture);
       }
 
       const { account } = registerOrLoginAccount({
@@ -148,25 +142,39 @@ function SignUpPage() {
     }
   };
 
-  // Trigger Google Sign-in or open unblocked Google Auth Sheet
-  const handleGoogleClick = () => {
-    // Check if Google GSI prompt can be rendered without origin block
+  const triggerGoogleOAuth = () => {
+    // Real Google Identity Services prompt
     if ((window as any).google?.accounts?.id) {
       try {
         (window as any).google.accounts.id.prompt((notification: any) => {
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            // Origin mismatch or blocked popup -> open Google sheet
-            setIsGoogleModalOpen(true);
+            // If One Tap is blocked, trigger standard Google OAuth2 popup
+            openRealGoogleOAuthPopup();
           }
         });
         return;
       } catch {
-        setIsGoogleModalOpen(true);
+        openRealGoogleOAuthPopup();
         return;
       }
     }
-    // If GSI script was blocked by origin/network/iframe, open fallback sheet directly
-    setIsGoogleModalOpen(true);
+    openRealGoogleOAuthPopup();
+  };
+
+  const openRealGoogleOAuthPopup = () => {
+    const redirectUri = window.location.origin + "/signup";
+    const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token%20id_token&scope=openid%20email%20profile&nonce=${Date.now()}`;
+    
+    // Open genuine Google sign-in window
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2.5;
+    window.open(
+      oauthUrl,
+      "GoogleSignIn",
+      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=1`
+    );
   };
 
   const handleEmailSubmit = (e: React.FormEvent) => {
@@ -204,13 +212,6 @@ function SignUpPage() {
     }
   };
 
-  const handleCustomGoogleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const gEmail = googleEmailInput.trim() || "farmer.google@gmail.com";
-    setIsGoogleModalOpen(false);
-    handleGoogleCredentialResponse({ customEmail: gEmail });
-  };
-
   return (
     <div className="min-h-screen bg-[#EAEFEA] flex justify-center items-center font-sans antialiased sm:py-4">
       <main className="w-full max-w-[430px] min-h-screen sm:min-h-[820px] bg-[#FAFCFA] relative flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-[36px] sm:border sm:border-gray-200">
@@ -240,34 +241,38 @@ function SignUpPage() {
               {t("createAccount")}
             </h1>
             <p className="mt-1 text-[13.5px] text-gray-500 font-medium leading-relaxed">
-              Join Ghana’s AI-powered smart aquaculture & veterinary diagnostic platform.
+              Sign up with your email or Google account to get started.
             </p>
           </div>
 
-          {/* Form: Email & Google Authentication Only */}
+          {/* Email & Google Authentication Only */}
           <div className="flex flex-col gap-4">
             
-            {/* Google Sign In Button (Primary 1-Click Method - Unblocked) */}
-            <div className="w-full">
-              <button
-                type="button"
-                onClick={handleGoogleClick}
-                className="w-full h-13 bg-white border-2 border-gray-200/90 hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all text-gray-800 text-[15px] font-extrabold rounded-2xl shadow-xs flex items-center justify-center gap-3 cursor-pointer"
-              >
-                <GoogleLogo className="w-5 h-5" />
-                <span>Continue with Google</span>
-              </button>
+            {/* Real Google Sign In Button */}
+            <div className="w-full flex justify-center min-h-[50px] items-center">
+              <div ref={googleBtnRef} className={isGisRendered ? "block" : "hidden"} />
+
+              {!isGisRendered && (
+                <button
+                  type="button"
+                  onClick={triggerGoogleOAuth}
+                  className="w-full h-13 bg-white border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98] transition-all text-gray-800 text-[15px] font-extrabold rounded-2xl shadow-xs flex items-center justify-center gap-3 cursor-pointer"
+                >
+                  <GoogleLogo className="w-5 h-5" />
+                  <span>Sign up with Google</span>
+                </button>
+              )}
             </div>
 
             {/* Divider */}
             <div className="relative flex items-center justify-center my-1">
               <div className="absolute inset-x-0 h-[1px] bg-gray-200" />
               <span className="relative bg-[#FAFCFA] px-3.5 text-[12px] font-bold text-gray-400 uppercase tracking-wider">
-                or with email
+                or
               </span>
             </div>
 
-            {/* Email Sign Up Form */}
+            {/* Email Field Only */}
             <form onSubmit={handleEmailSubmit} className="flex flex-col gap-3">
               <div>
                 <label className="block text-[12.5px] font-extrabold text-gray-800 mb-1.5">
@@ -280,7 +285,7 @@ function SignUpPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. farmer@gmail.com"
+                    placeholder="name@example.com"
                     className="flex-1 bg-transparent pl-3 text-[14.5px] text-gray-900 placeholder:text-gray-400 outline-none font-medium"
                   />
                 </div>
@@ -292,8 +297,14 @@ function SignUpPage() {
                 disabled={isLoading}
                 className="w-full h-13 bg-[#0F6236] hover:bg-[#0B502B] active:scale-[0.98] transition-all text-white text-[15.5px] font-extrabold rounded-2xl shadow-md shadow-[#0F6236]/20 flex items-center justify-center gap-2 cursor-pointer mt-1 disabled:opacity-50"
               >
-                <span>{isLoading ? "Signing up..." : "Sign Up with Email"}</span>
-                <ArrowRight className="w-4 h-4" />
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <span>Continue with Email</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
 
@@ -306,68 +317,6 @@ function SignUpPage() {
             </p>
           </div>
         </div>
-
-        {/* ─── GOOGLE AUTH MODAL (GUARANTEED UNBLOCKED ON ANY DOMAIN) ─── */}
-        {isGoogleModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-[400px] bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border border-gray-100 space-y-5 animate-in slide-in-from-bottom duration-300">
-              
-              <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <GoogleLogo className="w-5 h-5" />
-                  <span className="text-sm font-extrabold text-gray-900">Sign in with Google</span>
-                </div>
-                <button
-                  onClick={() => setIsGoogleModalOpen(false)}
-                  className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="text-base font-extrabold text-gray-900">Continue as Google User</h3>
-                <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                  Enter your Google account email to sign in instantly with Google authentication.
-                </p>
-              </div>
-
-              <form onSubmit={handleCustomGoogleSubmit} className="space-y-3">
-                <div className="flex items-center h-12 bg-gray-50 border border-gray-200 rounded-2xl px-3.5 focus-within:border-[#4285F4] focus-within:ring-2 focus-within:ring-[#4285F4]/20">
-                  <Mail className="w-4 h-4 text-gray-400 shrink-0" />
-                  <input
-                    type="email"
-                    value={googleEmailInput}
-                    onChange={(e) => setGoogleEmailInput(e.target.value)}
-                    placeholder="yourname@gmail.com"
-                    autoFocus
-                    className="flex-1 bg-transparent pl-2.5 text-xs font-semibold text-gray-900 placeholder:text-gray-400 outline-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full h-12 bg-[#4285F4] hover:bg-[#3367D6] text-white font-extrabold text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
-                >
-                  <GoogleLogo className="w-4 h-4 brightness-200" />
-                  <span>Continue with Google Account</span>
-                </button>
-
-                {/* 1-Tap Quick Fast Login Option */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsGoogleModalOpen(false);
-                    handleGoogleCredentialResponse({ customEmail: "farmer.google@gmail.com" });
-                  }}
-                  className="w-full py-2.5 text-center text-xs font-bold text-gray-500 hover:text-[#0F6236] cursor-pointer"
-                >
-                  ⚡ Or tap for Instant 1-Click Google Access
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
 
         {/* Language Modal */}
         <LanguageModal isOpen={isLangOpen} onClose={() => setIsLangOpen(false)} />
