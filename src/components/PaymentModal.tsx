@@ -76,7 +76,7 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
 
     // Simulate instant multi-gateway authorization (1.2s)
     setTimeout(() => {
-      const res = activateProSubscription(currentMethod.name, phoneNumber || cardDetails.number || "ONLINE_GATEWAY");
+      const res = activateProSubscription(currentMethod.id as any, phoneNumber || cardDetails.number || "ONLINE_GATEWAY");
       setIsProcessing(false);
 
       if (res.success) {

@@ -130,7 +130,10 @@ export function DiseasePage() {
       return;
     }
     if (!diagnosisResult) return;
-    const ttsSummary = `${diagnosisResult.species ? `Identified species: ${diagnosisResult.species}. ` : ""}${diagnosisResult.diseaseName}. ${diagnosisResult.whyThisDiagnosis} Treatment: ${diagnosisResult.treatmentPlan?.medication || ""}`;
+    const speciesInfo = diagnosisResult.isFullBodyVisible
+      ? `Identified species: ${diagnosisResult.species}. `
+      : "Fish species cannot be identified because the full body of the fish is not visible in the photo. ";
+    const ttsSummary = `${speciesInfo}${diagnosisResult.diseaseName}. ${diagnosisResult.whyThisDiagnosis} Treatment: ${diagnosisResult.treatmentPlan?.medication || ""}`;
     speakTextInstant(ttsSummary, language, () => setIsPlayingAudio(true), () => setIsPlayingAudio(false));
   };
 
@@ -350,11 +353,38 @@ export function DiseasePage() {
                 <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-5 space-y-4">
                   {/* Top Bar: Species Name (BOLD BLACK TEXT) & Actions */}
                   <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
-                    <div>
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Identified Fish Species</span>
-                      <h2 className="text-lg font-black text-black leading-tight mt-0.5">
-                        {diagnosisResult.species ? diagnosisResult.species : "Unspecified Fish"}
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Identified Fish Species</span>
+                        {diagnosisResult.isFullBodyVisible ? (
+                          <span className="inline-flex items-center gap-1 text-[9.5px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" /> Full Body Visible
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9.5px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" /> Full Body Missing — No Guesses
+                          </span>
+                        )}
+                      </div>
+
+                      <h2 className="text-lg font-black text-black leading-tight">
+                        {diagnosisResult.isFullBodyVisible
+                          ? (diagnosisResult.species || "Unspecified Fish Species")
+                          : "Cannot identify — full body not visible"}
                       </h2>
+
+                      {!diagnosisResult.isFullBodyVisible ? (
+                        <div className="p-3 bg-amber-50/90 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1">
+                          <span className="font-extrabold block text-amber-950">⚠️ Full Body View Required</span>
+                          <p className="text-[11px] leading-relaxed font-medium">
+                            The AI Fish Doctor does not guess species from partial or cropped views. To identify the exact fish species, please upload a photo showing the entire fish from head to tail.
+                          </p>
+                        </div>
+                      ) : diagnosisResult.speciesExplanation ? (
+                        <p className="text-[11px] font-medium text-emerald-800 bg-emerald-50/70 p-2.5 rounded-2xl border border-emerald-100 leading-snug">
+                          🔍 {diagnosisResult.speciesExplanation}
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -369,7 +399,10 @@ export function DiseasePage() {
                       <button
                         type="button"
                         onClick={() => {
-                          const text = `🐟 Fish Doctor AI Assessment\n\nSpecies: ${diagnosisResult.species || "Fish"}\nCondition: ${diagnosisResult.diseaseName}\n\nFindings:\n${diagnosisResult.riskDescription}\n\nAction Plan:\n${diagnosisResult.treatmentPlan?.immediateActions?.join("\n")}\n\nGenerated via FishFarm OS Ghana`;
+                          const speciesText = diagnosisResult.isFullBodyVisible
+                            ? (diagnosisResult.species || "Fish")
+                            : "Cannot identify — full body not visible";
+                          const text = `🐟 Fish Doctor AI Assessment\n\nSpecies: ${speciesText}\nCondition: ${diagnosisResult.diseaseName}\n\nFindings:\n${diagnosisResult.riskDescription}\n\nAction Plan:\n${diagnosisResult.treatmentPlan?.immediateActions?.join("\n")}\n\nGenerated via FishFarm OS Ghana`;
                           window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
                         }}
                         className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 cursor-pointer">
@@ -489,7 +522,14 @@ export function DiseasePage() {
                             <span className="text-xs font-black text-gray-900 truncate">{item.result.diseaseName}</span>
                           </div>
                           {item.result.species && (
-                            <div className="text-[10.5px] font-bold text-[#0F6236] truncate">🐟 {item.result.species}</div>
+                            <div className="text-[10.5px] font-bold text-[#0F6236] truncate flex items-center gap-1">
+                              <span>🐟 {item.result.species}</span>
+                              {item.result.isFullBodyVisible === false && (
+                                <span className="text-[8.5px] font-black px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                                  Partial View
+                                </span>
+                              )}
+                            </div>
                           )}
                           <div className="flex items-center gap-1 text-[9.5px] text-gray-400 font-medium mt-0.5">
                             <Clock className="w-3 h-3" />

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef } from "react";
-import { Check, ChevronRight, ArrowLeft, Fish, Waves, Target, Globe, Video, UploadCloud, CheckCircle, Edit3, Search, Building2 } from "lucide-react";
+import { Check, ChevronRight, ArrowLeft, Fish, Waves, Target, Globe, Video, UploadCloud, CheckCircle, Edit3, Search, Building2, MapPin } from "lucide-react";
 import { useLanguage, SupportedLanguage } from "@/lib/languageContext";
 import { saveFarmProfile, getFarmProfile } from "@/lib/farmMemory";
 

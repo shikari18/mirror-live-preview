@@ -171,6 +171,66 @@ async function callOpenRouterEngine(
   throw new Error("All OpenRouter models failed");
 }
 
+async function callGeminiEngine(
+  prompt: string,
+  systemInstruction?: string,
+  mediaAttachments?: MediaAttachment[],
+  farmContext?: string
+): Promise<string> {
+  const apiKey = getGeminiKey();
+  if (!apiKey) throw new Error("No Gemini API key");
+
+  const system = [
+    systemInstruction,
+    farmContext ? `[FARM MEMORY]:\n${farmContext}` : ""
+  ].filter(Boolean).join("\n\n");
+
+  const parts: any[] = [];
+  if (mediaAttachments && mediaAttachments.length > 0) {
+    for (const m of mediaAttachments) {
+      let dataUrl = m.data;
+      const mimeType = m.mimeType || "image/jpeg";
+      const base64Data = dataUrl.includes(";base64,") ? dataUrl.split(";base64,")[1] : dataUrl;
+      parts.push({
+        inlineData: {
+          mimeType,
+          data: base64Data
+        }
+      });
+    }
+  }
+  parts.push({ text: prompt });
+
+  const body: any = {
+    contents: [{ role: "user", parts }]
+  };
+  if (system) {
+    body.systemInstruction = { parts: [{ text: system }] };
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const fbRes = await fetch(fallbackUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!fbRes.ok) throw new Error(`Gemini request failed: ${fbRes.status}`);
+    const fbData = await fbRes.json();
+    return fbData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  }
+
+  const data = await response.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+}
+
 // ─── Unified AI Call Router (OpenRouter Primary + Gemini Fallback) ────────────
 
 async function callAI(
@@ -515,6 +575,14 @@ function sanitizeAfricanPhonetics(text: string): string {
     .trim();
 }
 
+const CLIENT_AUDIO_CACHE = new Map<string, string>();
+
+async function synthesizeAbenaAI(text: string, voice: string): Promise<string | null> {
+  const khayaUrl = await synthesizeSpeechKhayaAI(text, voice.includes("twi") ? "tw" : "en");
+  if (khayaUrl) return khayaUrl;
+  return null;
+}
+
 export async function getGeminiLiveVoiceAudio(text: string, targetLanguage: string = "English"): Promise<string | null> {
   const cleanText = text.replace(/[#*`_]/g, "").trim();
   if (!cleanText) return null;
@@ -590,6 +658,8 @@ Use markdown (### headers, - bullets). Be concise and actionable.`;
 export interface DiagnosisResult {
   isFish: boolean;
   notFishReason?: string;
+  isFullBodyVisible?: boolean;
+  speciesExplanation?: string;
   species: string;
   isSick: boolean;
   diseaseName: string;
@@ -608,21 +678,33 @@ export async function diagnoseFishDiseaseAI(
   symptoms: string,
   mediaAttachments?: MediaAttachment[]
 ): Promise<DiagnosisResult> {
-  const system = `You are Fish Doctor AI — an expert aquatic veterinarian for fish farmers.
-Analyze the uploaded fish photo and farmer notes, diagnose any health issue or abnormality present, and provide clear treatment guidance.
+  const system = `You are Fish Doctor AI — an expert aquatic veterinarian and ichthyologist for fish farmers.
+Analyze the uploaded fish photo and farmer notes to evaluate fish health, diagnose any condition, and IDENTIFY THE FISH SPECIES IF AND ONLY IF THE FULL BODY IS SHOWING.
 
-RESPOND ONLY WITH VALID JSON:
+CRITICAL INSTRUCTIONS FOR FISH SPECIES IDENTIFICATION:
+1. FULL BODY CHECK: Check whether the FULL BODY of the fish (from snout/head, gills, pelvic/dorsal fins, down to the caudal/tail fin) is completely visible in the image.
+2. IF FULL BODY IS SHOWING ("isFullBodyVisible": true):
+   - You MUST identify the fish species as accurately as possible (e.g. "African Sharptooth Catfish (Clarias gariepinus)", "Nile Tilapia (Oreochromis niloticus)", "Heterotis niloticus", "Silver Catfish (Chrysichthys nigrodigitatus)", "Common Carp", etc.).
+   - Provide "speciesExplanation": "Full body visible from head to tail. Identified species based on morphometric features, fin structure, and head shape."
+3. IF FULL BODY IS NOT SHOWING ("isFullBodyVisible": false):
+   - DO NOT GUESS OR ESTIMATE THE SPECIES. YOU ARE STRICTLY FORBIDDEN FROM GUESSING SPECIES WHEN FULL BODY IS NOT VISIBLE.
+   - You MUST set "species": "Cannot identify — full body not visible".
+   - Set "speciesExplanation": "The image shows only a partial view or cropped section of the fish. Full body (head to tail) is required for accurate species identification."
+
+RESPOND ONLY WITH VALID JSON IN THIS EXACT STRUCTURE:
 {
   "isFish": true,
   "notFishReason": "",
-  "species": "Species name or empty string",
+  "isFullBodyVisible": true,
+  "speciesExplanation": "Explanation of full body assessment and species identification",
+  "species": "Exact species name OR 'Cannot identify — full body not visible'",
   "isSick": true,
-  "diseaseName": "Exact name of disease or condition observed",
+  "diseaseName": "Exact name of disease or health condition observed",
   "riskLevel": "Needs Attention",
-  "riskDescription": "Describe the exact signs observed on this fish.",
+  "riskDescription": "Describe the exact health/disease signs observed on this fish.",
   "whyThisDiagnosis": "Explain why this diagnosis was given.",
   "visualFindings": [
-    { "isHealthy": false, "text": "Observed symptom or sign" }
+    { "isHealthy": false, "text": "Observed symptom or body feature status" }
   ],
   "treatmentPlan": {
     "immediateActions": ["Action 1", "Action 2"],
@@ -633,17 +715,34 @@ RESPOND ONLY WITH VALID JSON:
 
   try {
     const userPrompt = symptoms.trim()
-      ? `Fish photo uploaded by farmer. Farmer notes: "${symptoms}". Examine the fish carefully and provide your diagnosis and treatment recommendations.`
-      : `Fish photo uploaded by farmer. Examine the fish carefully and provide your diagnosis and treatment recommendations. If healthy, explain why.`;
+      ? `Fish photo uploaded by farmer. Farmer notes: "${symptoms}". Examine the fish carefully, check if the full body is visible to identify the species without guessing, and provide your diagnosis and treatment recommendations.`
+      : `Fish photo uploaded by farmer. Examine the fish carefully, check if the full body is visible to identify the species without guessing, and provide your diagnosis and treatment recommendations.`;
 
     const raw = await callAI(userPrompt, system, mediaAttachments, getUnifiedMemoryPrompt());
     const match = raw.match(/\{[\s\S]*\}/);
     if (match) {
       const p = JSON.parse(match[0]);
+      const isFullBody = p.isFullBodyVisible === true;
+      let speciesName = "";
+
+      if (!isFullBody) {
+        speciesName = "Cannot identify — full body not visible";
+      } else {
+        if (p.species && !p.species.toLowerCase().includes("cannot") && !p.species.toLowerCase().includes("unidentifiable") && p.species !== "Tilapia / Catfish") {
+          speciesName = p.species;
+        } else {
+          speciesName = p.species || "Unspecified Fish Species";
+        }
+      }
+
       return {
         isFish: p.isFish !== false,
         notFishReason: p.notFishReason || "No fish detected in image. Please upload a clear photo of your fish.",
-        species: p.species || "Tilapia / Catfish",
+        isFullBodyVisible: isFullBody,
+        speciesExplanation: p.speciesExplanation || (isFullBody 
+          ? "Full body of fish is visible." 
+          : "Full body (head to tail) is not fully visible in the image. Upload a full-body photo to identify species."),
+        species: speciesName,
         isSick: Boolean(p.isSick),
         diseaseName: p.diseaseName || (p.isSick ? "Suspected Fish Health Issue" : "Healthy Fish Detected"),
         riskLevel: p.riskLevel || (p.isSick ? "Needs Attention" : "Healthy"),
@@ -669,14 +768,17 @@ RESPOND ONLY WITH VALID JSON:
 
   return {
     isFish: true,
-    species: "Tilapia / Catfish",
+    isFullBodyVisible: false,
+    speciesExplanation: "Full body (head to tail) is required for accurate species identification.",
+    species: "Cannot identify — full body not visible",
     isSick: true,
     diseaseName: "Suspected Fish Health Issue",
     riskLevel: "Needs Attention",
     riskDescription: "Fish photo received. Please check water parameters and isolate affected fish.",
     whyThisDiagnosis: "Visual symptoms and behavior indicate potential water quality stress or infection.",
     visualFindings: [
-      { isHealthy: false, text: "Lesions or symptoms observed" }
+      { isHealthy: false, text: "Lesions or symptoms observed" },
+      { isHealthy: false, text: "Full body not completely visible for species identification" }
     ],
     treatmentPlan: {
       immediateActions: [
@@ -717,7 +819,7 @@ RESPOND ONLY WITH VALID JSON IN THIS EXACT STRUCTURE:
     const raw = await callAI(
       "Analyze this fish pond photo and calculate exact length, width, depth, volume, stocking capacity, and daily feed requirement.",
       system,
-      [{ type: "image", data: dataUrl }]
+      [{ mimeType: "image/jpeg", data: dataUrl }]
     );
 
     const match = raw.match(/\{[\s\S]*\}/);

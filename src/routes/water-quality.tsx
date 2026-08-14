@@ -34,8 +34,9 @@ export function WaterQualityPage() {
       const res = await evaluateWaterQualityAI({
         temp,
         ph,
-        do: dissolvedOxygen,
+        doMg: dissolvedOxygen,
         ammonia,
+        clarityCm: 30,
       });
       setEvaluation(res);
     } catch (e) {

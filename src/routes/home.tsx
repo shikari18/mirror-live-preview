@@ -17,7 +17,7 @@ import iconMarketPrices from "@/assets/icons/market-prices.png";
 import iconSupport from "@/assets/icons/support.png";
 
 import { useLanguage } from "@/lib/languageContext";
-import { getGeminiLiveVoiceAudio } from "@/lib/gemini";
+import { getGeminiLiveVoiceAudio, speakTextInstant } from "@/lib/gemini";
 import { getFarmProfile } from "@/lib/farmMemory";
 import { getSubscriptionStatus, SubscriptionStatus, PRO_MONTHLY_PRICE_GHC } from "@/lib/subscription";
 import { getRealActiveFarmersCount } from "@/lib/sharedCommunity";

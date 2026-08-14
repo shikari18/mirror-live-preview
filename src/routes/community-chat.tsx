@@ -131,7 +131,7 @@ export function CommunityChatPage() {
               body: sentMsg.text,
               tag: "ghana_farmers_community_" + sentMsg.id,
               renotify: true,
-            });
+            } as any);
           }
         } catch (err) {}
       }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Bell, MapPin, Fish, Calendar, Droplet, Clock, MoreVertical, TrendingUp, Package, Thermometer, Waves, FlaskConical, StickyNote, ChevronRight, BarChart3, FileEdit, AlertTriangle, Plus, X, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Bell, MapPin, Fish, Calendar, Droplet, Droplets, Activity, ShieldCheck, Pill, Clock, MoreVertical, TrendingUp, Package, Thermometer, Waves, FlaskConical, StickyNote, ChevronRight, BarChart3, FileEdit, AlertTriangle, Plus, X, ShieldAlert } from "lucide-react";
 import { BottomNav, PhoneFrame } from "@/components/BottomNav";
 import farmerImg from "@/assets/farmer.jpg";
 import pondImg from "@/assets/pond.jpg";
@@ -18,9 +18,21 @@ export const Route = createFileRoute("/pond/$pondId")({
   }),
 });
 
+const tabs = ["Overview", "Water Quality", "Feeding", "Mortality", "Tasks"];
+const overview = [
+  { Icon: Activity, label: "pH Level", value: "7.2", sub: "Optimal", tint: "bg-emerald-50 text-emerald-600" },
+  { Icon: Droplets, label: "Dissolved O₂", value: "5.8 mg/L", sub: "Good", tint: "bg-blue-50 text-blue-600" },
+  { Icon: Clock, label: "Water Temp", value: "28°C", sub: "Normal", tint: "bg-amber-50 text-amber-600" },
+  { Icon: ShieldCheck, label: "Ammonia", value: "0.02 mg/L", sub: "Safe", tint: "bg-purple-50 text-purple-600" },
+];
+const activity = [
+  { Icon: Droplets, title: "Water Quality Tested", sub: "pH: 7.2, DO: 5.8 mg/L", when: "2h ago", tint: "bg-blue-100 text-blue-700" },
+  { Icon: Pill, title: "Feeding Completed", sub: "15 kg Floating Pellets", when: "5h ago", tint: "bg-emerald-100 text-emerald-700" },
+];
+
 export function PondDetails() {
   const { pondId } = Route.useParams();
-  const [pond, setPond] = useState<PondRecord | null>(null);
+  const [pond, setPond] = useState<any>(null);
   const [mortalityLogs, setMortalityLogs] = useState<{ id: string; count: number; reason: string; date: string }[]>([]);
   const [isMortalityModalOpen, setIsMortalityModalOpen] = useState(false);
   const [deadCount, setDeadCount] = useState<number>(3);
@@ -42,9 +54,14 @@ export function PondDetails() {
       setPond({
         id: pondId,
         name: `Pond ${pondId}`,
-        size: "20m x 15m",
+        type: "Earthen",
+        widthMeters: 15,
+        lengthMeters: 20,
+        depthMeters: 1.5,
+        volumeLiters: 45000,
         fishCount: 1200,
         fishType: "African Catfish",
+        dateAdded: new Date().toISOString(),
         ph: "7.2",
         do: "5.8",
         temp: "28°C"

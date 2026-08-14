@@ -302,7 +302,7 @@ export function AssistantPage() {
     setVideoLoading(true);
 
     try {
-      const response = await getAIVideoCallResponse(userSpeech, language);
+      const response = await getAIVideoCallResponse(userSpeech);
       setVideoLoading(false);
       await playVoice(response);
     } catch (err) {

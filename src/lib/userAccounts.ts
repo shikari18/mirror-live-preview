@@ -106,7 +106,7 @@ export function registerOrLoginAccount(details: {
       farmName: details.farmName || "Green Aqua Farm",
       isGoogleSignedIn: !!details.isGoogle,
       // If it's a Google sign in or global onboarding was done, mark completed so they go straight to dashboard
-      onboardingCompleted: !!details.isGoogle || isGlobalOnboardingDone,
+      onboardingCompleted: Boolean(details.isGoogle || isGlobalOnboardingDone),
       createdAt: now,
       lastLoginAt: now,
     };
